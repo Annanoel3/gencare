@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Pill, CalendarDays, 
@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import QuickCaptureButton from '@/components/shared/QuickCaptureButton';
+import OneSignalInit from '@/components/shared/OneSignalInit';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -23,9 +24,13 @@ const navItems = [
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => { base44.auth.me().then(u => setCurrentUser(u)).catch(() => {}); }, []);
 
   return (
     <div className="min-h-screen bg-background flex">
+      {currentUser && <OneSignalInit user={currentUser} />}
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 border-r border-border bg-card fixed h-full z-30">
         <div className="p-6 border-b border-border">
