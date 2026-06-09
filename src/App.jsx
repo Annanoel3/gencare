@@ -22,6 +22,7 @@ import Tasks from '@/pages/Tasks';
 import Journal from '@/pages/Journal';
 import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
+import JoinPage from '@/pages/JoinPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -52,6 +53,7 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/join" element={<JoinPage />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />

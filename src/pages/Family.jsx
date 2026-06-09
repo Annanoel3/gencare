@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
-import { Users, Plus, Heart, Phone, School, Stethoscope } from 'lucide-react';
+import { Users, Plus, Heart, Phone, School, Stethoscope, QrCode } from 'lucide-react';
+import InviteModal from '@/components/family/InviteModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ const relationships = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Son', 
 
 export default function Family() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [form, setForm] = useState({ name: '', relationship: '', birthdate: '', care_notes: '' });
   const queryClient = useQueryClient();
 
@@ -48,9 +50,14 @@ export default function Family() {
           </h1>
           <p className="text-muted-foreground mt-1">Manage your loved ones' profiles and information.</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="rounded-xl gap-2">
-          <Plus className="w-4 h-4" /> Add Member
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setInviteOpen(true)} className="rounded-xl gap-2">
+            <QrCode className="w-4 h-4" /> Invite
+          </Button>
+          <Button onClick={() => setDialogOpen(true)} className="rounded-xl gap-2">
+            <Plus className="w-4 h-4" /> Add Member
+          </Button>
+        </div>
       </div>
 
       {members.length === 0 && !isLoading ? (
@@ -118,6 +125,8 @@ export default function Family() {
           ))}
         </div>
       )}
+
+      <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
