@@ -117,12 +117,12 @@ export default function FamilyMemberDetail() {
       </div>
 
       <Tabs defaultValue="medical" className="space-y-4">
-        <TabsList className="bg-muted rounded-xl">
-          <TabsTrigger value="medical" className="rounded-lg">Medical</TabsTrigger>
-          <TabsTrigger value="contacts" className="rounded-lg">Contacts</TabsTrigger>
-          <TabsTrigger value="school" className="rounded-lg">School</TabsTrigger>
-          <TabsTrigger value="medications" className="rounded-lg">Medications</TabsTrigger>
-          <TabsTrigger value="journal" className="rounded-lg">Journal</TabsTrigger>
+        <TabsList className="bg-muted rounded-xl w-full grid grid-cols-5">
+          <TabsTrigger value="medical" className="rounded-lg text-xs px-1">Medical</TabsTrigger>
+          <TabsTrigger value="contacts" className="rounded-lg text-xs px-1">Contacts</TabsTrigger>
+          <TabsTrigger value="school" className="rounded-lg text-xs px-1">School</TabsTrigger>
+          <TabsTrigger value="medications" className="rounded-lg text-xs px-1">Meds</TabsTrigger>
+          <TabsTrigger value="journal" className="rounded-lg text-xs px-1">Journal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="medical">
