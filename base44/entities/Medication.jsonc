@@ -1,0 +1,61 @@
+{
+  "name": "Medication",
+  "type": "object",
+  "properties": {
+    "family_member_id": {
+      "type": "string",
+      "description": "ID of the family member"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "medication_name": {
+      "type": "string"
+    },
+    "dosage": {
+      "type": "string"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "Once daily",
+        "Twice daily",
+        "Three times daily",
+        "Four times daily",
+        "Weekly",
+        "Bi-weekly",
+        "Monthly",
+        "As needed"
+      ],
+      "default": "Once daily"
+    },
+    "instructions": {
+      "type": "string"
+    },
+    "prescribing_doctor": {
+      "type": "string"
+    },
+    "pharmacy": {
+      "type": "string"
+    },
+    "refill_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "medication_name",
+    "family_member_id"
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "name": "CareTask",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Name of the person assigned"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "due_time": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Medical",
+        "School",
+        "Grocery",
+        "Household",
+        "Transportation",
+        "Financial",
+        "Personal Care",
+        "Other"
+      ],
+      "default": "Other"
+    },
+    "is_recurring": {
+      "type": "boolean",
+      "default": false
+    },
+    "recurrence": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "default": "daily"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

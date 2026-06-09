@@ -1,0 +1,54 @@
+{
+  "name": "Appointment",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "time": {
+      "type": "string"
+    },
+    "end_time": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "doctor_name": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Doctor",
+        "Therapy",
+        "School",
+        "Sports",
+        "Social",
+        "Other"
+      ],
+      "default": "Doctor"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "reminder_sent": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title",
+    "date"
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "name": "FamilyMessage",
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string"
+    },
+    "author_name": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Update",
+        "Announcement",
+        "Question",
+        "Care Update",
+        "Photo",
+        "General"
+      ],
+      "default": "General"
+    },
+    "family_member_id": {
+      "type": "string",
+      "description": "Related family member if applicable"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "content"
+  ]
+}

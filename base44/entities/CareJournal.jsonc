@@ -1,0 +1,48 @@
+{
+  "name": "CareJournal",
+  "type": "object",
+  "properties": {
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Symptom",
+        "Behavior",
+        "Mood",
+        "Doctor Note",
+        "Observation",
+        "Milestone",
+        "General"
+      ],
+      "default": "General"
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "great",
+        "good",
+        "okay",
+        "poor",
+        "bad"
+      ]
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "is_important": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "content"
+  ]
+}

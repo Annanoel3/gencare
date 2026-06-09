@@ -1,0 +1,100 @@
+{
+  "name": "FamilyMember",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Full name"
+    },
+    "photo_url": {
+      "type": "string",
+      "description": "Profile photo URL"
+    },
+    "relationship": {
+      "type": "string",
+      "enum": [
+        "Mother",
+        "Father",
+        "Grandmother",
+        "Grandfather",
+        "Son",
+        "Daughter",
+        "Spouse",
+        "Sibling",
+        "Uncle",
+        "Aunt",
+        "Cousin",
+        "Foster Child",
+        "Other"
+      ],
+      "description": "Relationship to the user"
+    },
+    "birthdate": {
+      "type": "string",
+      "format": "date"
+    },
+    "color": {
+      "type": "string",
+      "description": "Profile color code"
+    },
+    "medical_conditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allergies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "blood_type": {
+      "type": "string"
+    },
+    "insurance_provider": {
+      "type": "string"
+    },
+    "insurance_policy_number": {
+      "type": "string"
+    },
+    "preferred_pharmacy": {
+      "type": "string"
+    },
+    "primary_doctor": {
+      "type": "string"
+    },
+    "primary_doctor_phone": {
+      "type": "string"
+    },
+    "emergency_contact_name": {
+      "type": "string"
+    },
+    "emergency_contact_phone": {
+      "type": "string"
+    },
+    "school_name": {
+      "type": "string"
+    },
+    "school_grade": {
+      "type": "string"
+    },
+    "school_teacher": {
+      "type": "string"
+    },
+    "school_phone": {
+      "type": "string"
+    },
+    "care_notes": {
+      "type": "string"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "relationship"
+  ]
+}

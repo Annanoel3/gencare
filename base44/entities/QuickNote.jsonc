@@ -1,0 +1,37 @@
+{
+  "name": "QuickNote",
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "voice",
+        "text",
+        "photo"
+      ],
+      "default": "text"
+    },
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "is_processed": {
+      "type": "boolean",
+      "default": false
+    },
+    "ai_category": {
+      "type": "string"
+    },
+    "ai_summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "content"
+  ]
+}
