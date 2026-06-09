@@ -41,7 +41,7 @@ export default function OneSignalInit({ user }) {
           window.OneSignalDeferred.push(async function(OneSignal) {
             try {
               await OneSignal.init({
-                appId: "GENCARE_ONESIGNAL_APP_ID",
+                appId: "067a47c8-a2c2-4307-8461-a329aaff6a2b",
                 allowLocalhostAsSecureOrigin: true,
                 notifyButton: { enable: false }
               });
