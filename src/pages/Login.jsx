@@ -70,6 +70,13 @@ export default function Login() {
         </div>
       )}
 
+      <div className="mb-4 p-4 rounded-xl bg-secondary/50 border border-border text-center">
+        <p className="text-sm text-muted-foreground">Have an invite code?</p>
+        <Link to="/join" className="text-primary font-medium text-sm hover:underline">
+          Join a Family →
+        </Link>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>

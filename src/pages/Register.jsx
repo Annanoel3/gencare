@@ -19,6 +19,9 @@ export default function Register() {
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
 
+  // Capture invite code from URL if coming from JoinPage
+  const inviteCode = new URLSearchParams(window.location.search).get("invite") || "";
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -44,6 +47,10 @@ export default function Register() {
       const result = await base44.auth.verifyOtp({ email, otpCode });
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
+      }
+      // If joined via invite, save the invite code to the user profile
+      if (inviteCode) {
+        await base44.auth.updateMe({ invite_code_used: inviteCode });
       }
       window.location.href = "/";
     } catch (err) {

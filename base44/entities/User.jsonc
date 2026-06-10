@@ -1,17 +1,18 @@
 {
+  "name": "User",
+  "type": "object",
   "properties": {
     "role": {
       "type": "string",
-      "description": "The role of the user in the app",
       "enum": [
         "admin",
         "user"
-      ]
+      ],
+      "default": "user"
+    },
+    "invite_code_used": {
+      "type": "string",
+      "description": "The invite code the user used when joining a family"
     }
-  },
-  "required": [
-    "role"
-  ],
-  "name": "User",
-  "type": "object"
+  }
 }
