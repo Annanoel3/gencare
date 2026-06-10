@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Pill, CalendarDays, 
   ClipboardList, BookOpen, MessageCircle, Menu, X,
-  Heart, Settings, LogOut
+  Heart, Settings, LogOut, CheckSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -16,6 +16,7 @@ const navItems = [
   { path: '/medications', icon: Pill, label: 'Medications' },
   { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
+  { path: '/checklists', icon: CheckSquare, label: 'Checklists' },
   { path: '/journal', icon: BookOpen, label: 'Journal' },
   { path: '/messages', icon: MessageCircle, label: 'Messages' },
   { path: '/wellness', icon: Heart, label: 'Wellness' },

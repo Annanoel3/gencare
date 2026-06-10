@@ -1,0 +1,51 @@
+{
+  "name": "Checklist",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Checklist name, e.g. Morning Routine"
+    },
+    "family_member_id": {
+      "type": "string",
+      "description": "Which family member this checklist is for"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Medication",
+        "Meals",
+        "School",
+        "Personal Care",
+        "Pet Care",
+        "Elderly Care",
+        "Other"
+      ],
+      "default": "Other"
+    },
+    "reset_frequency": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly",
+        "never"
+      ],
+      "default": "daily",
+      "description": "How often checklist items reset"
+    },
+    "color": {
+      "type": "string",
+      "description": "Accent color for the card"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

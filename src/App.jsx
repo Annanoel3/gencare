@@ -19,6 +19,7 @@ import FamilyMemberDetail from '@/pages/FamilyMemberDetail';
 import Medications from '@/pages/Medications';
 import CalendarPage from '@/pages/CalendarPage';
 import Tasks from '@/pages/Tasks';
+import Checklists from '@/pages/Checklists';
 import Journal from '@/pages/Journal';
 import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
@@ -62,6 +63,7 @@ const AuthenticatedApp = () => {
           <Route path="/medications" element={<Medications />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/checklists" element={<Checklists />} />
           <Route path="/journal" element={<Journal />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/wellness" element={<Wellness />} />
