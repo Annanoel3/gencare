@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, parseISO, isToday } from 'date-fns';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import GoogleCalendarSync from '@/components/calendar/GoogleCalendarSync';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -68,6 +69,8 @@ export default function CalendarPage() {
         </div>
         <Button onClick={openNewAppt} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Event</Button>
       </div>
+
+      <GoogleCalendarSync />
 
       {/* Calendar Grid */}
       <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mb-6">

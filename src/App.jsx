@@ -24,6 +24,9 @@ import Journal from '@/pages/Journal';
 import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
 import JoinPage from '@/pages/JoinPage';
+import Settings from '@/pages/Settings';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import AccountManagement from '@/pages/AccountManagement';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -67,6 +70,9 @@ const AuthenticatedApp = () => {
           <Route path="/journal" element={<Journal />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/wellness" element={<Wellness />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/account-management" element={<AccountManagement />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

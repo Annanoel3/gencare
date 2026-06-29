@@ -1,0 +1,32 @@
+{
+  "name": "EmailChangeRequest",
+  "type": "object",
+  "properties": {
+    "current_email": {
+      "type": "string",
+      "description": "The user's current email"
+    },
+    "requested_email": {
+      "type": "string",
+      "description": "The new email requested"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "ID of the requesting user"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending"
+    }
+  },
+  "required": [
+    "current_email",
+    "requested_email",
+    "user_id"
+  ]
+}

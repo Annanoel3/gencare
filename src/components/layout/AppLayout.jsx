@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Pill, CalendarDays, 
   ClipboardList, BookOpen, MessageCircle, Menu, X,
-  Heart, Settings, LogOut, CheckSquare
+  Heart, LogOut, CheckSquare, Settings as SettingsIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -20,6 +20,7 @@ const navItems = [
   { path: '/journal', icon: BookOpen, label: 'Journal' },
   { path: '/messages', icon: MessageCircle, label: 'Messages' },
   { path: '/wellness', icon: Heart, label: 'Wellness' },
+  { path: '/settings', icon: SettingsIcon, label: 'Settings' },
 ];
 
 export default function AppLayout() {
