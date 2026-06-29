@@ -90,17 +90,17 @@ export default function Wellness() {
           <CardTitle className="font-heading text-lg">How are you feeling today?</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-5 gap-1 md:gap-2 mb-4">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3 mb-4">
             {moodOptions.map(mood => (
               <button
                 key={mood.value}
                 onClick={() => setSelectedMood(mood.value)}
-                className={`flex flex-col items-center gap-1 p-2 md:p-3 rounded-xl border-2 transition-all ${
+                className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${
                   selectedMood === mood.value ? mood.color + ' shadow-md scale-105' : 'border-border/50 hover:border-border'
                 }`}
               >
                 <span className="text-2xl md:text-3xl">{mood.emoji}</span>
-                <span className="text-[10px] font-medium text-center leading-tight">{mood.label}</span>
+                <span className="text-xs font-medium text-center leading-tight">{mood.label}</span>
               </button>
             ))}
           </div>
