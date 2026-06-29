@@ -42,7 +42,7 @@ export default function Family() {
 
   return (
     <div className="pb-24 lg:pb-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3">
             <Users className="w-7 h-7 text-primary" />
@@ -50,7 +50,7 @@ export default function Family() {
           </h1>
           <p className="text-muted-foreground mt-1">Manage your loved ones' profiles and information.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <Button variant="outline" onClick={() => setInviteOpen(true)} className="rounded-xl gap-2">
             <QrCode className="w-4 h-4" /> Invite
           </Button>
