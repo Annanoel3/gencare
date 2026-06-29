@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO } from 'date-fns';
@@ -18,8 +18,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { getMemberColorClass } from '@/utils/memberColors';
 
 export default function CalendarPage() {
-  const [view, setView] = useState('month');
+  const [view, setView] = useState(() => {
+    try { return localStorage.getItem('gencare_calendar_view') || 'month'; } catch { return 'month'; }
+  });
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  useEffect(() => {
+    try { localStorage.setItem('gencare_calendar_view', view); } catch {}
+  }, [view]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ title: '', date: format(new Date(), 'yyyy-MM-dd'), time: '', category: 'Doctor', location: '', notes: '', family_member_id: '' });
