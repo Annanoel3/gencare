@@ -11,11 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-
-const categoryColors = {
-  Doctor: 'bg-blue-500', Therapy: 'bg-purple-500', School: 'bg-amber-500',
-  Sports: 'bg-emerald-500', Social: 'bg-pink-500', Other: 'bg-gray-500',
-};
+import { getMemberColorByMemberId, getMemberColorClass } from '@/utils/memberColors';
 
 export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -31,7 +27,7 @@ export default function CalendarPage() {
 
   const { data: members = [] } = useQuery({
     queryKey: ['familyMembers'],
-    queryFn: () => base44.entities.FamilyMember.list(),
+    queryFn: () => base44.entities.FamilyMember.list('-created_date'),
   });
 
   const createMutation = useMutation({
@@ -72,6 +68,18 @@ export default function CalendarPage() {
 
       <GoogleCalendarSync />
 
+      {/* Color legend */}
+      {members.length > 0 && (
+        <div className="flex flex-wrap gap-3 mb-4 px-1">
+          {members.map(m => (
+            <div key={m.id} className="flex items-center gap-1.5">
+              <span className={`w-2.5 h-2.5 rounded-full ${getMemberColorClass(m, members)}`} />
+              <span className="text-xs text-muted-foreground">{m.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Calendar Grid */}
       <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
@@ -104,7 +112,7 @@ export default function CalendarPage() {
                 {dayAppts.length > 0 && (
                   <div className="flex gap-0.5 mt-0.5">
                     {dayAppts.slice(0, 3).map((a, i) => (
-                      <div key={i} className={`w-1.5 h-1.5 rounded-full ${selected ? 'bg-primary-foreground' : categoryColors[a.category] || 'bg-gray-400'}`} />
+                      <div key={i} className={`w-1.5 h-1.5 rounded-full ${selected ? 'bg-primary-foreground' : getMemberColorByMemberId(a.family_member_id, members)}`} />
                     ))}
                   </div>
                 )}
@@ -126,12 +134,17 @@ export default function CalendarPage() {
           <div className="space-y-3">
             {selectedDayAppointments.map(appt => (
               <div key={appt.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
-                <div className={`w-2 h-full min-h-[40px] rounded-full ${categoryColors[appt.category] || 'bg-gray-400'}`} />
+                <div className={`w-2 h-full min-h-[40px] rounded-full ${getMemberColorByMemberId(appt.family_member_id, members)}`} />
                 <div className="flex-1">
                   <p className="font-medium text-sm">{appt.title}</p>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {appt.time && <span className="text-xs text-muted-foreground">{appt.time}</span>}
-                    {appt.family_member_name && <Badge variant="secondary" className="text-xs">{appt.family_member_name}</Badge>}
+                    {appt.family_member_name && (
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        <span className={`w-2 h-2 rounded-full ${getMemberColorByMemberId(appt.family_member_id, members)}`} />
+                        {appt.family_member_name}
+                      </span>
+                    )}
                     {appt.location && <span className="text-xs text-muted-foreground">📍 {appt.location}</span>}
                   </div>
                 </div>
