@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
+import ChecklistsPanel from '@/components/checklists/ChecklistsPanel';
 
 const priorityConfig = {
   low: { color: 'bg-blue-500/10 text-blue-600 border-blue-200', icon: Circle },
@@ -69,8 +70,15 @@ export default function Tasks() {
         <Button onClick={() => setDialogOpen(true)} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Task</Button>
       </div>
 
-      <Tabs defaultValue="pending">
+      <Tabs defaultValue="tasks">
         <TabsList className="bg-muted rounded-xl mb-6">
+          <TabsTrigger value="tasks" className="rounded-lg">Tasks</TabsTrigger>
+          <TabsTrigger value="checklists" className="rounded-lg">Checklists</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="tasks">
+        <Tabs defaultValue="pending">
+        <TabsList className="bg-muted rounded-xl mb-4">
           <TabsTrigger value="pending" className="rounded-lg">Pending ({pending.length})</TabsTrigger>
           <TabsTrigger value="completed" className="rounded-lg">Completed ({completed.length})</TabsTrigger>
         </TabsList>
@@ -101,6 +109,12 @@ export default function Tasks() {
               ))}
             </div>
           )}
+        </TabsContent>
+      </Tabs>
+        </TabsContent>
+
+        <TabsContent value="checklists">
+          <ChecklistsPanel />
         </TabsContent>
       </Tabs>
 
