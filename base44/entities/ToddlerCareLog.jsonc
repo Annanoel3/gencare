@@ -1,0 +1,78 @@
+{
+  "name": "ToddlerCareLog",
+  "type": "object",
+  "properties": {
+    "family_member_id": {
+      "type": "string",
+      "description": "ID of the toddler"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "entry_type": {
+      "type": "string",
+      "enum": [
+        "tantrum",
+        "mood",
+        "screen_time",
+        "potty",
+        "milestone"
+      ],
+      "default": "mood"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tantrum_trigger": {
+      "type": "string",
+      "description": "What triggered the tantrum"
+    },
+    "tantrum_duration_min": {
+      "type": "number"
+    },
+    "tantrum_response": {
+      "type": "string",
+      "description": "How it was handled"
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "happy",
+        "calm",
+        "anxious",
+        "irritable",
+        "upset"
+      ]
+    },
+    "screen_time_min": {
+      "type": "number"
+    },
+    "potty_type": {
+      "type": "string",
+      "enum": [
+        "attempt",
+        "success",
+        "accident"
+      ]
+    },
+    "milestone_category": {
+      "type": "string",
+      "enum": [
+        "speech",
+        "motor",
+        "social"
+      ]
+    },
+    "milestone_description": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "family_member_id",
+    "entry_type"
+  ]
+}
