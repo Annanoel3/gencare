@@ -21,6 +21,7 @@ import CalendarPage from '@/pages/CalendarPage';
 import Tasks from '@/pages/Tasks';
 import Checklists from '@/pages/Checklists';
 import Journal from '@/pages/Journal';
+import BabyCare from '@/pages/BabyCare';
 import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
 import JoinPage from '@/pages/JoinPage';
@@ -68,6 +69,7 @@ const AuthenticatedApp = () => {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/checklists" element={<Checklists />} />
           <Route path="/journal" element={<Journal />} />
+          <Route path="/baby-care" element={<BabyCare />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/wellness" element={<Wellness />} />
           <Route path="/settings" element={<Settings />} />

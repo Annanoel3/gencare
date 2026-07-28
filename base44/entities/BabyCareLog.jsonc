@@ -1,0 +1,71 @@
+{
+  "name": "BabyCareLog",
+  "type": "object",
+  "properties": {
+    "family_member_id": {
+      "type": "string",
+      "description": "ID of the baby"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "entry_type": {
+      "type": "string",
+      "enum": [
+        "feeding",
+        "diaper",
+        "sleep",
+        "pumping"
+      ],
+      "default": "feeding"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "feeding_method": {
+      "type": "string",
+      "enum": [
+        "nursing",
+        "bottle",
+        "solid"
+      ]
+    },
+    "breast_side": {
+      "type": "string",
+      "enum": [
+        "left",
+        "right",
+        "both"
+      ]
+    },
+    "amount_ml": {
+      "type": "number"
+    },
+    "duration_min": {
+      "type": "number"
+    },
+    "diaper_type": {
+      "type": "string",
+      "enum": [
+        "wet",
+        "dirty",
+        "mixed"
+      ]
+    },
+    "sleep_type": {
+      "type": "string",
+      "enum": [
+        "nap",
+        "night"
+      ]
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "family_member_id",
+    "entry_type"
+  ]
+}
