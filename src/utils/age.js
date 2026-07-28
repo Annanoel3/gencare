@@ -20,6 +20,20 @@ export function isPreteen(member) {
   return m !== null && m >= PRETEEN_START && m < PRETEEN_END;
 }
 
+export const TEEN_START = 156;    // 13 years
+export const TEEN_END = 216;     // 18 years
+export const SENIOR_START = 780; // 65 years
+
+export function isTeen(member) {
+  const m = ageInMonths(member?.birthdate);
+  return m !== null && m >= TEEN_START && m < TEEN_END;
+}
+
+export function isSenior(member) {
+  const m = ageInMonths(member?.birthdate);
+  return m !== null && m >= SENIOR_START;
+}
+
 export function isToddler(member) {
   const m = ageInMonths(member?.birthdate);
   return m !== null && m >= BABY_AGE_MONTHS && m < TODDLER_AGE_MONTHS;

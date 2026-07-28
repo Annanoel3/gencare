@@ -1,0 +1,73 @@
+{
+  "name": "TeenLog",
+  "type": "object",
+  "properties": {
+    "family_member_id": {
+      "type": "string",
+      "description": "ID of the teen"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "entry_type": {
+      "type": "string",
+      "enum": [
+        "transport",
+        "financial",
+        "document",
+        "academic"
+      ],
+      "default": "transport"
+    },
+    "sub_type": {
+      "type": "string",
+      "description": "Specific kind within the entry type"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "title": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Deadline, pickup, or event date"
+    },
+    "time": {
+      "type": "string",
+      "description": "Pickup or drop-off time"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Dollar amount for financial entries"
+    },
+    "location": {
+      "type": "string"
+    },
+    "contact": {
+      "type": "string",
+      "description": "Driver or other parent contact"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "scheduled",
+        "done"
+      ]
+    },
+    "doc_url": {
+      "type": "string",
+      "description": "Link to a stored document"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "family_member_id",
+    "entry_type"
+  ]
+}

@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Pill, CalendarDays, 
   ClipboardList, BookOpen, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Baby, Footprints, Backpack, School
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Baby, Footprints, Backpack, School, Car, HeartHandshake
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -21,6 +21,8 @@ const navStructure = [
     { path: '/toddler-care', icon: Footprints, label: 'Toddler Care' },
     { path: '/school-age-care', icon: School, label: 'School-Age Care' },
     { path: '/preteen-care', icon: Backpack, label: 'Pre-Teen Care' },
+    { path: '/teen-management', icon: Car, label: 'Teen Management' },
+    { path: '/senior-care', icon: HeartHandshake, label: 'Senior Care' },
   ]},
   { type: 'group', label: 'Tools', icon: Wrench, children: [
     { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
