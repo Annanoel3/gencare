@@ -1,0 +1,75 @@
+{
+  "name": "SchoolAgeLog",
+  "type": "object",
+  "properties": {
+    "family_member_id": {
+      "type": "string",
+      "description": "ID of the school-age child"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "entry_type": {
+      "type": "string",
+      "enum": [
+        "reading",
+        "homework",
+        "chore",
+        "hygiene",
+        "mood",
+        "screen_time",
+        "activity"
+      ],
+      "default": "reading"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "title": {
+      "type": "string",
+      "description": "Book title, assignment, chore, or activity name"
+    },
+    "minutes": {
+      "type": "number",
+      "description": "Reading, screen, or activity minutes"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "stars": {
+      "type": "number",
+      "description": "Reward stars earned for a chore"
+    },
+    "hygiene_habit": {
+      "type": "string",
+      "enum": [
+        "shower",
+        "teeth",
+        "bedtime"
+      ]
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "happy",
+        "calm",
+        "anxious",
+        "irritable",
+        "upset"
+      ]
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "family_member_id",
+    "entry_type"
+  ]
+}

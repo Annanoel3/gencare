@@ -23,6 +23,7 @@ import Checklists from '@/pages/Checklists';
 import Journal from '@/pages/Journal';
 import BabyCare from '@/pages/BabyCare';
 import ToddlerCare from '@/pages/ToddlerCare';
+import SchoolAgeCare from '@/pages/SchoolAgeCare';
 import PreteenCare from '@/pages/PreteenCare';
 import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
@@ -73,6 +74,7 @@ const AuthenticatedApp = () => {
           <Route path="/journal" element={<Journal />} />
           <Route path="/baby-care" element={<BabyCare />} />
           <Route path="/toddler-care" element={<ToddlerCare />} />
+          <Route path="/school-age-care" element={<SchoolAgeCare />} />
           <Route path="/preteen-care" element={<PreteenCare />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/wellness" element={<Wellness />} />

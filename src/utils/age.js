@@ -2,7 +2,15 @@ import { differenceInMonths, parseISO } from 'date-fns';
 
 // A member counts as a "baby" for baby-care tracking until 24 months old.
 export const BABY_AGE_MONTHS = 24;
-export const TODDLER_AGE_MONTHS = 60;
+export const TODDLER_AGE_MONTHS = 72;
+
+export const SCHOOL_AGE_START = 72;   // 6 years
+export const SCHOOL_AGE_END = 108;     // 9 years
+
+export function isSchoolAge(member) {
+  const m = ageInMonths(member?.birthdate);
+  return m !== null && m >= SCHOOL_AGE_START && m < SCHOOL_AGE_END;
+}
 
 export const PRETEEN_START = 108;  // 9 years
 export const PRETEEN_END = 156;    // 13 years
