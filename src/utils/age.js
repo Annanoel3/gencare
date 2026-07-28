@@ -4,6 +4,14 @@ import { differenceInMonths, parseISO } from 'date-fns';
 export const BABY_AGE_MONTHS = 24;
 export const TODDLER_AGE_MONTHS = 60;
 
+export const PRETEEN_START = 108;  // 9 years
+export const PRETEEN_END = 156;    // 13 years
+
+export function isPreteen(member) {
+  const m = ageInMonths(member?.birthdate);
+  return m !== null && m >= PRETEEN_START && m < PRETEEN_END;
+}
+
 export function isToddler(member) {
   const m = ageInMonths(member?.birthdate);
   return m !== null && m >= BABY_AGE_MONTHS && m < TODDLER_AGE_MONTHS;

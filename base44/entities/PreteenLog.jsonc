@@ -1,0 +1,122 @@
+{
+  "name": "PreteenLog",
+  "type": "object",
+  "properties": {
+    "family_member_id": {
+      "type": "string",
+      "description": "ID of the pre-teen"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "entry_type": {
+      "type": "string",
+      "enum": [
+        "schoolwork",
+        "chore",
+        "puberty",
+        "hygiene",
+        "mental",
+        "screen_time",
+        "allowance",
+        "social"
+      ],
+      "default": "schoolwork"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title for schoolwork, chore, or social entries"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Deadline for schoolwork"
+    },
+    "grade": {
+      "type": "string",
+      "description": "Grade received"
+    },
+    "points": {
+      "type": "number",
+      "description": "Chore points or reward value"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "puberty_type": {
+      "type": "string",
+      "enum": [
+        "menstrual",
+        "acne",
+        "growth"
+      ]
+    },
+    "cycle_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "hygiene_habit": {
+      "type": "string",
+      "enum": [
+        "shower",
+        "teeth",
+        "deodorant"
+      ]
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "happy",
+        "calm",
+        "anxious",
+        "irritable",
+        "upset"
+      ]
+    },
+    "anxiety_level": {
+      "type": "number",
+      "description": "Anxiety level 1-5"
+    },
+    "stress_trigger": {
+      "type": "string"
+    },
+    "screen_time_min": {
+      "type": "number"
+    },
+    "allowance_type": {
+      "type": "string",
+      "enum": [
+        "earn",
+        "spend",
+        "save"
+      ]
+    },
+    "amount": {
+      "type": "number",
+      "description": "Allowance amount in dollars"
+    },
+    "social_activity": {
+      "type": "string",
+      "enum": [
+        "playdate",
+        "sleepover"
+      ]
+    },
+    "social_contact": {
+      "type": "string",
+      "description": "Friend's parent contact info"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "family_member_id",
+    "entry_type"
+  ]
+}
