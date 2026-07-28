@@ -1,36 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, Users, Pill, CalendarDays, 
+import { useQuery } from '@tanstack/react-query';
+import {
+  LayoutDashboard, Users, Pill, CalendarDays,
   ClipboardList, BookOpen, MessageCircle, Menu, X,
   Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Baby, Footprints, Backpack, School, Car, HeartHandshake
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import { isBaby, isToddler, isSchoolAge, isPreteen, isTeen, isSenior } from '@/utils/age';
 import QuickCaptureButton from '@/components/shared/QuickCaptureButton';
 import OneSignalInit from '@/components/shared/OneSignalInit';
 
-const navStructure = [
-  { type: 'link', path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { type: 'group', label: 'Family', icon: Users, children: [
-    { path: '/family', icon: Users, label: 'Family Members' },
-    { path: '/messages', icon: MessageCircle, label: 'Messages' },
-    { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-    { path: '/medications', icon: Pill, label: 'Medications' },
-    { path: '/baby-care', icon: Baby, label: 'Baby Care' },
-    { path: '/toddler-care', icon: Footprints, label: 'Toddler Care' },
-    { path: '/school-age-care', icon: School, label: 'School-Age Care' },
-    { path: '/preteen-care', icon: Backpack, label: 'Pre-Teen Care' },
-    { path: '/teen-management', icon: Car, label: 'Teen Management' },
-    { path: '/senior-care', icon: HeartHandshake, label: 'Senior Care' },
-  ]},
-  { type: 'group', label: 'Tools', icon: Wrench, children: [
-    { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
-    { path: '/journal', icon: BookOpen, label: 'Journal' },
-  ]},
-  { type: 'link', path: '/wellness', icon: Heart, label: 'Wellness' },
-  { type: 'link', path: '/settings', icon: SettingsIcon, label: 'Settings' },
+// Care nav items only appear when at least one family member falls in that age band.
+const careNavItems = [
+  { path: '/baby-care', icon: Baby, label: 'Baby Care', predicate: isBaby },
+  { path: '/toddler-care', icon: Footprints, label: 'Toddler Care', predicate: isToddler },
+  { path: '/school-age-care', icon: School, label: 'School-Age Care', predicate: isSchoolAge },
+  { path: '/preteen-care', icon: Backpack, label: 'Pre-Teen Care', predicate: isPreteen },
+  { path: '/teen-management', icon: Car, label: 'Teen Management', predicate: isTeen },
+  { path: '/senior-care', icon: HeartHandshake, label: 'Senior Care', predicate: isSenior },
 ];
+
+function buildNavStructure(members) {
+  const visibleCare = careNavItems.filter(item => members.some(m => item.predicate(m)));
+  return [
+    { type: 'link', path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { type: 'group', label: 'Family', icon: Users, children: [
+      { path: '/family', icon: Users, label: 'Family Members' },
+      { path: '/messages', icon: MessageCircle, label: 'Messages' },
+      { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
+      { path: '/medications', icon: Pill, label: 'Medications' },
+      ...visibleCare,
+    ]},
+    { type: 'group', label: 'Tools', icon: Wrench, children: [
+      { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
+      { path: '/journal', icon: BookOpen, label: 'Journal' },
+    ]},
+    { type: 'link', path: '/wellness', icon: Heart, label: 'Wellness' },
+    { type: 'link', path: '/settings', icon: SettingsIcon, label: 'Settings' },
+  ];
+}
 
 const mobileBottomNav = [
   { path: '/', icon: LayoutDashboard, label: 'Home' },
@@ -40,9 +50,9 @@ const mobileBottomNav = [
   { path: '/wellness', icon: Heart, label: 'Wellness' },
 ];
 
-function NavList({ expandedGroups, toggleGroup, onNavigate }) {
+function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
   const location = useLocation();
-  return navStructure.map(item => {
+  return items.map(item => {
     if (item.type === 'link') {
       const isActive = location.pathname === item.path;
       return (
@@ -112,6 +122,13 @@ export default function AppLayout() {
   const [currentUser, setCurrentUser] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({ Family: true, Tools: true });
 
+  const { data: members = [] } = useQuery({
+    queryKey: ['familyMembers'],
+    queryFn: () => base44.entities.FamilyMember.list('-created_date'),
+  });
+
+  const navStructure = useMemo(() => buildNavStructure(members), [members]);
+
   useEffect(() => { base44.auth.me().then(u => setCurrentUser(u)).catch(() => {}); }, []);
 
   // Auto-expand group containing the active route
@@ -128,7 +145,7 @@ export default function AppLayout() {
       });
       return next;
     });
-  }, [location.pathname]);
+  }, [location.pathname, navStructure]);
 
   const toggleGroup = (label) => setExpandedGroups(prev => ({ ...prev, [label]: !prev[label] }));
 
@@ -149,7 +166,7 @@ export default function AppLayout() {
           </Link>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <NavList expandedGroups={expandedGroups} toggleGroup={toggleGroup} />
+          <NavList items={navStructure} expandedGroups={expandedGroups} toggleGroup={toggleGroup} />
         </nav>
         <div className="p-4 border-t border-border">
           <button
@@ -189,7 +206,7 @@ export default function AppLayout() {
               </div>
             </div>
             <nav className="space-y-1">
-              <NavList expandedGroups={expandedGroups} toggleGroup={toggleGroup} onNavigate={() => setMobileOpen(false)} />
+              <NavList items={navStructure} expandedGroups={expandedGroups} toggleGroup={toggleGroup} onNavigate={() => setMobileOpen(false)} />
             </nav>
           </div>
         </div>

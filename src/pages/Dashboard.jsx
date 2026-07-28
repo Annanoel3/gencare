@@ -7,6 +7,7 @@ import StatCards from '@/components/dashboard/StatCards';
 import TodayTimeline from '@/components/dashboard/TodayTimeline';
 import FamilyOverview from '@/components/dashboard/FamilyOverview';
 import RecentActivity from '@/components/dashboard/RecentActivity';
+import CareFeed from '@/components/dashboard/CareFeed';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -59,6 +60,12 @@ export default function Dashboard() {
         tasks={pendingTasks.length}
         urgentTasks={urgentTasks.length}
       />
+
+      <div className="mb-6">
+        <h2 className="font-heading text-lg font-semibold mb-3">Today's Care Across the Family</h2>
+        <CareFeed members={members} scope="today" />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TodayTimeline appointments={appointments} tasks={tasks} medications={medications} />
         <FamilyOverview members={members} />

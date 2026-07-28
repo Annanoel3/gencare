@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { ArrowLeft, Heart, Pill, Phone, School, Stethoscope, FileText, Edit, Save, X } from 'lucide-react';
+import { ArrowLeft, Heart, Pill, Phone, School, Stethoscope, FileText, Edit, Save, X, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import CareFeed from '@/components/dashboard/CareFeed';
 
 export default function FamilyMemberDetail() {
   const { id } = useParams();
@@ -34,6 +35,11 @@ export default function FamilyMemberDetail() {
   const { data: journal = [] } = useQuery({
     queryKey: ['memberJournal', id],
     queryFn: () => base44.entities.CareJournal.filter({ family_member_id: id }, '-created_date', 20),
+  });
+
+  const { data: members = [] } = useQuery({
+    queryKey: ['familyMembers'],
+    queryFn: () => base44.entities.FamilyMember.list('-created_date'),
   });
 
   const updateMutation = useMutation({
@@ -117,13 +123,25 @@ export default function FamilyMemberDetail() {
       </div>
 
       <Tabs defaultValue="medical" className="space-y-4">
-        <TabsList className="bg-muted rounded-xl w-full grid grid-cols-5">
+        <TabsList className="bg-muted rounded-xl w-full grid grid-cols-6">
+          <TabsTrigger value="overview" className="rounded-lg text-xs px-1">Overview</TabsTrigger>
           <TabsTrigger value="medical" className="rounded-lg text-xs px-1">Medical</TabsTrigger>
           <TabsTrigger value="contacts" className="rounded-lg text-xs px-1">Contacts</TabsTrigger>
           <TabsTrigger value="school" className="rounded-lg text-xs px-1">School</TabsTrigger>
           <TabsTrigger value="medications" className="rounded-lg text-xs px-1">Meds</TabsTrigger>
           <TabsTrigger value="journal" className="rounded-lg text-xs px-1">Journal</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview">
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle className="font-heading flex items-center gap-2"><LayoutDashboard className="w-5 h-5 text-primary" /> {member.name}'s Care Dashboard</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CareFeed members={members} memberId={id} scope="recent" limit={20} title="Recent Care Activity" />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="medical">
           <Card className="border-border/50">
