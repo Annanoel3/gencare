@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { Baby, Milk, Droplets, Moon, Droplet, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ export default function BabyCare() {
   const createMutation = useMutation({
     mutationFn: (data) => {
       const baby = babies.find(b => b.id === data.family_member_id);
-      return base44.entities.BabyCareLog.create({ ...data, family_member_name: baby?.name || '' });
+      return base44.entities.BabyCareLog.create(withFamily({ ...data, family_member_name: baby?.name || '' }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['babyCareLogs'] });

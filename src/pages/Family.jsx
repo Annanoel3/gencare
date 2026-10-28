@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { Link } from 'react-router-dom';
 import { Users, Plus, Heart, Phone, School, Stethoscope, QrCode } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
@@ -32,7 +33,7 @@ export default function Family() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.FamilyMember.create(data),
+    mutationFn: (data) => base44.entities.FamilyMember.create(withFamily(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
       setDialogOpen(false);

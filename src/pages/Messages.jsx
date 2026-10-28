@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { MessageCircle, Send, Pin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,7 +31,7 @@ export default function Messages() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.FamilyMessage.create(data),
+    mutationFn: (data) => base44.entities.FamilyMessage.create(withFamily(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['familyMessages'] });
       setContent('');

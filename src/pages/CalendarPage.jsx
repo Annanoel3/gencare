@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { CalendarDays, Plus } from 'lucide-react';
 import GoogleCalendarSync from '@/components/calendar/GoogleCalendarSync';
@@ -44,7 +45,7 @@ export default function CalendarPage() {
   const createMutation = useMutation({
     mutationFn: (data) => {
       const member = members.find(m => m.id === data.family_member_id);
-      return base44.entities.Appointment.create({ ...data, family_member_name: member?.name || '' });
+      return base44.entities.Appointment.create(withFamily({ ...data, family_member_name: member?.name || '' }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });

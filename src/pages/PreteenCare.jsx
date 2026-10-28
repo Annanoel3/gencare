@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { Backpack, BookOpen, ClipboardCheck, HeartPulse, ShowerHead, Brain, Smartphone, PiggyBank, Users, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ export default function PreteenCare() {
   const createMutation = useMutation({
     mutationFn: (data) => {
       const child = preteens.find(p => p.id === data.family_member_id);
-      return base44.entities.PreteenLog.create({ ...data, family_member_name: child?.name || '' });
+      return base44.entities.PreteenLog.create(withFamily({ ...data, family_member_name: child?.name || '' }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['preteenLogs'] });

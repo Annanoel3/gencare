@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { Heart, Sun, Moon, Coffee, Smile, Frown, Meh, Brain, Flower2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +43,7 @@ export default function Wellness() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data) => base44.entities.CareJournal.create(data),
+    mutationFn: (data) => base44.entities.CareJournal.create(withFamily(data)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wellnessCheckins'] });
       setSelectedMood(null);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { ClipboardList, Plus, Check, Circle, Clock, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -40,7 +41,7 @@ export default function Tasks() {
   const createMutation = useMutation({
     mutationFn: (data) => {
       const member = members.find(m => m.id === data.family_member_id);
-      return base44.entities.CareTask.create({ ...data, family_member_name: member?.name || '' });
+      return base44.entities.CareTask.create(withFamily({ ...data, family_member_name: member?.name || '' }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['careTasks'] });

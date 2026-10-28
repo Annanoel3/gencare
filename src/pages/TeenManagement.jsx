@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { parseISO, format, isAfter, startOfDay } from 'date-fns';
 import { Car, Wallet, FileText, GraduationCap, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,7 @@ export default function TeenManagement() {
   const createMutation = useMutation({
     mutationFn: (data) => {
       const child = teens.find(p => p.id === data.family_member_id);
-      return base44.entities.TeenLog.create({ ...data, family_member_name: child?.name || '' });
+      return base44.entities.TeenLog.create(withFamily({ ...data, family_member_name: child?.name || '' }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teenLogs'] });

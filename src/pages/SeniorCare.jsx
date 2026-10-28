@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { parseISO, format, isAfter, startOfDay } from 'date-fns';
 import { HeartHandshake, ClipboardList, ShieldCheck, Pill, Brain, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,7 @@ export default function SeniorCare() {
   const createMutation = useMutation({
     mutationFn: (data) => {
       const member = seniors.find(p => p.id === data.family_member_id);
-      return base44.entities.SeniorLog.create({ ...data, family_member_name: member?.name || '' });
+      return base44.entities.SeniorLog.create(withFamily({ ...data, family_member_name: member?.name || '' }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seniorLogs'] });

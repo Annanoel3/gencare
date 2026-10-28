@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,13 +39,13 @@ export default function QuickCaptureButton() {
   const handleSave = async () => {
     setSaving(true);
     if (captureType === 'note') {
-      await base44.entities.QuickNote.create({ content, type: 'text' });
+      await base44.entities.QuickNote.create(withFamily({ content, type: 'text' }));
     } else if (captureType === 'task') {
-      await base44.entities.CareTask.create({ title: title || content, description: content, due_date: date || undefined });
+      await base44.entities.CareTask.create(withFamily({ title: title || content, description: content, due_date: date || undefined }));
     } else if (captureType === 'appointment') {
-      await base44.entities.Appointment.create({ title: title || content, date: date, notes: content });
+      await base44.entities.Appointment.create(withFamily({ title: title || content, date: date, notes: content }));
     } else if (captureType === 'medication') {
-      await base44.entities.QuickNote.create({ content: `Medication note: ${content}`, type: 'text', ai_category: 'medication' });
+      await base44.entities.QuickNote.create(withFamily({ content: `Medication note: ${content}`, type: 'text', ai_category: 'medication' }));
     }
     queryClient.invalidateQueries();
     setSaving(false);

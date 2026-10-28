@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { withFamily } from '@/lib/family';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,7 +56,7 @@ export default function ChecklistsPanel() {
       const member = members.find(m => m.id === data.family_member_id);
       const payload = { ...data, family_member_name: member?.name || '' };
       if (payload.family_member_id === 'all') payload.family_member_id = '';
-      return base44.entities.Checklist.create(payload);
+      return base44.entities.Checklist.create(withFamily(payload));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['checklists'] });
@@ -71,7 +72,7 @@ export default function ChecklistsPanel() {
 
   const addItem = useMutation({
     mutationFn: ({ checklist_id, label }) =>
-      base44.entities.ChecklistItem.create({ checklist_id, label, is_checked: false, sort_order: Date.now() }),
+      base44.entities.ChecklistItem.create(withFamily({ checklist_id, label, is_checked: false, sort_order: Date.now() })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['checklistItems'] }),
   });
 
