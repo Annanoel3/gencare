@@ -9,6 +9,8 @@ on:
       - 'capacitor.config.ts'
       - '.github/workflows/ios-compile-check.yml'
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   compile:
     runs-on: macos-15
@@ -41,9 +43,15 @@ jobs:
             RC_APPLE_KEY= GENCARE_APP_STORE_ID= \
             | tee build.log | grep -E "error:|warning: unre|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build.log
-      - name: Keep the log
+      - name: Report the errors on the commit
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: xcodebuild-log
-          path: build.log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            if grep -q "BUILD SUCCEEDED" build.log; then echo "iPhone compile check: BUILD SUCCEEDED"; else echo "iPhone compile check: BUILD FAILED"; fi
+            echo; echo '```'
+            grep -E "error:|error |fatal" build.log | grep -v "warning:" | head -60
+            echo '```'
+          } > comment.md
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -f body="$(cat comment.md)" >/dev/null || true
