@@ -14,7 +14,7 @@ import { accessOf } from '../../shared/access.ts';
 //   RevenueCat webhook (Integrations -> Webhooks -> this function's URL):
 //        { event: {...} } -> re-reads the subscriber it names. Nothing in the
 //        body is trusted beyond WHO to re-read, so no shared secret is needed.
-// RevenueCat app user id = Base44 user id.
+// RevenueCat app user id = Base44 user id. Access rules: shared/access.ts.
 
 const PRODUCT_IDS = ['gencare_family_monthly', 'gencare_family_yearly'];
 const isBase44Id = (id: unknown) => typeof id === 'string' && /^[a-f0-9]{24}$/i.test(id);
