@@ -18,7 +18,7 @@ import { accessOf } from '../../shared/access.ts';
 //   { mode: "remove_member", user_id }  -> { ok }  (owner only)
 //   { mode: "leave" }                   -> { family, me }  (a fresh family of their own)
 //
-// Access (the 7-day free trial, then the Family plan) is worked out here too so
+// Access (the 7-day free trial, then the Family plan) comes from shared/access.ts so
 // every screen asks one place: a family has access while its trial runs, while
 // any member's subscription is active (functions/premium keeps that in step with
 // RevenueCat), or while promo_until is in the future. The app owner always has
