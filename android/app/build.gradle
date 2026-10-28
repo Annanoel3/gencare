@@ -14,8 +14,10 @@ android {
         applicationId "com.mediocreatbest.gencare"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // Codemagic passes -PversionCode=<its build number>; local builds use the number here.
-        versionCode project.hasProperty('versionCode') ? project.property('versionCode').toInteger() + 10 : 2
+        // Minutes since 1970: every build is numbered higher than the last one,
+        // whether it was built on Anna's PC (build-gencare-aab.bat) or in
+        // Codemagic, so Play never refuses an upload as "version code already used".
+        versionCode((int) (System.currentTimeMillis() / 60000L))
         versionName "1.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "String", "RC_TEST_KEY", "\"${rcProps.getProperty('revenuecat.testKey', '')}\""

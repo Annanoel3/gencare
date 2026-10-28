@@ -59,7 +59,7 @@ workflows:
           export STORE_PASSWORD="$CM_KEYSTORE_PASSWORD"
           export KEY_ALIAS="$CM_KEY_ALIAS"
           export KEY_PASSWORD="$CM_KEY_PASSWORD"
-          ./gradlew bundleRelease -PversionCode="$BUILD_NUMBER" --no-daemon
+          ./gradlew bundleRelease --no-daemon
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
       - android/app/build/outputs/mapping/release/mapping.txt
