@@ -8,7 +8,7 @@ import Subscribe from '@/pages/Subscribe';
 // Waits for the family to load (so family_id is known before any screen
 // writes), then shows the plan screen when the free week is over. Settings,
 // account and legal pages stay reachable either way.
-const ALWAYS_OPEN = ['/settings', '/account-management', '/privacy-policy', '/subscribe', '/join'];
+const ALWAYS_OPEN = ['/settings', '/family-settings', '/account-management', '/privacy-policy', '/terms', '/subscribe', '/join'];
 
 export default function FamilyGate({ children }) {
   const { loading, error, hasAccess, refresh } = useFamily();
