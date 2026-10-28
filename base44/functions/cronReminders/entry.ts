@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { familyUsers, sendPush, wantsPush, whenText } from '../../shared/push.ts';
+import { canSee } from '../../shared/sharing.ts';
 
 // Runs every 15 minutes (workflow "Reminders every 15 minutes"). Three jobs,
 // each in the family's own time (the owner's timezone, else the first
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
         if (now < fireAt || now >= fireAt + WINDOW_MS) continue;
         const forWhom = a.family_member_name ? ` for ${a.family_member_name}` : '';
         const inText = minutes >= 60 ? `in ${Math.round(minutes / 60)} hour${minutes >= 120 ? 's' : ''}` : `in ${minutes} min`;
-        const targets = a.visibility === 'private' ? users.filter((u: any) => u.id === a.created_by_user_id || u.id === a.created_by_id) : users;
+        const targets = users.filter((u: any) => canSee(a, u.id));
         for (const u of targets) {
           if (!wantsPush(u, 'reminders')) continue;
           await sendPush({
@@ -128,7 +129,7 @@ Deno.serve(async (req) => {
         for (const u of users) {
           if (!wantsPush(u, 'reminders')) continue;
           if (u.digest_sent_on === today) continue;
-          const mine = todays.filter((a: any) => a.visibility !== 'private' || a.created_by_user_id === u.id || a.created_by_id === u.id);
+          const mine = todays.filter((a: any) => canSee(a, u.id));
           const parts: string[] = [];
           if (mine.length) parts.push(`${mine.length} event${mine.length > 1 ? 's' : ''}: ${mine.slice(0, 3).map((a: any) => `${a.title}${a.time ? ` ${whenText(a.date, a.time, tz).split(' at ')[1]}` : ''}`).join(', ')}${mine.length > 3 ? ` +${mine.length - 3}` : ''}`);
           if (dueToday.length) parts.push(`${dueToday.length} task${dueToday.length > 1 ? 's' : ''} due today`);
