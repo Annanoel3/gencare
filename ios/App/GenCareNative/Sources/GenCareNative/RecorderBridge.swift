@@ -162,7 +162,6 @@ public class RecorderBridge: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDelegat
         }
         runStartedAt = ProcessInfo.processInfo.systemUptime
         RecorderStore.write(session!)
-        UIApplication.shared.isIdleTimerDisabled = false
         tickTimer = Timer.scheduledTimer(withTimeInterval: RecorderBridge.tickSeconds, repeats: true) { [weak self] _ in self?.tick() }
         emit("started", nil, nil)
         return nil
@@ -238,7 +237,7 @@ public class RecorderBridge: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDelegat
         DispatchQueue.main.async {
             guard let id = self.activeId else { call.resolve(["ok": false, "error": "not_recording"]); return }
             self.pauseRecording()
-            call.resolve(["ok": true, "session": RecorderStore.read(id) ?? NSNull()])
+            call.resolve(["ok": true, "session": self.saved(id)])
         }
     }
 
@@ -246,7 +245,7 @@ public class RecorderBridge: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDelegat
         DispatchQueue.main.async {
             guard let id = self.activeId else { call.resolve(["ok": false, "error": "not_recording"]); return }
             self.resumeRecording()
-            call.resolve(["ok": true, "session": RecorderStore.read(id) ?? NSNull()])
+            call.resolve(["ok": true, "session": self.saved(id)])
         }
     }
 
@@ -254,7 +253,7 @@ public class RecorderBridge: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDelegat
         DispatchQueue.main.async {
             guard let id = self.activeId else { call.resolve(["ok": false, "error": "not_recording"]); return }
             self.stopRecording(reason: nil)
-            call.resolve(["ok": true, "session": RecorderStore.read(id) ?? NSNull()])
+            call.resolve(["ok": true, "session": self.saved(id)])
         }
     }
 
@@ -328,6 +327,12 @@ public class RecorderBridge: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDelegat
         }
         recorder = nil
         return ok
+    }
+
+    /// The session as saved on disk, or null for the web app.
+    private func saved(_ id: String) -> Any {
+        if let s = RecorderStore.read(id) { return s }
+        return NSNull()
     }
 
     private func elapsedMs() -> Int64 {

@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import UserNotifications
 import Capacitor
 import OneSignalFramework
 
