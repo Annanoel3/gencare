@@ -90,11 +90,11 @@ public class RecorderBridge: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDelegat
         }
     }
 
-    @objc func checkPermissions(_ call: CAPPluginCall) {
+    @objc public override func checkPermissions(_ call: CAPPluginCall) {
         call.resolve(["microphone": micState()])
     }
 
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    @objc public override func requestPermissions(_ call: CAPPluginCall) {
         askMic { _ in call.resolve(["microphone": self.micState()]) }
     }
 

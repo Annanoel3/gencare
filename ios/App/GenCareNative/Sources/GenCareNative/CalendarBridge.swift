@@ -83,11 +83,11 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    @objc func checkPermissions(_ call: CAPPluginCall) {
+    @objc public override func checkPermissions(_ call: CAPPluginCall) {
         call.resolve(permissionResult())
     }
 
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    @objc public override func requestPermissions(_ call: CAPPluginCall) {
         askForAccess { _ in
             // Apple's prompt shows once; afterwards only Settings can change the answer.
             call.resolve(self.permissionResult())
