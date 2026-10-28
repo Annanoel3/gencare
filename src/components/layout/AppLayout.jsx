@@ -42,7 +42,7 @@ function buildNavStructure(members, canRecord) {
     { type: 'group', label: 'Tools', icon: Wrench, children: [
       { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
       { path: '/journal', icon: BookOpen, label: 'Journal' },
-      ...(canRecord ? [{ path: '/notes', icon: Mic, label: 'Record Notes' }] : []),
+      { path: '/notes', icon: Mic, label: canRecord ? 'Record Notes' : 'Notes' },
     ]},
     { type: 'link', path: '/wellness', icon: Heart, label: 'Wellness' },
     { type: 'link', path: '/settings', icon: SettingsIcon, label: 'Settings' },
