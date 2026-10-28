@@ -1,5 +1,7 @@
 **Welcome to your Base44 project** 
 
+**GenCare's phone apps** live in this repo next to the web app: `ios/` (iPhone, built on Codemagic from `codemagic.yaml`) and `android/` (Android). Both are thin shells that load gencare.base44.app, so publishing in Base44 updates them; only the native pieces (push, phone calendars, the recorder, billing) need a new store build.
+
 **About**
 
 View and Edit  your app on [Base44.com](http://Base44.com) 
