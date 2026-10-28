@@ -71,6 +71,11 @@
       "description": "The invite code the user used when joining a family",
       "type": "string"
     },
+    "messages_seen_at": {
+      "description": "When this person last opened Messages (unread badge)",
+      "format": "date-time",
+      "type": "string"
+    },
     "notify_family_events": {
       "default": true,
       "description": "Push when a family member adds or changes a shared event",
@@ -102,6 +107,6 @@
       "type": "string"
     }
   },
-  "type": "object",
-  "required": []
+  "required": [],
+  "type": "object"
 }
