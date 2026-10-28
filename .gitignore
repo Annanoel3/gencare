@@ -44,3 +44,12 @@ ios/.build
 ios/App/CapApp-SPM/.build
 ios/App/GenCareNative/.build
 ios/App/App/App.xcodeproj/project.xcworkspace/xcuserdata
+
+# Android app (Capacitor): signing files and generated output stay out
+android/key.properties
+android/local.properties
+android/app/*.keystore
+android/app/*.jks
+android/app/build
+android/build
+android/.gradle

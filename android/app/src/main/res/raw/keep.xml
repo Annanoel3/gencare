@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resource-shrinker keep list (shrinkResources true). The splash screen is looked up
+     by NAME at runtime (capacitor.config.ts androidSplashResourceName), which R8's
+     shrinker can't see. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/splash,@drawable/splash*,@drawable/ic_launcher_foreground,@mipmap/ic_launcher_foreground,@drawable/ic_stat_gencare,@drawable/ic_stat_onesignal_default,@xml/config,@xml/file_paths,@xml/backup_rules,@xml/data_extraction_rules"
+    tools:shrinkMode="safe" />

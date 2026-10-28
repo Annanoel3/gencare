@@ -11,7 +11,67 @@
 #
 # Starting a build: the "Start new build" button, or a git tag that starts with
 # "ios-" (e.g. ios-1). Base44's own pushes to main never start a build.
+#
+# Android (the same app for Google Play), workflow "android-play":
+#   Codemagic > Teams > Code signing identities > Android keystores: upload
+#   android/app/release.keystore from Anna's PC with its passwords, reference
+#   name "gencare_keystore". Group "gencare" may also hold
+#        RC_GOOGLE_KEY          RevenueCat public Android key (goog_...), secret
+#   The build emails a link to the .aab, which goes into Play Console by hand
+#   until Play publishing is wired up.
 workflows:
+  android-play:
+    name: GenCare Android -> .aab for Google Play
+    max_build_duration: 45
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        - gencare_keystore
+      groups:
+        - gencare
+      node: 22
+      java: 21
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'android-*'
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Install web dependencies
+        script: npm ci --no-audit --no-fund
+      - name: Sync Capacitor (Android)
+        script: |
+          mkdir -p dist
+          [ -f dist/index.html ] || echo '<!doctype html><title>GenCare</title>' > dist/index.html
+          npx cap sync android
+      - name: RevenueCat key into local.properties
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "revenuecat.googleKey=${RC_GOOGLE_KEY:-}" >> android/local.properties
+      - name: Build the signed .aab
+        script: |
+          cd android
+          chmod +x gradlew
+          # app/build.gradle reads these when key.properties is absent (it stays on Anna's PC)
+          export KEYSTORE_FILE="$CM_KEYSTORE_PATH"
+          export STORE_PASSWORD="$CM_KEYSTORE_PASSWORD"
+          export KEY_ALIAS="$CM_KEY_ALIAS"
+          export KEY_PASSWORD="$CM_KEY_PASSWORD"
+          ./gradlew bundleRelease -PversionCode="$BUILD_NUMBER" --no-daemon
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+      - android/app/build/outputs/mapping/release/mapping.txt
+    publishing:
+      email:
+        recipients:
+          - annanoelwenballew@gmail.com
+        notify:
+          success: true
+          failure: true
+
+
   ios-testflight:
     name: GenCare iPhone -> TestFlight
     max_build_duration: 60
