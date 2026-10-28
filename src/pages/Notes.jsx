@@ -838,12 +838,19 @@ export default function Notes() {
   const pagePad = "pb-28 lg:pb-8";
 
   if (!supported) {
+    if (open) {
+      return (
+        <div className={pagePad}>
+          <div className="max-w-2xl mx-auto"><NotesReadOnly open={open} onBack={() => setOpenId(null)} /></div>
+        </div>
+      );
+    }
     return (
       <div className={pagePad}>
         <div className="max-w-2xl mx-auto space-y-4">
-          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Record Notes</h1>
+          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Notes</h1>
           <div className={card}>
-            <p className={soft}>Recording works in the GenCare app on your phone. Update it from Google Play if you already have it.</p>
+            <p className={soft}>Recording works in the GenCare app on your phone. Update it from Google Play if you already have it. Notes the family recorded are listed here.</p>
           </div>
           {loaded && records.length > 0 && (
             <div className="space-y-2">
@@ -856,7 +863,6 @@ export default function Notes() {
               ))}
             </div>
           )}
-          {open && <NotesReadOnly open={open} onBack={() => setOpenId(null)} />}
         </div>
       </div>
     );
