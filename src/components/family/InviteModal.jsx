@@ -3,36 +3,29 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Copy, Check, RefreshCw } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
-
-function generateCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
+import { createInvite } from '@/lib/family';
 
 export default function InviteModal({ open, onClose }) {
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const createInvite = async () => {
+  const [error, setError] = useState('');
+
+  // The code is made on the server, tied to this family (functions/family).
+  const makeInvite = async () => {
     setLoading(true);
-    const user = await base44.auth.me();
-    const code = generateCode();
-    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const newInvite = await base44.entities.Invite.create({
-      code,
-      family_name: user?.full_name ? `${user.full_name}'s Family` : 'My Family',
-      created_by_name: user?.full_name || '',
-      expires_at: expires,
-      is_active: true,
-      uses_count: 0,
-    });
-    setInvite(newInvite);
+    setError('');
+    try {
+      setInvite(await createInvite());
+    } catch (e) {
+      setError(e?.message || 'Could not make an invite code');
+    }
     setLoading(false);
   };
 
   useEffect(() => {
-    if (open) createInvite();
+    if (open) makeInvite();
   }, [open]);
 
   const joinUrl = invite ? `${window.location.origin}/join?code=${invite.code}` : '';
@@ -62,6 +55,8 @@ export default function InviteModal({ open, onClose }) {
           </div>
         )}
 
+        {error && !loading && <p className="text-sm text-destructive text-center">{error}</p>}
+
         {invite && !loading && (
           <div className="flex flex-col items-center gap-5">
             <p className="text-sm text-muted-foreground text-center">
@@ -88,7 +83,7 @@ export default function InviteModal({ open, onClose }) {
               <Button variant="outline" className="flex-1" onClick={copyLink}>
                 Copy Link
               </Button>
-              <Button variant="outline" size="icon" onClick={createInvite}>
+              <Button variant="outline" size="icon" onClick={makeInvite}>
                 <RefreshCw className="w-4 h-4" />
               </Button>
             </div>
