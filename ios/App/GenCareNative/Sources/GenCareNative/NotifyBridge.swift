@@ -36,7 +36,7 @@ public class NotifyBridge: CAPPlugin, CAPBridgedPlugin {
     ]
 
     /// GenCare's OneSignal app (the same one the Android app and the website use).
-    public static let oneSignalAppId = "067a47c8-a2c2-4307-8461-a329aaff6a2b"
+    public static let oneSignalAppId = "41013e11-10b9-45c1-a24f-11c47b3b2534"
 
     /// Data of the push that was tapped most recently and not yet handed to the web app.
     private static var lastLaunchData: [String: Any]?
