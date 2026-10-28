@@ -1,18 +1,103 @@
 {
   "name": "User",
-  "type": "object",
   "properties": {
+    "app_build": {
+      "description": "Android versionCode of the app build last seen on this account",
+      "type": "number"
+    },
+    "device_calendar_ids": {
+      "description": "Phone calendars (Android provider ids) this person imports into GenCare",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "display_name": {
+      "description": "How this person is shown to the family",
+      "type": "string"
+    },
+    "export_calendar_id": {
+      "description": "The phone calendar (provider id) GenCare writes into",
+      "type": "string"
+    },
+    "export_categories": {
+      "description": "Only these categories go to the phone; empty = all",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "export_enabled": {
+      "default": false,
+      "description": "Write family events into this person's phone calendar",
+      "type": "boolean"
+    },
+    "export_member_ids": {
+      "description": "Only events for these family members go to the phone; empty = everyone",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "export_reminder_minutes": {
+      "default": 30,
+      "description": "Reminder set on exported phone events; -1 for none",
+      "type": "number"
+    },
+    "family_id": {
+      "description": "The Family this person belongs to; every family-scoped record carries the same id",
+      "type": "string"
+    },
+    "family_role": {
+      "default": "member",
+      "enum": [
+        "owner",
+        "member"
+      ],
+      "type": "string"
+    },
+    "import_share_calendar_ids": {
+      "description": "Of the imported phone calendars, which ones are shared with the family (the rest stay private)",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "invite_code_used": {
+      "description": "The invite code the user used when joining a family",
+      "type": "string"
+    },
+    "notify_family_events": {
+      "default": true,
+      "description": "Push when a family member adds or changes a shared event",
+      "type": "boolean"
+    },
+    "notify_reminders": {
+      "default": true,
+      "description": "Push reminders before appointments and for due tasks",
+      "type": "boolean"
+    },
+    "onesignal_player_id": {
+      "description": "OneSignal subscription id of this person's phone",
+      "type": "string"
+    },
+    "push_enabled": {
+      "default": true,
+      "type": "boolean"
+    },
     "role": {
-      "type": "string",
+      "default": "user",
       "enum": [
         "admin",
         "user"
       ],
-      "default": "user"
+      "type": "string"
     },
-    "invite_code_used": {
-      "type": "string",
-      "description": "The invite code the user used when joining a family"
+    "timezone": {
+      "description": "IANA timezone, e.g. America/Chicago",
+      "type": "string"
     }
-  }
+  },
+  "type": "object",
+  "required": []
 }
