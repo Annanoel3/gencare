@@ -11,7 +11,9 @@ import { isNativeApp, waitForPlugin } from '@/lib/phone';
 // A tap on a push lands on the screen the push names (data.screen), with the
 // calendar opened on the event's day.
 
-const ONESIGNAL_APP_ID = '067a47c8-a2c2-4307-8461-a329aaff6a2b';
+// GenCare's OneSignal app (dashboard.onesignal.com -> GenCare -> Keys & IDs).
+// 067a47c8-... was FitAbility's id, pasted here by mistake on June 9 2026.
+const ONESIGNAL_APP_ID = '41013e11-10b9-45c1-a24f-11c47b3b2534';
 
 async function savePlayerId(playerId) {
   if (!playerId) return;
