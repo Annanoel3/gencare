@@ -33,6 +33,9 @@ import JoinPage from '@/pages/JoinPage';
 import Settings from '@/pages/Settings';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import AccountManagement from '@/pages/AccountManagement';
+import Notes from '@/pages/Notes';
+import Subscribe from '@/pages/Subscribe';
+import FamilySettings from '@/pages/FamilySettings';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -82,6 +85,9 @@ const AuthenticatedApp = () => {
           <Route path="/senior-care" element={<SeniorCare />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/wellness" element={<Wellness />} />
+          <Route path="/notes" element={<Notes />} />
+          <Route path="/subscribe" element={<Subscribe />} />
+          <Route path="/family-settings" element={<FamilySettings />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/account-management" element={<AccountManagement />} />
