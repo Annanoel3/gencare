@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { toast } from "@/components/ui/use-toast";
+import { PENDING_INVITE_KEY } from "@/lib/family";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -21,6 +22,8 @@ export default function Register() {
 
   // Capture invite code from URL if coming from JoinPage
   const inviteCode = new URLSearchParams(window.location.search).get("invite") || "";
+  // Keep it across the Google sign-in round trip too: the first open joins the family.
+  if (inviteCode) { try { localStorage.setItem(PENDING_INVITE_KEY, inviteCode.toUpperCase()); } catch (e) { /* fine */ } }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,10 +51,7 @@ export default function Register() {
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
       }
-      // If joined via invite, save the invite code to the user profile
-      if (inviteCode) {
-        await base44.auth.updateMe({ invite_code_used: inviteCode });
-      }
+      // The invite code waits in localStorage; the first open (FamilyProvider) joins that family.
       window.location.href = "/";
     } catch (err) {
       setError(err.message || "Invalid verification code");
