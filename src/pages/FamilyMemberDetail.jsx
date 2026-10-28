@@ -202,6 +202,7 @@ export default function FamilyMemberDetail() {
               {editing ? (
                 <>
                   <div><Label>School Name</Label><Input value={form.school_name} onChange={e => setForm({...form, school_name: e.target.value})} className="mt-1" /></div>
+                  <div><Label>School Phone</Label><Input value={form.school_phone || ''} onChange={e => setForm({...form, school_phone: e.target.value})} className="mt-1" /></div>
                   <div><Label>Grade</Label><Input value={form.school_grade} onChange={e => setForm({...form, school_grade: e.target.value})} className="mt-1" /></div>
                   <div><Label>Teacher</Label><Input value={form.school_teacher} onChange={e => setForm({...form, school_teacher: e.target.value})} className="mt-1" /></div>
                 </>
@@ -271,11 +272,12 @@ export default function FamilyMemberDetail() {
   );
 }
 
-function InfoRow({ label, value }) {
+function InfoRow({ label, value, action }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 py-2 border-b border-border/30 last:border-0">
       <span className="text-sm font-medium text-muted-foreground w-40 flex-shrink-0">{label}</span>
-      <span className="text-sm text-foreground">{value}</span>
+      <span className="text-sm text-foreground flex-1">{value}</span>
+      {action}
     </div>
   );
 }
