@@ -1,71 +1,88 @@
 {
   "name": "BabyCareLog",
-  "type": "object",
   "properties": {
-    "family_member_id": {
-      "type": "string",
-      "description": "ID of the baby"
+    "amount_ml": {
+      "type": "number"
     },
-    "family_member_name": {
+    "breast_side": {
+      "enum": [
+        "left",
+        "right",
+        "both"
+      ],
       "type": "string"
     },
+    "diaper_type": {
+      "enum": [
+        "wet",
+        "dirty",
+        "mixed"
+      ],
+      "type": "string"
+    },
+    "duration_min": {
+      "type": "number"
+    },
     "entry_type": {
-      "type": "string",
+      "default": "feeding",
       "enum": [
         "feeding",
         "diaper",
         "sleep",
         "pumping"
       ],
-      "default": "feeding"
+      "type": "string"
     },
-    "timestamp": {
-      "type": "string",
-      "format": "date-time"
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "description": "ID of the baby",
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
     },
     "feeding_method": {
-      "type": "string",
       "enum": [
         "nursing",
         "bottle",
         "solid"
-      ]
+      ],
+      "type": "string"
     },
-    "breast_side": {
-      "type": "string",
-      "enum": [
-        "left",
-        "right",
-        "both"
-      ]
-    },
-    "amount_ml": {
-      "type": "number"
-    },
-    "duration_min": {
-      "type": "number"
-    },
-    "diaper_type": {
-      "type": "string",
-      "enum": [
-        "wet",
-        "dirty",
-        "mixed"
-      ]
+    "notes": {
+      "type": "string"
     },
     "sleep_type": {
-      "type": "string",
       "enum": [
         "nap",
         "night"
-      ]
+      ],
+      "type": "string"
     },
-    "notes": {
+    "timestamp": {
+      "format": "date-time",
       "type": "string"
     }
   },
   "required": [
     "family_member_id",
     "entry_type"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
