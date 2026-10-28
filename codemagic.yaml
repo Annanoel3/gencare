@@ -23,7 +23,7 @@ workflows:
   android-play:
     name: GenCare Android -> .aab for Google Play
     max_build_duration: 45
-    instance_type: linux_x2
+    instance_type: mac_mini_m2   # the free plan only covers the M2 Mac (linux_x2 is paid)
     environment:
       android_signing:
         - gencare_keystore
