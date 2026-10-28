@@ -1,20 +1,8 @@
 {
   "name": "Checklist",
-  "type": "object",
   "properties": {
-    "title": {
-      "type": "string",
-      "description": "Checklist name, e.g. Morning Routine"
-    },
-    "family_member_id": {
-      "type": "string",
-      "description": "Which family member this checklist is for"
-    },
-    "family_member_name": {
-      "type": "string"
-    },
     "category": {
-      "type": "string",
+      "default": "Other",
       "enum": [
         "Medication",
         "Meals",
@@ -24,28 +12,57 @@
         "Elderly Care",
         "Other"
       ],
-      "default": "Other"
+      "type": "string"
+    },
+    "color": {
+      "description": "Accent color for the card",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "description": "Which family member this checklist is for",
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "is_active": {
+      "default": true,
+      "type": "boolean"
     },
     "reset_frequency": {
-      "type": "string",
+      "default": "daily",
+      "description": "How often checklist items reset",
       "enum": [
         "daily",
         "weekly",
         "never"
       ],
-      "default": "daily",
-      "description": "How often checklist items reset"
+      "type": "string"
     },
-    "color": {
-      "type": "string",
-      "description": "Accent color for the card"
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true
+    "title": {
+      "description": "Checklist name, e.g. Morning Routine",
+      "type": "string"
     }
   },
   "required": [
     "title"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
