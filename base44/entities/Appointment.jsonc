@@ -1,34 +1,12 @@
 {
   "name": "Appointment",
-  "type": "object",
   "properties": {
-    "title": {
-      "type": "string"
-    },
-    "family_member_id": {
-      "type": "string"
-    },
-    "family_member_name": {
-      "type": "string"
-    },
-    "date": {
-      "type": "string",
-      "format": "date"
-    },
-    "time": {
-      "type": "string"
-    },
-    "end_time": {
-      "type": "string"
-    },
-    "location": {
-      "type": "string"
-    },
-    "doctor_name": {
-      "type": "string"
+    "all_day": {
+      "default": false,
+      "type": "boolean"
     },
     "category": {
-      "type": "string",
+      "default": "Doctor",
       "enum": [
         "Doctor",
         "Therapy",
@@ -37,18 +15,130 @@
         "Social",
         "Other"
       ],
-      "default": "Doctor"
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "created_by_user_id": {
+      "type": "string"
+    },
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "device_key": {
+      "description": "For phone imports: <user id>:<calendar id>:<event id>, so the same event is never imported twice",
+      "type": "string"
+    },
+    "doctor_name": {
+      "type": "string"
+    },
+    "end_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "end_time": {
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "last_changed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
     },
     "notes": {
       "type": "string"
     },
+    "notes_record_id": {
+      "description": "NoteRecording made for this appointment",
+      "type": "string"
+    },
+    "recurrence": {
+      "description": "RRULE for repeating events",
+      "type": "string"
+    },
+    "reminder_minutes": {
+      "default": 60,
+      "description": "Push reminder this many minutes before; -1 for none",
+      "type": "number"
+    },
     "reminder_sent": {
-      "type": "boolean",
-      "default": false
+      "default": false,
+      "type": "boolean"
+    },
+    "source": {
+      "default": "app",
+      "description": "phone = imported from a phone calendar",
+      "enum": [
+        "app",
+        "phone"
+      ],
+      "type": "string"
+    },
+    "time": {
+      "type": "string"
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "visibility": {
+      "default": "family",
+      "description": "family = everyone in the family sees it; private = only the person who added it",
+      "enum": [
+        "family",
+        "private"
+      ],
+      "type": "string"
     }
   },
   "required": [
     "title",
     "date"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.visibility": "family"
+            },
+            {
+              "data.created_by_user_id": "{{user.id}}"
+            },
+            {
+              "created_by_id": "{{user.id}}"
+            }
+          ]
+        }
+      ]
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
