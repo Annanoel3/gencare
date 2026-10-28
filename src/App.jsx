@@ -37,9 +37,10 @@ import Notes from '@/pages/Notes';
 import Subscribe from '@/pages/Subscribe';
 import FamilySettings from '@/pages/FamilySettings';
 import Terms from '@/pages/Terms';
+import DeleteAccount from '@/pages/DeleteAccount';
 
 /** Pages anyone can open without signing in (the app stores link to them). */
-const PUBLIC_PATHS = ['/privacy-policy', '/terms'];
+const PUBLIC_PATHS = ['/privacy-policy', '/terms', '/delete-account'];
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -74,6 +75,7 @@ const AuthenticatedApp = () => {
       {/* Public, no sign-in: the app stores link to these */}
       <Route path="/privacy-policy" element={<PublicPage><PrivacyPolicy /></PublicPage>} />
       <Route path="/terms" element={<PublicPage><Terms /></PublicPage>} />
+      <Route path="/delete-account" element={<PublicPage><DeleteAccount /></PublicPage>} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
