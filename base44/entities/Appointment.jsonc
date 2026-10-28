@@ -84,6 +84,13 @@
       "default": false,
       "type": "boolean"
     },
+    "shared_with": {
+      "description": "User ids this event is shared with when visibility is 'some'",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "source": {
       "default": "app",
       "description": "phone = imported from a phone calendar",
@@ -104,9 +111,10 @@
     },
     "visibility": {
       "default": "family",
-      "description": "family = everyone in the family sees it; private = only the person who added it",
+      "description": "family = everyone in the family; some = only the accounts in shared_with; private = only the person who added it",
       "enum": [
         "family",
+        "some",
         "private"
       ],
       "type": "string"
@@ -116,7 +124,6 @@
     "title",
     "date"
   ],
-  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -135,6 +142,9 @@
               "data.visibility": "family"
             },
             {
+              "data.shared_with": "{{user.id}}"
+            },
+            {
               "data.created_by_user_id": "{{user.id}}"
             },
             {
@@ -147,5 +157,6 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  }
+  },
+  "type": "object"
 }
