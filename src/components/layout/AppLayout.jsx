@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, Pill, CalendarDays,
   ClipboardList, BookOpen, MessageCircle, Menu, X,
@@ -13,6 +13,8 @@ import QuickCaptureButton from '@/components/shared/QuickCaptureButton';
 import OneSignalInit from '@/components/shared/OneSignalInit';
 import RecordingBar from '@/components/shared/RecordingBar';
 import AppUpdateCard from '@/components/shared/AppUpdateCard';
+import NotificationsOffBanner from '@/components/shared/NotificationsOffBanner';
+import PullToRefresh from '@/components/shared/PullToRefresh';
 import FamilyGate from '@/components/family/FamilyGate';
 import { FamilyProvider, useFamily } from '@/lib/family';
 import { syncOnOpen } from '@/lib/calendarSync';
@@ -137,7 +139,8 @@ function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { me } = useFamily();
+  const { me, refresh: refreshFamily } = useFamily();
+  const queryClient = useQueryClient();
   const [currentUser, setCurrentUser] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({ Family: true, Tools: true });
   const [canRecord, setCanRecord] = useState(() => !!plugin('RecorderBridge'));
@@ -270,9 +273,12 @@ function AppShell() {
       {/* Main Content */}
       <main className="flex-1 lg:ml-64 pt-16 lg:pt-0 min-h-screen min-w-0 overflow-x-hidden">
         <AppUpdateCard />
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-          <Outlet />
-        </div>
+        <NotificationsOffBanner />
+        <PullToRefresh onRefresh={async () => { await Promise.all([queryClient.invalidateQueries(), refreshFamily()]); }}>
+          <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            <Outlet />
+          </div>
+        </PullToRefresh>
       </main>
 
       {/* Mobile Bottom Nav */}
