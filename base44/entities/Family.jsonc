@@ -1,0 +1,80 @@
+{
+  "name": "Family",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "owner_user_id": {
+      "type": "string"
+    },
+    "promo_until": {
+      "description": "Free access given by hand until this date",
+      "format": "date-time",
+      "type": "string"
+    },
+    "subscription_active": {
+      "default": false,
+      "type": "boolean"
+    },
+    "subscription_expires_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "subscription_last_event": {
+      "type": "string"
+    },
+    "subscription_product_id": {
+      "type": "string"
+    },
+    "subscription_sandbox": {
+      "default": false,
+      "type": "boolean"
+    },
+    "subscription_store": {
+      "type": "string"
+    },
+    "subscription_synced_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "subscription_user_id": {
+      "description": "The family member whose Google Play / App Store subscription covers the family",
+      "type": "string"
+    },
+    "subscription_will_renew": {
+      "default": false,
+      "type": "boolean"
+    },
+    "trial_ends_at": {
+      "description": "Free for 7 days from when the family was created",
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "id": "{{user.data.family_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  },
+  "type": "object"
+}

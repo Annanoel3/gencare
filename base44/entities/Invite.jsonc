@@ -1,32 +1,49 @@
 {
   "name": "Invite",
-  "type": "object",
   "properties": {
     "code": {
-      "type": "string",
-      "description": "Unique invite code"
-    },
-    "family_name": {
-      "type": "string",
-      "description": "Display name shown to the invitee"
+      "description": "Unique invite code",
+      "type": "string"
     },
     "created_by_name": {
       "type": "string"
     },
     "expires_at": {
-      "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_name": {
+      "description": "Display name shown to the invitee",
+      "type": "string"
     },
     "is_active": {
-      "type": "boolean",
-      "default": true
+      "default": true,
+      "type": "boolean"
     },
     "uses_count": {
-      "type": "number",
-      "default": 0
+      "default": 0,
+      "type": "number"
     }
   },
   "required": [
     "code"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
