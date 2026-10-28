@@ -210,12 +210,13 @@ const MISSED_AFTER_MS = 90 * 60_000;
         const done = (await db.WellnessCheckin.filter({ user_id: u.id, day: ul.day })) || [];
         await db.User.update(u.id, { wellness_reminded_on: ul.day });
         if (done.length) continue;
-        await sendPush({
+        const r = await sendPush({
           email: u.email,
           title: 'How are you holding up?',
           message: 'A 20-second check-in for you, not for anyone else.',
           data: { type: 'wellness', screen: '/wellness' },
         });
+        console.log('[cronReminders] wellness push', u.email, JSON.stringify(r));
         out.wellness_pushes = (out.wellness_pushes || 0) + 1;
       }
 
