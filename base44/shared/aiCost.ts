@@ -17,7 +17,6 @@
 
 // OpenAI only caches a prefix of 1,024 tokens or more (about 4 characters each).
 const CACHE_MIN_CHARS = 3500;
-const FLEX_TIMEOUT_MS = 120_000;
 
 export function cachePart(text: string) {
   return { type: 'text', text, prompt_cache_breakpoint: { mode: 'explicit' } };
@@ -51,7 +50,8 @@ function logUsage(fn: string, res: any) {
   } catch (_) { /* logging never matters more than the answer */ }
 }
 
-export function lean(openai: any, opts: { flex?: boolean; name?: string } = {}) {
+// No flex tier (Anna, Oct 28 2026: its slower answers worry her).
+export function lean(openai: any, opts: { name?: string } = {}) {
   const completions = openai?.chat?.completions;
   if (!completions || completions.__lean) return openai;
   const original = completions.create.bind(completions);
@@ -69,17 +69,7 @@ export function lean(openai: any, opts: { flex?: boolean; name?: string } = {}) 
         throw e;
       }
     };
-    let res: any;
-    if (opts.flex && !params?.service_tier) {
-      try {
-        res = await sendAt({ ...cached, service_tier: 'flex' }, { ...(options || {}), timeout: FLEX_TIMEOUT_MS, maxRetries: 0 });
-      } catch (e) {
-        console.log(`[ai] ${fn}: flex unavailable (${(e as any)?.status || (e as any)?.name || 'error'}), sending at the normal tier`);
-        res = await sendAt(cached, options);
-      }
-    } else {
-      res = await sendAt(cached, options);
-    }
+    const res = await sendAt(cached, options);
     logUsage(fn, res);
     return res;
   };
