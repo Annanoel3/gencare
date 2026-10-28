@@ -38,6 +38,9 @@ import Subscribe from '@/pages/Subscribe';
 import FamilySettings from '@/pages/FamilySettings';
 import Terms from '@/pages/Terms';
 
+/** Pages anyone can open without signing in (the app stores link to them). */
+const PUBLIC_PATHS = ['/privacy-policy', '/terms'];
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
@@ -55,7 +58,7 @@ const AuthenticatedApp = () => {
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
+    } else if (authError.type === 'auth_required' && !PUBLIC_PATHS.includes(window.location.pathname.replace(/\/$/, ''))) {
       navigateToLogin();
       return null;
     }
@@ -68,6 +71,9 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/join" element={<JoinPage />} />
+      {/* Public, no sign-in: the app stores link to these */}
+      <Route path="/privacy-policy" element={<PublicPage><PrivacyPolicy /></PublicPage>} />
+      <Route path="/terms" element={<PublicPage><Terms /></PublicPage>} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
@@ -90,8 +96,6 @@ const AuthenticatedApp = () => {
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/family-settings" element={<FamilySettings />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<Terms />} />
           <Route path="/account-management" element={<AccountManagement />} />
         </Route>
       </Route>
@@ -99,6 +103,15 @@ const AuthenticatedApp = () => {
     </Routes>
   );
 };
+
+/** A plain page for people who are not signed in (the Play Store and App Store link here). */
+function PublicPage({ children }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-3xl px-4 py-8">{children}</div>
+    </div>
+  );
+}
 
 function App() {
   return (
