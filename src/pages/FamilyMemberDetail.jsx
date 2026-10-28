@@ -150,6 +150,7 @@ export default function FamilyMemberDetail() {
               <CardTitle className="font-heading flex items-center gap-2"><LayoutDashboard className="w-5 h-5 text-primary" /> {member.name}'s Care Dashboard</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="flex justify-end mb-3"><Link to={`/care-log?for=${id}`} className="text-sm text-primary hover:underline">Open {member.name.split(' ')[0]}'s care log →</Link></div>
               <CareFeed members={members} memberId={id} scope="recent" limit={20} title="Recent Care Activity" />
             </CardContent>
           </Card>

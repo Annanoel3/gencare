@@ -4,11 +4,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, Pill, CalendarDays,
   ClipboardList, BookOpen, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Baby, Footprints, Backpack, School, Car, HeartHandshake, Mic
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
-import { isBaby, isToddler, isSchoolAge, isPreteen, isTeen, isSenior } from '@/utils/age';
 import QuickCaptureButton from '@/components/shared/QuickCaptureButton';
 import OneSignalInit from '@/components/shared/OneSignalInit';
 import RecordingBar from '@/components/shared/RecordingBar';
@@ -20,18 +19,7 @@ import { FamilyProvider, useFamily } from '@/lib/family';
 import { syncOnOpen } from '@/lib/calendarSync';
 import { isNativeApp, plugin, waitForPlugin } from '@/lib/phone';
 
-// Care nav items only appear when at least one family member falls in that age band.
-const careNavItems = [
-  { path: '/baby-care', icon: Baby, label: 'Baby Care', predicate: isBaby },
-  { path: '/toddler-care', icon: Footprints, label: 'Toddler Care', predicate: isToddler },
-  { path: '/school-age-care', icon: School, label: 'School-Age Care', predicate: isSchoolAge },
-  { path: '/preteen-care', icon: Backpack, label: 'Pre-Teen Care', predicate: isPreteen },
-  { path: '/teen-management', icon: Car, label: 'Teen Management', predicate: isTeen },
-  { path: '/senior-care', icon: HeartHandshake, label: 'Senior Care', predicate: isSenior },
-];
-
 function buildNavStructure(members, canRecord) {
-  const visibleCare = careNavItems.filter(item => members.some(m => item.predicate(m)));
   return [
     { type: 'link', path: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { type: 'group', label: 'Family', icon: Users, children: [
@@ -39,7 +27,7 @@ function buildNavStructure(members, canRecord) {
       { path: '/messages', icon: MessageCircle, label: 'Messages' },
       { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
       { path: '/medications', icon: Pill, label: 'Medications' },
-      ...visibleCare,
+      { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [
       { path: '/tasks', icon: ClipboardList, label: 'Tasks' },

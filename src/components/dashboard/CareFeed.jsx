@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { parseISO, isToday, format, isValid } from 'date-fns';
 import { getMemberLightColorByMemberId } from '@/utils/memberColors';
 import { expandAppointments } from '@/lib/occurrences';
+import { summarize } from '@/lib/careLog';
 
 function toWhen(entry) {
   if (entry.timestamp) { const d = parseISO(entry.timestamp); if (isValid(d)) return d; }
@@ -11,10 +12,8 @@ function toWhen(entry) {
   return null;
 }
 
-function normalizeLog(entry, kind) {
-  const raw = (entry.entry_type || kind).replace(/_/g, ' ');
-  const label = raw.charAt(0).toUpperCase() + raw.slice(1);
-  const detail = [entry.sub_type?.replace(/_/g, ' '), entry.title].filter(Boolean).join(' · ');
+function normalizeLog(entry) {
+  const { label, detail } = summarize(entry);
   return {
     id: entry.id,
     memberId: entry.family_member_id,
@@ -22,29 +21,20 @@ function normalizeLog(entry, kind) {
     label,
     detail,
     when: toWhen(entry),
+    href: `/care-log?for=${entry.family_member_id}`,
   };
 }
 
 export default function CareFeed({ members = [], memberId, scope = 'today', limit = 15, title }) {
-  const babyQ = useQuery({ queryKey: ['BabyCareLog', 'feed'], queryFn: () => base44.entities.BabyCareLog.list('-timestamp', 200) });
-  const toddlerQ = useQuery({ queryKey: ['ToddlerCareLog', 'feed'], queryFn: () => base44.entities.ToddlerCareLog.list('-timestamp', 200) });
-  const schoolQ = useQuery({ queryKey: ['SchoolAgeLog', 'feed'], queryFn: () => base44.entities.SchoolAgeLog.list('-timestamp', 200) });
-  const preteenQ = useQuery({ queryKey: ['PreteenLog', 'feed'], queryFn: () => base44.entities.PreteenLog.list('-timestamp', 200) });
-  const teenQ = useQuery({ queryKey: ['TeenLog', 'feed'], queryFn: () => base44.entities.TeenLog.list('-timestamp', 200) });
-  const seniorQ = useQuery({ queryKey: ['SeniorLog', 'feed'], queryFn: () => base44.entities.SeniorLog.list('-timestamp', 200) });
+  const logQ = useQuery({ queryKey: ['careLog', 'feed'], queryFn: () => base44.entities.CareLog.list('-timestamp', 300) });
   const apptQ = useQuery({ queryKey: ['appointments', 'feed'], queryFn: () => base44.entities.Appointment.list('-date', 100) });
 
   const taskQ = useQuery({ queryKey: ['careTasks', 'feed'], queryFn: () => base44.entities.CareTask.filter({ status: { $in: ['pending', 'in_progress'] } }, '-due_date', 100) });
 
-  const isLoading = [babyQ, toddlerQ, schoolQ, preteenQ, teenQ, seniorQ, apptQ, taskQ].some(q => q.isLoading);
+  const isLoading = [logQ, apptQ, taskQ].some(q => q.isLoading);
 
   let items = [];
-  (babyQ.data || []).forEach(e => items.push(normalizeLog(e, 'baby care')));
-  (toddlerQ.data || []).forEach(e => items.push(normalizeLog(e, 'toddler care')));
-  (schoolQ.data || []).forEach(e => items.push(normalizeLog(e, 'school-age')));
-  (preteenQ.data || []).forEach(e => items.push(normalizeLog(e, 'pre-teen')));
-  (teenQ.data || []).forEach(e => items.push(normalizeLog(e, 'teen')));
-  (seniorQ.data || []).forEach(e => items.push(normalizeLog(e, 'senior')));
+  (logQ.data || []).forEach(e => items.push(normalizeLog(e)));
   // Repeating / multi-day events count on each day they land on (today, or the last 30 days for 'recent').
   const apptRows = scope === 'today' ? expandAppointments(apptQ.data || [], new Date(), new Date()) : expandAppointments(apptQ.data || [], new Date(Date.now() - 30 * 86400000), new Date(Date.now() + 30 * 86400000));
   apptRows.forEach(a => {

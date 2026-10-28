@@ -20,12 +20,7 @@ import Medications from '@/pages/Medications';
 import CalendarPage from '@/pages/CalendarPage';
 import Tasks from '@/pages/Tasks';
 import Journal from '@/pages/Journal';
-import BabyCare from '@/pages/BabyCare';
-import ToddlerCare from '@/pages/ToddlerCare';
-import SchoolAgeCare from '@/pages/SchoolAgeCare';
-import PreteenCare from '@/pages/PreteenCare';
-import TeenManagement from '@/pages/TeenManagement';
-import SeniorCare from '@/pages/SeniorCare';
+import CareLogPage from '@/pages/CareLogPage';
 import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
 import JoinPage from '@/pages/JoinPage';
@@ -85,12 +80,11 @@ const AuthenticatedApp = () => {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/checklists" element={<Navigate to="/tasks" replace />} />
           <Route path="/journal" element={<Journal />} />
-          <Route path="/baby-care" element={<BabyCare />} />
-          <Route path="/toddler-care" element={<ToddlerCare />} />
-          <Route path="/school-age-care" element={<SchoolAgeCare />} />
-          <Route path="/preteen-care" element={<PreteenCare />} />
-          <Route path="/teen-management" element={<TeenManagement />} />
-          <Route path="/senior-care" element={<SeniorCare />} />
+          <Route path="/care-log" element={<CareLogPage />} />
+          {/* The six age pages became one per-person Care Log. */}
+          {['/baby-care', '/toddler-care', '/school-age-care', '/preteen-care', '/teen-management', '/senior-care'].map((p) => (
+            <Route key={p} path={p} element={<Navigate to="/care-log" replace />} />
+          ))}
           <Route path="/messages" element={<Messages />} />
           <Route path="/wellness" element={<Wellness />} />
           <Route path="/notes" element={<Notes />} />
