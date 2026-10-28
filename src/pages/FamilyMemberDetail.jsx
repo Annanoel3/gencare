@@ -65,6 +65,7 @@ export default function FamilyMemberDetail() {
       school_name: member?.school_name || '',
       school_grade: member?.school_grade || '',
       school_teacher: member?.school_teacher || '',
+      school_phone: member?.school_phone || '',
       care_notes: member?.care_notes || '',
     });
     setEditing(true);
