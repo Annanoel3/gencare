@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
-import { withFamily } from '@/lib/family';
+import { withFamily, useFamily } from '@/lib/family';
+import { authorOf, todayStr } from '@/lib/journal';
 import { createTask } from '@/lib/tasks';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +28,7 @@ export default function QuickCaptureButton() {
   const [date, setDate] = useState('');
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
+  const { me } = useFamily();
 
   const handleOptionClick = (type) => {
     setCaptureType(type);
@@ -42,14 +44,14 @@ export default function QuickCaptureButton() {
     try {
       if (captureType === 'note') {
         // Quick notes used to go to a table nothing read; they are journal entries now.
-        await base44.entities.CareJournal.create(withFamily({ content, category: 'General' }));
+        await base44.entities.CareJournal.create(withFamily({ content, category: 'General', entry_date: todayStr(), ...authorOf(me) }));
       } else if (captureType === 'task') {
         await createTask({ title: (title || content).trim(), description: title ? content : undefined, due_date: date || undefined });
       } else if (captureType === 'appointment') {
         await base44.entities.Appointment.create(withFamily({ title: (title || content).trim(), date, notes: title ? content : undefined }));
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
       } else if (captureType === 'medication') {
-        await base44.entities.CareJournal.create(withFamily({ content, category: 'Doctor Note' }));
+        await base44.entities.CareJournal.create(withFamily({ content, category: 'Doctor Note', entry_date: todayStr(), ...authorOf(me) }));
       }
       queryClient.invalidateQueries();
       setDialogOpen(false);

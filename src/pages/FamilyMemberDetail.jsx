@@ -259,7 +259,10 @@ export default function FamilyMemberDetail() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="font-heading flex items-center gap-2"><FileText className="w-5 h-5 text-amber-500" /> Care Journal</CardTitle>
-                <Link to="/journal" className="text-sm text-primary hover:underline">View all</Link>
+                <div className="flex items-center gap-3">
+                  <Link to={`/journal?for=${id}&new=1`} className="text-sm text-primary hover:underline">Add entry</Link>
+                  <Link to={`/journal?for=${id}`} className="text-sm text-primary hover:underline">View all</Link>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -270,7 +273,7 @@ export default function FamilyMemberDetail() {
                   {journal.map(entry => (
                     <div key={entry.id} className="p-3 rounded-xl bg-muted/50">
                       <p className="text-sm">{entry.content}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{entry.category} · {new Date(entry.created_date).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{entry.category} · {new Date((entry.entry_date ? entry.entry_date + 'T12:00:00' : entry.created_date)).toLocaleDateString()}{entry.author_name ? ` · ${entry.author_name.split(' ')[0]}` : ''}</p>
                     </div>
                   ))}
                 </div>

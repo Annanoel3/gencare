@@ -1,155 +1,141 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { BookOpen, Plus, Search, Star } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { withFamily } from '@/lib/family';
-import { BookOpen, Plus, Star, Search } from 'lucide-react';
+import { useFamily } from '@/lib/family';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { format, parseISO } from 'date-fns';
-import { motion } from 'framer-motion';
+import { toast } from '@/components/ui/use-toast';
+import { getMemberColorClass } from '@/utils/memberColors';
+import EntryDialog from '@/components/journal/EntryDialog';
+import EntryCard from '@/components/journal/EntryCard';
+import { CATEGORIES, createEntry, updateEntry, deleteEntry, groupByDay, dayLabel } from '@/lib/journal';
 
-const moodEmojis = { great: '😄', good: '🙂', okay: '😐', poor: '😟', bad: '😢' };
-const categoryIcons = {
-  Symptom: '🩺', Behavior: '🧠', Mood: '💭', 'Doctor Note': '📋',
-  Observation: '👀', Milestone: '🎯', General: '📝',
-};
-
+/**
+ * The care journal: what the family noticed about the people they look after,
+ * day by day. Anyone in the family can write, edit and read; each entry says
+ * who wrote it and who it's about. Caregiver self check-ins live on Wellness.
+ */
 export default function Journal() {
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const [dialog, setDialog] = useState({ open: false, entry: null });
   const [search, setSearch] = useState('');
-  const [form, setForm] = useState({ content: '', category: 'General', mood: '', family_member_id: '', is_important: false });
+  const [person, setPerson] = useState(params.get('for') || 'all');
+  const [category, setCategory] = useState('all');
+  const [starred, setStarred] = useState(false);
   const queryClient = useQueryClient();
+  const { me } = useFamily();
 
-  const { data: entries = [] } = useQuery({
-    queryKey: ['careJournal'],
-    queryFn: () => base44.entities.CareJournal.list('-created_date', 100),
+  const { data: entries = [], isLoading } = useQuery({ queryKey: ['careJournal', 'all'], queryFn: () => base44.entities.CareJournal.list('-created_date', 300) });
+  const { data: members = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list() });
+
+  // ?new=1 opens a fresh entry (the quick-capture button and member pages link here).
+  useEffect(() => {
+    if (params.get('new')) {
+      setDialog({ open: true, entry: null });
+      const next = new URLSearchParams(params); next.delete('new'); setParams(next, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['careJournal'] });
+  const save = useMutation({
+    mutationFn: (form) => (dialog.entry?.id ? updateEntry(dialog.entry.id, form, members, me) : createEntry(form, members, me)),
+    onSuccess: () => { refresh(); queryClient.invalidateQueries({ queryKey: ['memberJournal'] }); setDialog({ open: false, entry: null }); },
+    onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
+  });
+  const remove = useMutation({
+    mutationFn: (entry) => deleteEntry(entry.id),
+    onSuccess: () => { refresh(); queryClient.invalidateQueries({ queryKey: ['memberJournal'] }); setDialog({ open: false, entry: null }); },
   });
 
-  const { data: members = [] } = useQuery({
-    queryKey: ['familyMembers'],
-    queryFn: () => base44.entities.FamilyMember.list(),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data) => {
-      const member = members.find(m => m.id === data.family_member_id);
-      return base44.entities.CareJournal.create(withFamily({ ...data, family_member_name: member?.name || '' }));
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['careJournal'] });
-      setDialogOpen(false);
-      setForm({ content: '', category: 'General', mood: '', family_member_id: '', is_important: false });
-    },
-  });
-
-  const filtered = entries.filter(e =>
-    !search || e.content?.toLowerCase().includes(search.toLowerCase()) || e.family_member_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return entries.filter((e) => {
+      // Wellness check-ins are the caregiver's own; they have no person and sit on that page.
+      if (e.category === 'Mood' && !e.family_member_id && !e.entry_date) return false;
+      if (person === 'family' && e.family_member_id) return false;
+      if (person !== 'all' && person !== 'family' && e.family_member_id !== person) return false;
+      if (category !== 'all' && e.category !== category) return false;
+      if (starred && !e.is_important) return false;
+      if (q && !(e.content || '').toLowerCase().includes(q) && !(e.family_member_name || '').toLowerCase().includes(q) && !(e.author_name || '').toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [entries, search, person, category, starred]);
+  const days = useMemo(() => groupByDay(visible), [visible]);
+  const filtering = person !== 'all' || category !== 'all' || starred || search.trim();
 
   return (
     <div className="pb-24 lg:pb-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3">
-            <BookOpen className="w-7 h-7 text-primary" />
-            Care Journal
-          </h1>
-          <p className="text-muted-foreground mt-1">Log observations, symptoms, and milestones.</p>
+          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><BookOpen className="w-7 h-7 text-primary" /> Care Journal</h1>
+          <p className="text-muted-foreground mt-1">What you noticed, what the doctor said, the good days and the hard ones.</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Entry</Button>
+        <Button onClick={() => setDialog({ open: true, entry: null })} className="rounded-xl gap-2"><Plus className="w-4 h-4" /><span className="hidden sm:inline">New entry</span></Button>
       </div>
 
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search journal entries..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-10 rounded-xl"
-        />
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <button type="button" onClick={() => setPerson('all')} className={chip(person === 'all')}>Everyone</button>
+        {members.map((m) => (
+          <button key={m.id} type="button" onClick={() => setPerson(m.id)} className={chip(person === m.id)}>
+            <span className={`w-2 h-2 rounded-full ${getMemberColorClass(m, members)}`} />{m.name.split(' ')[0]}
+          </button>
+        ))}
+        <button type="button" onClick={() => setPerson('family')} className={chip(person === 'family')}>Whole family</button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search entries…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 rounded-xl h-10" />
+        </div>
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger className="w-[160px] h-10 rounded-xl"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All kinds</SelectItem>
+            {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.icon} {c.value}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <button type="button" onClick={() => setStarred((v) => !v)} aria-pressed={starred} className={`h-10 px-3 rounded-xl border inline-flex items-center gap-1.5 text-sm ${starred ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-card border-border text-muted-foreground'}`}>
+          <Star className={`w-4 h-4 ${starred ? 'fill-amber-500 text-amber-500' : ''}`} /> Important
+        </button>
       </div>
 
-      {filtered.length === 0 ? (
+      {!isLoading && days.length === 0 ? (
         <div className="text-center py-20">
           <BookOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-          <h2 className="font-heading text-xl font-semibold mb-2">{search ? 'No matching entries' : 'Start your care journal'}</h2>
-          <p className="text-muted-foreground mb-6">{search ? 'Try a different search term.' : 'Record your first observation or note.'}</p>
-          {!search && <Button onClick={() => setDialogOpen(true)} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Entry</Button>}
+          <h2 className="font-heading text-xl font-semibold mb-2">{filtering ? 'Nothing matches' : 'Start the journal'}</h2>
+          <p className="text-muted-foreground mb-6">{filtering ? 'Try a different person, kind or search.' : 'Write down what you noticed today. Everyone in the family can read it.'}</p>
+          {!filtering && <Button onClick={() => setDialog({ open: true, entry: null })} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> New entry</Button>}
         </div>
       ) : (
-        <div className="space-y-4">
-          {filtered.map((entry, i) => (
-            <motion.div key={entry.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-              <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-5">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{categoryIcons[entry.category] || '📝'}</span>
-                    <Badge variant="secondary" className="text-xs">{entry.category}</Badge>
-                    {entry.family_member_name && <Badge variant="outline" className="text-xs">{entry.family_member_name}</Badge>}
-                    {entry.mood && <span className="text-lg" title={entry.mood}>{moodEmojis[entry.mood]}</span>}
-                  </div>
-                  {entry.is_important && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
-                </div>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{entry.content}</p>
-                <p className="text-xs text-muted-foreground mt-3">
-                  {entry.created_date ? format(parseISO(entry.created_date), 'EEEE, MMM d, yyyy · h:mm a') : ''}
-                </p>
+        <div className="space-y-6">
+          {days.map(([day, list]) => (
+            <section key={day}>
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">{dayLabel(day)}</h2>
+              <div className="space-y-3">
+                {list.map((entry) => <EntryCard key={entry.id} entry={entry} members={members} onOpen={(e) => setDialog({ open: true, entry: e })} />)}
               </div>
-            </motion.div>
+            </section>
           ))}
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle className="font-heading text-xl">New Journal Entry</DialogTitle></DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div><Label>Entry *</Label><Textarea value={form.content} onChange={e => setForm({...form, content: e.target.value})} placeholder="What did you observe today?" className="mt-1 min-h-[120px]" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Category</Label>
-                <Select value={form.category} onValueChange={v => setForm({...form, category: v})}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(categoryIcons).map(c => <SelectItem key={c} value={c}>{categoryIcons[c]} {c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Mood</Label>
-                <Select value={form.mood} onValueChange={v => setForm({...form, mood: v})}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(moodEmojis).map(([k, v]) => <SelectItem key={k} value={k}>{v} {k}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label>Family Member</Label>
-              <Select value={form.family_member_id} onValueChange={v => setForm({...form, family_member_id: v})}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{members.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.is_important} onChange={e => setForm({...form, is_important: e.target.checked})} className="rounded" />
-              <span className="text-sm">Mark as important</span>
-            </label>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={() => createMutation.mutate(form)} disabled={!form.content || createMutation.isPending}>
-                {createMutation.isPending ? 'Saving...' : 'Save Entry'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EntryDialog
+        open={dialog.open}
+        onOpenChange={(o) => setDialog((d) => ({ ...d, open: o }))}
+        entry={dialog.entry}
+        members={members}
+        defaultMemberId={person !== 'all' && person !== 'family' ? person : ''}
+        onSave={(form) => save.mutate(form)}
+        onDelete={(e) => remove.mutate(e)}
+        saving={save.isPending || remove.isPending}
+      />
     </div>
   );
+}
+
+function chip(active) {
+  return `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:border-primary/40'}`;
 }
