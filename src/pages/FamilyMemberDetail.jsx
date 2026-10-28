@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CareFeed from '@/components/dashboard/CareFeed';
+import PhoneActions from '@/components/shared/PhoneActions';
 
 export default function FamilyMemberDetail() {
   const { id } = useParams();
@@ -185,9 +186,9 @@ export default function FamilyMemberDetail() {
               ) : (
                 <>
                   <InfoRow label="Primary Doctor" value={member.primary_doctor ? `Dr. ${member.primary_doctor}` : 'Not set'} />
-                  <InfoRow label="Doctor Phone" value={member.primary_doctor_phone || 'Not set'} />
+                  <InfoRow label="Doctor Phone" value={member.primary_doctor_phone || 'Not set'} action={<PhoneActions number={member.primary_doctor_phone} name={member.primary_doctor} />} />
                   <InfoRow label="Emergency Contact" value={member.emergency_contact_name || 'Not set'} />
-                  <InfoRow label="Emergency Phone" value={member.emergency_contact_phone || 'Not set'} />
+                  <InfoRow label="Emergency Phone" value={member.emergency_contact_phone || 'Not set'} action={<PhoneActions number={member.emergency_contact_phone} name={member.emergency_contact_name} />} />
                 </>
               )}
             </CardContent>
@@ -207,6 +208,7 @@ export default function FamilyMemberDetail() {
               ) : (
                 <>
                   <InfoRow label="School" value={member.school_name || 'Not set'} />
+                  <InfoRow label="School Phone" value={member.school_phone || 'Not set'} action={<PhoneActions number={member.school_phone} name={member.school_name} />} />
                   <InfoRow label="Grade" value={member.school_grade || 'Not set'} />
                   <InfoRow label="Teacher" value={member.school_teacher || 'Not set'} />
                 </>
