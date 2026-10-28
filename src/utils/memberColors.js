@@ -14,6 +14,17 @@ export function getMemberColorClass(member, members = []) {
   return idx >= 0 ? MEMBER_COLOR_PALETTE[idx % MEMBER_COLOR_PALETTE.length] : FALLBACK_COLOR;
 }
 
+// Light tint versions of each palette color, for tinted containers.
+const LIGHT = {
+  'bg-blue-500': 'bg-blue-500/15', 'bg-emerald-500': 'bg-emerald-500/15', 'bg-purple-500': 'bg-purple-500/15',
+  'bg-orange-500': 'bg-orange-500/15', 'bg-pink-500': 'bg-pink-500/15', 'bg-teal-500': 'bg-teal-500/15',
+  'bg-indigo-500': 'bg-indigo-500/15', 'bg-amber-500': 'bg-amber-500/15', 'bg-gray-400': 'bg-gray-400/15',
+};
+
+export function getMemberLightColorByMemberId(memberId, members = []) {
+  return LIGHT[getMemberColorByMemberId(memberId, members)] || 'bg-muted/40';
+}
+
 export function getMemberColorByMemberId(memberId, members = []) {
   const member = members.find(m => m.id === memberId);
   return getMemberColorClass(member, members);

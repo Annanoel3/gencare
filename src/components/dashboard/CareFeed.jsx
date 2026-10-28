@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { parseISO, isToday, format, isValid } from 'date-fns';
-import { getMemberColorByMemberId } from '@/utils/memberColors';
+import { getMemberLightColorByMemberId } from '@/utils/memberColors';
 
 function toWhen(entry) {
   if (entry.timestamp) { const d = parseISO(entry.timestamp); if (isValid(d)) return d; }
@@ -95,8 +95,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       {title && <h3 className="font-heading text-lg font-semibold mb-4">{title}</h3>}
       <div className="space-y-2">
         {items.map(i => (
-          <div key={i.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40">
-            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getMemberColorByMemberId(i.memberId, members)}`} />
+          <div key={i.id} className={`flex items-center gap-3 p-2.5 rounded-xl ${getMemberLightColorByMemberId(i.memberId, members)}`}>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
                 {i.memberName || 'Family'} <span className="text-muted-foreground font-normal">· {i.label}</span>
