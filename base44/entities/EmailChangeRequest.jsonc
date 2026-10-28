@@ -1,32 +1,47 @@
 {
   "name": "EmailChangeRequest",
-  "type": "object",
   "properties": {
     "current_email": {
-      "type": "string",
-      "description": "The user's current email"
+      "type": "string"
     },
     "requested_email": {
-      "type": "string",
-      "description": "The new email requested"
-    },
-    "user_id": {
-      "type": "string",
-      "description": "ID of the requesting user"
+      "type": "string"
     },
     "status": {
-      "type": "string",
+      "default": "pending",
       "enum": [
         "pending",
-        "approved",
+        "done",
         "rejected"
       ],
-      "default": "pending"
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string"
     }
   },
   "required": [
     "current_email",
     "requested_email",
     "user_id"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.user_id": "{{user.id}}"
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "data.user_id": "{{user.id}}"
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
 }
