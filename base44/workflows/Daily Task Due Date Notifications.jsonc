@@ -1,6 +1,4 @@
 {
-  "name": "Reminders every 15 minutes",
-  "description": "Appointment reminders, task due-time pushes and the 7 AM family digest (functions/cronReminders)",
   "trigger": {
     "condition": null,
     "config": {
@@ -18,6 +16,8 @@
       "ends_after_count": null
     }
   },
+  "description": "Appointment reminders, task due-time pushes and the 7 AM family digest (functions/cronReminders)",
+  "name": "Reminders every 15 minutes",
   "definition": {
     "document": {
       "dsl": "1.0.0",
