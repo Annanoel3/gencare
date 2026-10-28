@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
       if (body.appointment_id) appt = (await db.Appointment.filter({ id: String(body.appointment_id) }))?.[0] || null;
       if (appt && appt.family_id !== familyId) return Response.json({ ok: false, error: 'Not your family' }, { status: 403 });
       if (appt && appt.visibility === 'private') return Response.json({ ok: true, sent: [], skipped: 'private' });
+      // Shared with certain people only: only they hear about it.
+      const onlyUserIds = appt && appt.visibility === 'some' ? (Array.isArray(appt.shared_with) ? appt.shared_with : []) : undefined;
       const title = appt?.title || body.title || 'an event';
       const forWhom = appt?.family_member_name || body.family_member_name || '';
       const when = whenText(appt?.date || body.date, appt?.time || body.time, user.timezone, !!appt?.all_day);
@@ -45,6 +47,7 @@ Deno.serve(async (req) => {
         message,
         data: { type: 'appointment', action, appointmentId: appt?.id || body.appointment_id || '', screen: '/calendar', date: appt?.date || body.date || '' },
         exceptUserId: user.id,
+        onlyUserIds,
         need: 'family_events',
       });
       return Response.json({ ok: true, sent });
