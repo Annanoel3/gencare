@@ -53,8 +53,6 @@ export default function Journal() {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return entries.filter((e) => {
-      // Wellness check-ins are the caregiver's own; they have no person and sit on that page.
-      if (e.category === 'Mood' && !e.family_member_id && !e.entry_date) return false;
       if (person === 'family' && e.family_member_id) return false;
       if (person !== 'all' && person !== 'family' && e.family_member_id !== person) return false;
       if (category !== 'all' && e.category !== category) return false;

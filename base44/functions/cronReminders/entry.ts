@@ -18,6 +18,8 @@ import { expandAppointments } from '../../shared/recurrence.ts';
 //      'due' so the Taken button has something to flip), a 'missed' push and
 //      log status 90 minutes later if nobody marked it, and a refill push once
 //      a day from refill_reminder_days before the refill date.
+//   5. Wellness: a daily 'how are you holding up?' push for caregivers who
+//      set an hour, skipped once they've checked in that day.
 //
 // Replaces checkDueTasks (Jul 2026), which pushed every task in the whole
 // app to every user at 13:00 UTC.
@@ -194,6 +196,27 @@ const MISSED_AFTER_MS = 90 * 60_000;
             }
           }
         }
+      }
+
+      // 5. Caregiver wellness: a once-a-day "how are you holding up?" at the
+      // hour each person picked, skipped if they already checked in today.
+      // Each person's own timezone, since this is about them, not the family.
+      for (const u of users) {
+        const hour = typeof u.wellness_reminder_hour === 'number' ? u.wellness_reminder_hour : null;
+        if (hour === null || !wantsPush(u, 'reminders')) continue;
+        const utz = safeTz(u.timezone || tz);
+        const ul = partsIn(utz, new Date(now));
+        if (ul.hour !== hour || ul.minute >= 15 || u.wellness_reminded_on === ul.day) continue;
+        const done = (await db.WellnessCheckin.filter({ user_id: u.id, day: ul.day })) || [];
+        await db.User.update(u.id, { wellness_reminded_on: ul.day });
+        if (done.length) continue;
+        await sendPush({
+          email: u.email,
+          title: 'How are you holding up?',
+          message: 'A 20-second check-in for you, not for anyone else.',
+          data: { type: 'wellness', screen: '/wellness' },
+        });
+        out.wellness_pushes = (out.wellness_pushes || 0) + 1;
       }
 
       // 3. Morning digest.
