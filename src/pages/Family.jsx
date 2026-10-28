@@ -14,10 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion } from 'framer-motion';
 
-const memberColors = [
-  'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500',
-  'bg-pink-500', 'bg-teal-500', 'bg-indigo-500', 'bg-amber-500',
-];
+import { getMemberColorClass } from '@/utils/memberColors';
 
 const relationships = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Son', 'Daughter', 'Spouse', 'Sibling', 'Uncle', 'Aunt', 'Cousin', 'Foster Child', 'Other'];
 
@@ -86,7 +83,7 @@ export default function Family() {
                 <div className="flex items-center gap-4 mb-4">
                   <Avatar className="w-14 h-14">
                     <AvatarImage src={member.photo_url} />
-                    <AvatarFallback className={`${memberColors[i % memberColors.length]} text-white text-lg font-bold`}>
+                    <AvatarFallback className={`${getMemberColorClass(member, members)} text-white text-lg font-bold`}>
                       {member.name?.charAt(0)}
                     </AvatarFallback>
                   </Avatar>

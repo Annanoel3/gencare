@@ -4,10 +4,7 @@ import { Users, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-const memberColors = [
-  'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500',
-  'bg-pink-500', 'bg-teal-500', 'bg-indigo-500', 'bg-amber-500',
-];
+import { getMemberColorClass } from '@/utils/memberColors';
 
 export default function FamilyOverview({ members }) {
   return (
@@ -38,7 +35,7 @@ export default function FamilyOverview({ members }) {
               >
                 <Avatar className="w-10 h-10">
                   <AvatarImage src={member.photo_url} />
-                  <AvatarFallback className={`${memberColors[i % memberColors.length]} text-white text-sm font-semibold`}>
+                  <AvatarFallback className={`${getMemberColorClass(member, members)} text-white text-sm font-semibold`}>
                     {member.name?.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
