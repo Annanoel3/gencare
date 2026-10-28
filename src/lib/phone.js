@@ -35,12 +35,14 @@ export function waitForPlugin(name, timeoutMs = 10000) {
 // Android versionCode of the running build, if the app reports it. Older
 // builds don't; the web app then treats them as build 1.
 export async function appBuild() {
+  if (!isNativeApp()) return 0;
   try {
-    const App = plugin('App');
+    const App = plugin('App') || await waitForPlugin('App', 4000);
     const info = await App?.getInfo?.();
     const n = parseInt(info?.build, 10);
-    return Number.isFinite(n) ? n : (isNativeApp() ? 1 : 0);
+    // No answer: assume the newest build rather than nag someone who is on it.
+    return Number.isFinite(n) ? n : 0;
   } catch (e) {
-    return isNativeApp() ? 1 : 0;
+    return 0;
   }
 }
