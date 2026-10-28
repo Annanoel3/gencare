@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import EventRow from './EventRow';
 
-export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext, appointments, members }) {
+export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext, appointments, members, onOpen }) {
   const weekStart = startOfWeek(selectedDate);
   const weekEnd = endOfWeek(selectedDate);
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -20,7 +20,7 @@ export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext
         {days.map(day => {
           const dayAppts = appointments
             .filter(a => a.date && isSameDay(parseISO(a.date), day))
-            .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+            .sort((a, b) => (a.all_day ? '' : a.time || '').localeCompare(b.all_day ? '' : b.time || ''));
           const selected = isSameDay(day, selectedDate);
           const today = isToday(day);
           return (
@@ -39,7 +39,7 @@ export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext
                 {dayAppts.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-2">No events</p>
                 ) : (
-                  dayAppts.map(appt => <EventRow key={appt.id} appt={appt} members={members} />)
+                  dayAppts.map(appt => <EventRow key={appt.id} appt={appt} members={members} onClick={onOpen} />)
                 )}
               </div>
             </div>
