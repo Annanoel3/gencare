@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, Smartphone, Mic, Repeat } from 'lucide-react';
+import { Lock, Smartphone, Mic, Repeat, Users } from 'lucide-react';
 import { getMemberColorByMemberId } from '@/utils/memberColors';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 
@@ -32,6 +32,7 @@ export default function EventRow({ appt, members, onClick }) {
         <div className="flex items-start gap-2">
           <p className="font-medium text-sm flex-1 min-w-0">{appt.title}</p>
           {appt.visibility === 'private' && <Lock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Only you see this" />}
+          {appt.visibility === 'some' && <Users className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Shared with certain people" />}
           {appt.source === 'phone' && <Smartphone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="From a phone calendar" />}
           {appt.recurrence && <Repeat className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Repeats" />}
         </div>
