@@ -1,16 +1,8 @@
 {
   "name": "ToddlerCareLog",
-  "type": "object",
   "properties": {
-    "family_member_id": {
-      "type": "string",
-      "description": "ID of the toddler"
-    },
-    "family_member_name": {
-      "type": "string"
-    },
     "entry_type": {
-      "type": "string",
+      "default": "mood",
       "enum": [
         "tantrum",
         "mood",
@@ -18,61 +10,86 @@
         "potty",
         "milestone"
       ],
-      "default": "mood"
+      "type": "string"
     },
-    "timestamp": {
-      "type": "string",
-      "format": "date-time"
+    "family_id": {
+      "type": "string"
     },
-    "tantrum_trigger": {
-      "type": "string",
-      "description": "What triggered the tantrum"
+    "family_member_id": {
+      "description": "ID of the toddler",
+      "type": "string"
     },
-    "tantrum_duration_min": {
-      "type": "number"
+    "family_member_name": {
+      "type": "string"
     },
-    "tantrum_response": {
-      "type": "string",
-      "description": "How it was handled"
+    "milestone_category": {
+      "enum": [
+        "speech",
+        "motor",
+        "social"
+      ],
+      "type": "string"
+    },
+    "milestone_description": {
+      "type": "string"
     },
     "mood": {
-      "type": "string",
       "enum": [
         "happy",
         "calm",
         "anxious",
         "irritable",
         "upset"
-      ]
+      ],
+      "type": "string"
     },
-    "screen_time_min": {
-      "type": "number"
+    "notes": {
+      "type": "string"
     },
     "potty_type": {
-      "type": "string",
       "enum": [
         "attempt",
         "success",
         "accident"
-      ]
-    },
-    "milestone_category": {
-      "type": "string",
-      "enum": [
-        "speech",
-        "motor",
-        "social"
-      ]
-    },
-    "milestone_description": {
+      ],
       "type": "string"
     },
-    "notes": {
+    "screen_time_min": {
+      "type": "number"
+    },
+    "tantrum_duration_min": {
+      "type": "number"
+    },
+    "tantrum_response": {
+      "description": "How it was handled",
+      "type": "string"
+    },
+    "tantrum_trigger": {
+      "description": "What triggered the tantrum",
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
       "type": "string"
     }
   },
   "required": [
     "family_member_id",
     "entry_type"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
