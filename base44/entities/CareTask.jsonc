@@ -1,52 +1,16 @@
 {
   "name": "CareTask",
-  "type": "object",
   "properties": {
-    "title": {
-      "type": "string"
-    },
-    "description": {
-      "type": "string"
-    },
-    "family_member_id": {
-      "type": "string"
-    },
-    "family_member_name": {
-      "type": "string"
-    },
     "assigned_to": {
-      "type": "string",
-      "description": "Name of the person assigned"
+      "description": "Name of the person assigned",
+      "type": "string"
     },
-    "priority": {
-      "type": "string",
-      "enum": [
-        "low",
-        "medium",
-        "high",
-        "urgent"
-      ],
-      "default": "medium"
-    },
-    "status": {
-      "type": "string",
-      "enum": [
-        "pending",
-        "in_progress",
-        "completed",
-        "cancelled"
-      ],
-      "default": "pending"
-    },
-    "due_date": {
-      "type": "string",
-      "format": "date"
-    },
-    "due_time": {
+    "assigned_user_id": {
+      "description": "The GenCare account the task is assigned to",
       "type": "string"
     },
     "category": {
-      "type": "string",
+      "default": "Other",
       "enum": [
         "Medical",
         "School",
@@ -57,26 +21,93 @@
         "Personal Care",
         "Other"
       ],
-      "default": "Other"
+      "type": "string"
+    },
+    "completed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "completed_by_name": {
+      "type": "string"
+    },
+    "created_by_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "due_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "due_time": {
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
     },
     "is_recurring": {
-      "type": "boolean",
-      "default": false
+      "default": false,
+      "type": "boolean"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "priority": {
+      "default": "medium",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "type": "string"
     },
     "recurrence": {
-      "type": "string",
+      "default": "daily",
       "enum": [
         "daily",
         "weekly",
         "monthly"
       ],
-      "default": "daily"
+      "type": "string"
     },
-    "notes": {
+    "status": {
+      "default": "pending",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "title": {
       "type": "string"
     }
   },
   "required": [
     "title"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
