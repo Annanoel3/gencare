@@ -8,7 +8,6 @@ import StatCards from '@/components/dashboard/StatCards';
 import FamilyOverview from '@/components/dashboard/FamilyOverview';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import CareFeed from '@/components/dashboard/CareFeed';
-import QuickAddTask from '@/components/shared/QuickAddTask';
 import TodoCard from '@/components/dashboard/TodoCard';
 
 export default function Dashboard() {
@@ -62,7 +61,6 @@ export default function Dashboard() {
         urgentTasks={urgentTasks.length}
       />
 
-      <QuickAddTask placeholder="Add a task for the family…" className="mb-6" />
       <TodoCard tasks={tasks} members={members} />
 
       <div className="mb-6">
