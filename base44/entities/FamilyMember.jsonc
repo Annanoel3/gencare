@@ -1,17 +1,74 @@
 {
   "name": "FamilyMember",
-  "type": "object",
   "properties": {
+    "allergies": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "birthdate": {
+      "format": "date",
+      "type": "string"
+    },
+    "blood_type": {
+      "type": "string"
+    },
+    "care_notes": {
+      "type": "string"
+    },
+    "color": {
+      "description": "Profile color code",
+      "type": "string"
+    },
+    "emergency_contact_name": {
+      "type": "string"
+    },
+    "emergency_contact_phone": {
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "insurance_policy_number": {
+      "type": "string"
+    },
+    "insurance_provider": {
+      "type": "string"
+    },
+    "is_active": {
+      "default": true,
+      "type": "boolean"
+    },
+    "linked_user_id": {
+      "description": "The GenCare account this family member is, if they use the app themselves",
+      "type": "string"
+    },
+    "medical_conditions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "name": {
-      "type": "string",
-      "description": "Full name"
+      "description": "Full name",
+      "type": "string"
     },
     "photo_url": {
-      "type": "string",
-      "description": "Profile photo URL"
+      "description": "Profile photo URL",
+      "type": "string"
+    },
+    "preferred_pharmacy": {
+      "type": "string"
+    },
+    "primary_doctor": {
+      "type": "string"
+    },
+    "primary_doctor_phone": {
+      "type": "string"
     },
     "relationship": {
-      "type": "string",
+      "description": "Relationship to the user",
       "enum": [
         "Mother",
         "Father",
@@ -27,74 +84,38 @@
         "Foster Child",
         "Other"
       ],
-      "description": "Relationship to the user"
-    },
-    "birthdate": {
-      "type": "string",
-      "format": "date"
-    },
-    "color": {
-      "type": "string",
-      "description": "Profile color code"
-    },
-    "medical_conditions": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "allergies": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "blood_type": {
-      "type": "string"
-    },
-    "insurance_provider": {
-      "type": "string"
-    },
-    "insurance_policy_number": {
-      "type": "string"
-    },
-    "preferred_pharmacy": {
-      "type": "string"
-    },
-    "primary_doctor": {
-      "type": "string"
-    },
-    "primary_doctor_phone": {
-      "type": "string"
-    },
-    "emergency_contact_name": {
-      "type": "string"
-    },
-    "emergency_contact_phone": {
-      "type": "string"
-    },
-    "school_name": {
       "type": "string"
     },
     "school_grade": {
       "type": "string"
     },
-    "school_teacher": {
+    "school_name": {
       "type": "string"
     },
     "school_phone": {
       "type": "string"
     },
-    "care_notes": {
+    "school_teacher": {
       "type": "string"
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true
     }
   },
   "required": [
     "name",
     "relationship"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
