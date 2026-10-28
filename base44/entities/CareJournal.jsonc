@@ -4,6 +4,10 @@
     "author_name": {
       "type": "string"
     },
+    "author_user_id": {
+      "description": "Account that wrote the entry",
+      "type": "string"
+    },
     "category": {
       "default": "General",
       "enum": [
@@ -18,6 +22,11 @@
       "type": "string"
     },
     "content": {
+      "type": "string"
+    },
+    "entry_date": {
+      "description": "The day the entry is about (defaults to the day it was written)",
+      "format": "date",
       "type": "string"
     },
     "family_id": {
@@ -45,6 +54,13 @@
     },
     "photo_url": {
       "type": "string"
+    },
+    "photos": {
+      "description": "Private file URIs; shown through short-lived signed URLs",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     }
   },
   "required": [

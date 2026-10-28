@@ -1,0 +1,83 @@
+{
+  "description": "One dose of a medication on one day: due, taken, skipped or missed. Written by the reminder job at dose time and by the Taken button.",
+  "name": "MedicationLog",
+  "properties": {
+    "day": {
+      "description": "The dose's day in the family's own time",
+      "format": "date",
+      "type": "string"
+    },
+    "due_pushed_at": {
+      "description": "When the 'time for' push went out",
+      "format": "date-time",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "medication_id": {
+      "type": "string"
+    },
+    "medication_name": {
+      "type": "string"
+    },
+    "missed_pushed_at": {
+      "description": "When the 'missed' push went out",
+      "format": "date-time",
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "default": "due",
+      "enum": [
+        "due",
+        "taken",
+        "skipped",
+        "missed"
+      ],
+      "type": "string"
+    },
+    "taken_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "taken_by_name": {
+      "type": "string"
+    },
+    "taken_by_user_id": {
+      "type": "string"
+    },
+    "time": {
+      "description": "The dose's time, HH:MM",
+      "type": "string"
+    }
+  },
+  "required": [
+    "medication_id",
+    "day",
+    "time"
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
+}
