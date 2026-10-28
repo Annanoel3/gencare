@@ -13,7 +13,6 @@ import {
   hasPhoneCalendars, listDeviceCalendars, listWritableCalendars, requestReadPermission, requestWritePermission,
   saveCalendarSettings, runImport, runExport, calendarStatus,
 } from '@/lib/calendarSync';
-import { CATEGORIES } from './EventDialog';
 
 const REMINDERS = [
   { v: -1, label: 'No reminder on the phone' },
@@ -26,11 +25,10 @@ const REMINDERS = [
 //   Bring in — tick phone calendars to import into GenCare. Each imported
 //     calendar starts PRIVATE (only you see those events); flip "Share with
 //     family" per calendar to put it on the family calendar.
-//   Send to my phone — pick ONE phone calendar GenCare writes family events
-//     into, and filter which ones: certain family members, certain
-//     categories. That filter is yours alone; everyone in the family sets
-//     their own, so nobody gets things on their calendar they didn't ask for.
-export default function PhoneCalendarSheet({ open, onClose, members = [] }) {
+//   Send to my phone — pick ONE phone calendar GenCare writes into. What lands
+//     there is decided per event by whoever adds it ("Share with" on the
+//     event): the whole family, certain people, or only themselves.
+export default function PhoneCalendarSheet({ open, onClose }) {
   const { me, refresh } = useFamily();
   const [calendars, setCalendars] = useState([]);
   const [writable, setWritable] = useState([]);
@@ -48,7 +46,6 @@ export default function PhoneCalendarSheet({ open, onClose, members = [] }) {
     else if (me) setSettings({
       device_calendar_ids: me.device_calendar_ids || [], import_share_calendar_ids: me.import_share_calendar_ids || [],
       export_enabled: !!me.export_enabled, export_calendar_id: me.export_calendar_id || '',
-      export_member_ids: me.export_member_ids || [], export_categories: me.export_categories || [],
       export_reminder_minutes: typeof me.export_reminder_minutes === 'number' ? me.export_reminder_minutes : 30,
     });
     if (native) {
@@ -139,12 +136,6 @@ export default function PhoneCalendarSheet({ open, onClose, members = [] }) {
     } finally { setBusy(''); }
   };
 
-  const toggleIn = (key, id) => {
-    const ids = new Set(settings[key] || []);
-    if (ids.has(id)) ids.delete(id); else ids.add(id);
-    setExport({ [key]: [...ids] });
-  };
-
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-lg max-h-[92vh] overflow-y-auto">
@@ -230,30 +221,7 @@ export default function PhoneCalendarSheet({ open, onClose, members = [] }) {
                     </Select>
                     {!settings.export_calendar_id && <p className="text-xs text-muted-foreground mt-1">Tip: make a calendar called "Family" in your calendar app and pick it here, so GenCare's events stay in their own color.</p>}
                   </div>
-                  <div>
-                    <Label className="text-xs">Whose events</Label>
-                    <p className="text-xs text-muted-foreground mb-1">Nothing ticked = everyone.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {members.map((m) => {
-                        const on = (settings.export_member_ids || []).includes(m.id);
-                        return (
-                          <button key={m.id} type="button" onClick={() => toggleIn('export_member_ids', m.id)} className={`px-3 py-1 rounded-full text-xs border ${on ? 'bg-primary text-primary-foreground border-primary' : 'border-border'}`}>{m.name}</button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Which kinds</Label>
-                    <p className="text-xs text-muted-foreground mb-1">Nothing ticked = all kinds.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {CATEGORIES.map((c) => {
-                        const on = (settings.export_categories || []).includes(c);
-                        return (
-                          <button key={c} type="button" onClick={() => toggleIn('export_categories', c)} className={`px-3 py-1 rounded-full text-xs border ${on ? 'bg-primary text-primary-foreground border-primary' : 'border-border'}`}>{c}</button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <p className="text-xs text-muted-foreground">Events shared with you (by the whole family or by name) go on this calendar; the person adding an event decides that with "Share with".</p>
                   <div>
                     <Label className="text-xs">Reminder on the phone</Label>
                     <Select value={String(settings.export_reminder_minutes ?? 30)} onValueChange={(v) => setExport({ export_reminder_minutes: Number(v) })}>
