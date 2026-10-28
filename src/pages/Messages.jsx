@@ -31,8 +31,10 @@ export default function Messages() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.FamilyMessage.create(withFamily(data)),
-    onSuccess: () => {
+    mutationFn: (data) => base44.entities.FamilyMessage.create(withFamily({ ...data, author_user_id: user?.id })),
+    onSuccess: (created) => {
+      // The rest of the family hears about it (notifyFamily sends to everyone but the author).
+      if (created?.id) base44.functions.invoke('notifyFamily', { kind: 'message', message_id: created.id }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ['familyMessages'] });
       setContent('');
       setCategory('General');
