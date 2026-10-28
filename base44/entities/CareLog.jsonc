@@ -1,0 +1,169 @@
+{
+  "description": "One care-log entry about one person. The kinds of entry depend on the person's age band (baby, toddler, school-age, pre-teen, teen, adult, senior); the catalog lives in src/lib/careLog.js.",
+  "name": "CareLog",
+  "properties": {
+    "amount": {
+      "description": "ml, dollars, stars, points - see unit",
+      "type": "number"
+    },
+    "band": {
+      "description": "Age band the person was in when this was logged",
+      "type": "string"
+    },
+    "completed": {
+      "type": "boolean"
+    },
+    "contact": {
+      "type": "string"
+    },
+    "date": {
+      "description": "A date the entry points at (refill, pickup, cycle start)",
+      "format": "date",
+      "type": "string"
+    },
+    "doc_url": {
+      "type": "string"
+    },
+    "due_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "entry_type": {
+      "description": "Kind of entry (feeding, diaper, tantrum, homework, transport, care_log, ...)",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "given_by": {
+      "type": "string"
+    },
+    "grade": {
+      "type": "string"
+    },
+    "level": {
+      "description": "1-5 scale (anxiety, pain, severity)",
+      "type": "number"
+    },
+    "location": {
+      "type": "string"
+    },
+    "logged_by_name": {
+      "type": "string"
+    },
+    "logged_by_user_id": {
+      "type": "string"
+    },
+    "minutes": {
+      "type": "number"
+    },
+    "mood": {
+      "enum": [
+        "happy",
+        "calm",
+        "anxious",
+        "irritable",
+        "upset"
+      ],
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "pharmacy": {
+      "type": "string"
+    },
+    "photos": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "response": {
+      "description": "How a tantrum or incident was handled",
+      "type": "string"
+    },
+    "side": {
+      "enum": [
+        "left",
+        "right",
+        "both"
+      ],
+      "type": "string"
+    },
+    "source_entity": {
+      "description": "Entity this row was migrated from, if any",
+      "type": "string"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "scheduled",
+        "done"
+      ],
+      "type": "string"
+    },
+    "sub_type": {
+      "description": "Specific kind within the entry type",
+      "type": "string"
+    },
+    "time": {
+      "type": "string"
+    },
+    "timestamp": {
+      "description": "When it happened",
+      "format": "date-time",
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "unit": {
+      "type": "string"
+    },
+    "value": {
+      "description": "Measurement such as weight or temperature",
+      "type": "number"
+    },
+    "value_b": {
+      "description": "Second measurement such as length",
+      "type": "number"
+    },
+    "value_c": {
+      "description": "Third measurement such as head circumference",
+      "type": "number"
+    },
+    "vitals": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "family_member_id",
+    "entry_type",
+    "timestamp"
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
+}
