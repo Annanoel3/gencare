@@ -1,13 +1,13 @@
 {
-  "name": "Daily Task Due Date Notifications",
-  "description": "Sends push notifications for overdue tasks and tasks due tomorrow",
+  "name": "Reminders every 15 minutes",
+  "description": "Appointment reminders, task due-time pushes and the 7 AM family digest (functions/cronReminders)",
   "trigger": {
     "condition": null,
     "config": {
       "trigger_type": "scheduled",
       "events": [],
       "schedule_mode": "recurring",
-      "cron_expression": "0 13 * * *",
+      "cron_expression": "*/15 * * * *",
       "one_time_date": null,
       "timezone": "UTC",
       "interval_value": null,
@@ -21,7 +21,7 @@
   "definition": {
     "document": {
       "dsl": "1.0.0",
-      "name": "daily_task_due_date_notifications",
+      "name": "reminders_every_15_minutes",
       "version": "1.0",
       "namespace": "base44"
     },
@@ -30,7 +30,7 @@
         "run_function": {
           "call": "invoke_backend_function",
           "with": {
-            "function_name": "checkDueTasks",
+            "function_name": "cronReminders",
             "args": {}
           },
           "then": "end"
