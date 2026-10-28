@@ -4,7 +4,6 @@ import { base44 } from '@/api/base44Client';
 import { isToday, parseISO } from 'date-fns';
 import WelcomeHeader from '@/components/dashboard/WelcomeHeader';
 import StatCards from '@/components/dashboard/StatCards';
-import TodayTimeline from '@/components/dashboard/TodayTimeline';
 import FamilyOverview from '@/components/dashboard/FamilyOverview';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import CareFeed from '@/components/dashboard/CareFeed';
@@ -62,12 +61,11 @@ export default function Dashboard() {
       />
 
       <div className="mb-6">
-        <h2 className="font-heading text-lg font-semibold mb-3">Today's Care Across the Family</h2>
+        <h2 className="font-heading text-lg font-semibold mb-3">Today Across the Family</h2>
         <CareFeed members={members} scope="today" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TodayTimeline appointments={appointments} tasks={tasks} medications={medications} />
         <FamilyOverview members={members} />
         <RecentActivity messages={messages} journalEntries={journalEntries} />
       </div>

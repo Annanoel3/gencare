@@ -33,7 +33,9 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
   const seniorQ = useQuery({ queryKey: ['SeniorLog', 'feed'], queryFn: () => base44.entities.SeniorLog.list('-timestamp', 200) });
   const apptQ = useQuery({ queryKey: ['appointments', 'feed'], queryFn: () => base44.entities.Appointment.list('-date', 100) });
 
-  const isLoading = [babyQ, toddlerQ, schoolQ, preteenQ, teenQ, seniorQ, apptQ].some(q => q.isLoading);
+  const taskQ = useQuery({ queryKey: ['careTasks', 'feed'], queryFn: () => base44.entities.CareTask.filter({ status: { $in: ['pending', 'in_progress'] } }, '-due_date', 100) });
+
+  const isLoading = [babyQ, toddlerQ, schoolQ, preteenQ, teenQ, seniorQ, apptQ, taskQ].some(q => q.isLoading);
 
   let items = [];
   (babyQ.data || []).forEach(e => items.push(normalizeLog(e, 'baby care')));
@@ -55,6 +57,19 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
     });
   });
 
+  (taskQ.data || []).forEach(t => {
+    let when = t.due_date ? parseISO(t.due_date) : null;
+    if (when && isValid(when) && t.due_time) { const [h, m] = t.due_time.split(':'); when.setHours(+h, +(m || 0)); }
+    items.push({
+      id: t.id,
+      memberId: t.family_member_id,
+      memberName: t.family_member_name,
+      label: 'Task',
+      detail: [t.title, t.assigned_to && `→ ${t.assigned_to}`].filter(Boolean).join(' · '),
+      when,
+    });
+  });
+
   if (memberId) items = items.filter(i => i.memberId === memberId);
   if (scope === 'today') items = items.filter(i => i.when && isToday(i.when));
   items.sort((a, b) => (b.when ? b.when.getTime() : 0) - (a.when ? a.when.getTime() : 0));
@@ -69,7 +84,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       <div className="bg-card rounded-2xl border border-border/50 p-6">
         {title && <h3 className="font-heading text-lg font-semibold mb-2">{title}</h3>}
         <p className="text-sm text-muted-foreground text-center py-6">
-          {scope === 'today' ? 'No care activity logged today.' : 'No recent care activity.'}
+          {scope === 'today' ? 'Nothing scheduled or logged today.' : 'No recent care activity.'}
         </p>
       </div>
     );
