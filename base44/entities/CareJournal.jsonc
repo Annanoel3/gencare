@@ -1,18 +1,11 @@
 {
   "name": "CareJournal",
-  "type": "object",
   "properties": {
-    "family_member_id": {
-      "type": "string"
-    },
-    "family_member_name": {
-      "type": "string"
-    },
-    "content": {
+    "author_name": {
       "type": "string"
     },
     "category": {
-      "type": "string",
+      "default": "General",
       "enum": [
         "Symptom",
         "Behavior",
@@ -22,27 +15,54 @@
         "Milestone",
         "General"
       ],
-      "default": "General"
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "is_important": {
+      "default": false,
+      "type": "boolean"
     },
     "mood": {
-      "type": "string",
       "enum": [
         "great",
         "good",
         "okay",
         "poor",
         "bad"
-      ]
+      ],
+      "type": "string"
     },
     "photo_url": {
       "type": "string"
-    },
-    "is_important": {
-      "type": "boolean",
-      "default": false
     }
   },
   "required": [
     "content"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
