@@ -90,7 +90,12 @@ export async function restorePurchases() {
 const APP_PACKAGE = 'com.mediocreatbest.gencare';
 export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${APP_PACKAGE}`;
 
+// Where a subscription is managed: Google Play on Android, Apple's subscriptions
+// page on iPhone (Apple has no per-product link).
+export const APP_STORE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
+
 export function manageSubscriptionUrl(productId) {
+  if (!isAndroidApp()) return APP_STORE_SUBSCRIPTIONS_URL;
   const base = 'https://play.google.com/store/account/subscriptions';
   return productId ? `${base}?sku=${encodeURIComponent(productId.split(':')[0])}&package=${APP_PACKAGE}` : `${base}?package=${APP_PACKAGE}`;
 }
