@@ -13,6 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CareFeed from '@/components/dashboard/CareFeed';
 import PhoneActions from '@/components/shared/PhoneActions';
+import MemberColorPicker from '@/components/family/MemberColorPicker';
+import { getMemberColorClass, getMemberColorByMemberId } from '@/utils/memberColors';
 
 export default function FamilyMemberDetail() {
   const { id } = useParams();
@@ -102,13 +104,21 @@ export default function FamilyMemberDetail() {
       <div className="flex items-center gap-4 mb-8">
         <Avatar className="w-16 h-16">
           <AvatarImage src={member.photo_url} />
-          <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
+          <AvatarFallback className={`${getMemberColorClass(member, members)} text-white text-xl font-bold`}>
             {member.name?.charAt(0)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
           <h1 className="font-heading text-2xl font-bold">{member.name}</h1>
           <p className="text-muted-foreground">{member.relationship}{member.birthdate ? ` · Born ${member.birthdate}` : ''}</p>
+          <MemberColorPicker
+            value={getMemberColorClass(member, members)}
+            onChange={async (color) => {
+              await base44.entities.FamilyMember.update(id, { color });
+              queryClient.invalidateQueries({ queryKey: ['familyMember', id] });
+              queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
+            }}
+          />
         </div>
         {!editing ? (
           <Button variant="outline" onClick={startEditing} className="gap-2 rounded-xl">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getMemberColorByMemberId } from '@/utils/memberColors';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
 import { ClipboardList, Plus, Check, Circle, Clock, AlertTriangle } from 'lucide-react';
@@ -98,7 +99,7 @@ export default function Tasks() {
           ) : (
             <div className="space-y-3">
               {pending.map((task, i) => (
-                <TaskCard key={task.id} task={task} i={i} onComplete={() => completeMutation.mutate(task.id)} />
+                <TaskCard key={task.id} task={task} i={i} onComplete={() => completeMutation.mutate(task.id)} members={members} />
               ))}
             </div>
           )}
@@ -110,7 +111,7 @@ export default function Tasks() {
           ) : (
             <div className="space-y-3">
               {completed.map((task, i) => (
-                <TaskCard key={task.id} task={task} i={i} completed />
+                <TaskCard key={task.id} task={task} i={i} completed members={members} />
               ))}
             </div>
           )}
@@ -174,11 +175,13 @@ export default function Tasks() {
   );
 }
 
-function TaskCard({ task, i, onComplete, completed }) {
+function TaskCard({ task, i, onComplete, completed, members = [] }) {
   const config = priorityConfig[task.priority] || priorityConfig.medium;
+  const memberColor = task.family_member_id ? getMemberColorByMemberId(task.family_member_id, members) : null;
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-      <div className={`flex items-start gap-3 p-4 rounded-2xl bg-card border border-border/50 ${completed ? 'opacity-50' : ''}`}>
+      <div className={`relative overflow-hidden flex items-start gap-3 p-4 rounded-2xl bg-card border border-border/50 ${completed ? 'opacity-50' : ''}`}>
+        {memberColor && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${memberColor}`} />}
         {!completed && (
           <button onClick={onComplete} className="mt-0.5 w-6 h-6 rounded-full border-2 border-primary/40 hover:border-primary hover:bg-primary/10 flex items-center justify-center transition-all flex-shrink-0">
             <Check className="w-3 h-3 text-primary opacity-0 hover:opacity-100" />
@@ -195,7 +198,7 @@ function TaskCard({ task, i, onComplete, completed }) {
           <div className="flex flex-wrap gap-2 mt-2">
             <Badge variant="outline" className={`text-xs ${config.color}`}>{task.priority}</Badge>
             {task.category && task.category !== 'Other' && <Badge variant="secondary" className="text-xs">{task.category}</Badge>}
-            {task.family_member_name && <Badge variant="secondary" className="text-xs">{task.family_member_name}</Badge>}
+            {task.family_member_name && <Badge variant="secondary" className="text-xs gap-1">{memberColor && <span className={`w-2 h-2 rounded-full ${memberColor}`} />}{task.family_member_name}</Badge>}
             {task.assigned_to && <span className="text-xs text-muted-foreground">→ {task.assigned_to}</span>}
             {task.due_date && <span className="text-xs text-muted-foreground">{task.due_date}</span>}
           </div>
