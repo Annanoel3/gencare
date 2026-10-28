@@ -1,16 +1,37 @@
 {
   "name": "PreteenLog",
-  "type": "object",
   "properties": {
-    "family_member_id": {
-      "type": "string",
-      "description": "ID of the pre-teen"
+    "allowance_type": {
+      "enum": [
+        "earn",
+        "spend",
+        "save"
+      ],
+      "type": "string"
     },
-    "family_member_name": {
+    "amount": {
+      "description": "Allowance amount in dollars",
+      "type": "number"
+    },
+    "anxiety_level": {
+      "description": "Anxiety level 1-5",
+      "type": "number"
+    },
+    "completed": {
+      "default": false,
+      "type": "boolean"
+    },
+    "cycle_start": {
+      "format": "date",
+      "type": "string"
+    },
+    "due_date": {
+      "description": "Deadline for schoolwork",
+      "format": "date",
       "type": "string"
     },
     "entry_type": {
-      "type": "string",
+      "default": "schoolwork",
       "enum": [
         "schoolwork",
         "chore",
@@ -21,102 +42,98 @@
         "allowance",
         "social"
       ],
-      "default": "schoolwork"
+      "type": "string"
     },
-    "timestamp": {
-      "type": "string",
-      "format": "date-time"
+    "family_id": {
+      "type": "string"
     },
-    "title": {
-      "type": "string",
-      "description": "Title for schoolwork, chore, or social entries"
+    "family_member_id": {
+      "description": "ID of the pre-teen",
+      "type": "string"
     },
-    "due_date": {
-      "type": "string",
-      "format": "date",
-      "description": "Deadline for schoolwork"
+    "family_member_name": {
+      "type": "string"
     },
     "grade": {
-      "type": "string",
-      "description": "Grade received"
-    },
-    "points": {
-      "type": "number",
-      "description": "Chore points or reward value"
-    },
-    "completed": {
-      "type": "boolean",
-      "default": false
-    },
-    "puberty_type": {
-      "type": "string",
-      "enum": [
-        "menstrual",
-        "acne",
-        "growth"
-      ]
-    },
-    "cycle_start": {
-      "type": "string",
-      "format": "date"
+      "description": "Grade received",
+      "type": "string"
     },
     "hygiene_habit": {
-      "type": "string",
       "enum": [
         "shower",
         "teeth",
         "deodorant"
-      ]
+      ],
+      "type": "string"
     },
     "mood": {
-      "type": "string",
       "enum": [
         "happy",
         "calm",
         "anxious",
         "irritable",
         "upset"
-      ]
+      ],
+      "type": "string"
     },
-    "anxiety_level": {
-      "type": "number",
-      "description": "Anxiety level 1-5"
+    "notes": {
+      "type": "string"
     },
-    "stress_trigger": {
+    "points": {
+      "description": "Chore points or reward value",
+      "type": "number"
+    },
+    "puberty_type": {
+      "enum": [
+        "menstrual",
+        "acne",
+        "growth"
+      ],
       "type": "string"
     },
     "screen_time_min": {
       "type": "number"
     },
-    "allowance_type": {
-      "type": "string",
-      "enum": [
-        "earn",
-        "spend",
-        "save"
-      ]
-    },
-    "amount": {
-      "type": "number",
-      "description": "Allowance amount in dollars"
-    },
     "social_activity": {
-      "type": "string",
       "enum": [
         "playdate",
         "sleepover"
-      ]
+      ],
+      "type": "string"
     },
     "social_contact": {
-      "type": "string",
-      "description": "Friend's parent contact info"
+      "description": "Friend's parent contact info",
+      "type": "string"
     },
-    "notes": {
+    "stress_trigger": {
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "title": {
+      "description": "Title for schoolwork, chore, or social entries",
       "type": "string"
     }
   },
   "required": [
     "family_member_id",
     "entry_type"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
