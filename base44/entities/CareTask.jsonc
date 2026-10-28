@@ -30,6 +30,9 @@
     "completed_by_name": {
       "type": "string"
     },
+    "completed_by_user_id": {
+      "type": "string"
+    },
     "created_by_name": {
       "type": "string"
     },
@@ -57,9 +60,27 @@
     },
     "is_recurring": {
       "default": false,
+      "description": "True when recurrence is set to something other than none (kept for older rows)",
       "type": "boolean"
     },
+    "kind": {
+      "default": "task",
+      "description": "checklist = a routine made of steps anyone in the family ticks off (feed the fish, morning meds); it comes back on its own rhythm",
+      "enum": [
+        "task",
+        "checklist"
+      ],
+      "type": "string"
+    },
+    "next_occurrence_id": {
+      "description": "The copy that finishing this repeating task made, so un-finishing removes exactly that one",
+      "type": "string"
+    },
     "notes": {
+      "type": "string"
+    },
+    "parent_task_id": {
+      "description": "Set on a step (sub-task) of another task; steps are never shown as tasks of their own",
       "type": "string"
     },
     "priority": {
@@ -73,13 +94,26 @@
       "type": "string"
     },
     "recurrence": {
-      "default": "daily",
+      "default": "none",
+      "description": "How often the task comes back after it is finished. Finishing it makes the next copy (next_occurrence_id).",
       "enum": [
+        "none",
         "daily",
+        "every_other_day",
+        "weekdays",
         "weekly",
-        "monthly"
+        "every_other_week",
+        "monthly",
+        "yearly"
       ],
       "type": "string"
+    },
+    "recurrence_days": {
+      "description": "With recurrence weekly: the weekdays it repeats on, 0 = Sunday",
+      "items": {
+        "type": "integer"
+      },
+      "type": "array"
     },
     "reminder_sent_at": {
       "description": "When the due-time push went out, so it goes once",
@@ -96,6 +130,10 @@
       ],
       "type": "string"
     },
+    "subtask_order": {
+      "description": "Position of a step inside its parent, 1 = first",
+      "type": "number"
+    },
     "title": {
       "type": "string"
     }
@@ -103,7 +141,6 @@
   "required": [
     "title"
   ],
-  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -117,5 +154,6 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  }
+  },
+  "type": "object"
 }
