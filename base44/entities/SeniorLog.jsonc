@@ -1,67 +1,84 @@
 {
   "name": "SeniorLog",
-  "type": "object",
   "properties": {
-    "family_member_id": {
-      "type": "string",
-      "description": "ID of the senior family member"
+    "amount": {
+      "type": "number"
     },
-    "family_member_name": {
+    "date": {
+      "description": "Refill date or appointment date",
+      "format": "date",
+      "type": "string"
+    },
+    "doc_url": {
+      "description": "Link to a stored legal/medical document",
       "type": "string"
     },
     "entry_type": {
-      "type": "string",
+      "default": "care_log",
       "enum": [
         "care_log",
         "legal",
         "medication",
         "cognitive"
       ],
-      "default": "care_log"
-    },
-    "sub_type": {
-      "type": "string",
-      "description": "Specific kind within the entry type"
-    },
-    "timestamp": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "title": {
       "type": "string"
     },
-    "date": {
-      "type": "string",
-      "format": "date",
-      "description": "Refill date or appointment date"
-    },
-    "time": {
+    "family_id": {
       "type": "string"
     },
-    "amount": {
-      "type": "number"
+    "family_member_id": {
+      "description": "ID of the senior family member",
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
     },
     "given_by": {
-      "type": "string",
-      "description": "Who provided the care (aide, nurse, family)"
+      "description": "Who provided the care (aide, nurse, family)",
+      "type": "string"
     },
-    "vitals": {
-      "type": "string",
-      "description": "Recorded vitals, e.g. BP 120/80"
+    "notes": {
+      "type": "string"
     },
     "pharmacy": {
       "type": "string"
     },
-    "doc_url": {
-      "type": "string",
-      "description": "Link to a stored legal/medical document"
+    "sub_type": {
+      "description": "Specific kind within the entry type",
+      "type": "string"
     },
-    "notes": {
+    "time": {
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "vitals": {
+      "description": "Recorded vitals, e.g. BP 120/80",
       "type": "string"
     }
   },
   "required": [
     "family_member_id",
     "entry_type"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
