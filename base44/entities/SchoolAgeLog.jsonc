@@ -1,16 +1,16 @@
 {
   "name": "SchoolAgeLog",
-  "type": "object",
   "properties": {
-    "family_member_id": {
-      "type": "string",
-      "description": "ID of the school-age child"
+    "completed": {
+      "default": false,
+      "type": "boolean"
     },
-    "family_member_name": {
+    "due_date": {
+      "format": "date",
       "type": "string"
     },
     "entry_type": {
-      "type": "string",
+      "default": "reading",
       "enum": [
         "reading",
         "homework",
@@ -20,56 +20,73 @@
         "screen_time",
         "activity"
       ],
-      "default": "reading"
+      "type": "string"
     },
-    "timestamp": {
-      "type": "string",
-      "format": "date-time"
+    "family_id": {
+      "type": "string"
     },
-    "title": {
-      "type": "string",
-      "description": "Book title, assignment, chore, or activity name"
+    "family_member_id": {
+      "description": "ID of the school-age child",
+      "type": "string"
     },
-    "minutes": {
-      "type": "number",
-      "description": "Reading, screen, or activity minutes"
-    },
-    "completed": {
-      "type": "boolean",
-      "default": false
-    },
-    "stars": {
-      "type": "number",
-      "description": "Reward stars earned for a chore"
+    "family_member_name": {
+      "type": "string"
     },
     "hygiene_habit": {
-      "type": "string",
       "enum": [
         "shower",
         "teeth",
         "bedtime"
-      ]
+      ],
+      "type": "string"
+    },
+    "minutes": {
+      "description": "Reading, screen, or activity minutes",
+      "type": "number"
     },
     "mood": {
-      "type": "string",
       "enum": [
         "happy",
         "calm",
         "anxious",
         "irritable",
         "upset"
-      ]
-    },
-    "due_date": {
-      "type": "string",
-      "format": "date"
+      ],
+      "type": "string"
     },
     "notes": {
+      "type": "string"
+    },
+    "stars": {
+      "description": "Reward stars earned for a chore",
+      "type": "number"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "title": {
+      "description": "Book title, assignment, chore, or activity name",
       "type": "string"
     }
   },
   "required": [
     "family_member_id",
     "entry_type"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
