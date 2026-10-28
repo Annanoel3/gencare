@@ -1,22 +1,21 @@
 {
   "name": "Medication",
-  "type": "object",
   "properties": {
+    "dosage": {
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
     "family_member_id": {
-      "type": "string",
-      "description": "ID of the family member"
+      "description": "ID of the family member",
+      "type": "string"
     },
     "family_member_name": {
       "type": "string"
     },
-    "medication_name": {
-      "type": "string"
-    },
-    "dosage": {
-      "type": "string"
-    },
     "frequency": {
-      "type": "string",
+      "default": "Once daily",
       "enum": [
         "Once daily",
         "Twice daily",
@@ -27,35 +26,53 @@
         "Monthly",
         "As needed"
       ],
-      "default": "Once daily"
+      "type": "string"
     },
     "instructions": {
       "type": "string"
     },
-    "prescribing_doctor": {
+    "is_active": {
+      "default": true,
+      "type": "boolean"
+    },
+    "medication_name": {
+      "type": "string"
+    },
+    "notes": {
       "type": "string"
     },
     "pharmacy": {
       "type": "string"
     },
+    "prescribing_doctor": {
+      "type": "string"
+    },
     "refill_date": {
-      "type": "string",
-      "format": "date"
+      "format": "date",
+      "type": "string"
     },
     "start_date": {
-      "type": "string",
-      "format": "date"
-    },
-    "is_active": {
-      "type": "boolean",
-      "default": true
-    },
-    "notes": {
+      "format": "date",
       "type": "string"
     }
   },
   "required": [
     "medication_name",
     "family_member_id"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
