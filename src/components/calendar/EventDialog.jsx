@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Trash2, Users, Lock, Mic } from 'lucide-react';
+import { Trash2, Users, Lock, Mic, Check } from 'lucide-react';
+import { useFamily } from '@/lib/family';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -25,11 +26,19 @@ const REMINDERS = [
 
 const NONE = '__none__';
 
+function Chip({ on, onClick, children }) {
+  return (
+    <button type="button" onClick={onClick} className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs border ${on ? 'bg-primary text-primary-foreground border-primary' : 'border-border'}`}>
+      {on && <Check className="w-3 h-3" />}{children}
+    </button>
+  );
+}
+
 function blank(date) {
   return {
     title: '', date: format(date || new Date(), 'yyyy-MM-dd'), time: '', end_time: '', all_day: false,
     category: 'Doctor', family_member_id: NONE, location: '', doctor_name: '', notes: '',
-    reminder_minutes: 60, visibility: 'family',
+    reminder_minutes: 60, visibility: 'family', shared_with: [],
   };
 }
 
@@ -38,6 +47,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   const [form, setForm] = useState(blank(defaultDate));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const canRecord = usePluginPresent('RecorderBridge');
+  const { me, members: accounts } = useFamily();
+  const others = (accounts || []).filter((u) => u.id !== me?.id);
   const editing = !!appt?.id;
   const fromPhone = appt?.source === 'phone';
 
@@ -51,6 +62,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
         family_member_id: appt.family_member_id || NONE,
         reminder_minutes: typeof appt.reminder_minutes === 'number' ? appt.reminder_minutes : 60,
         visibility: appt.visibility || 'family',
+        shared_with: Array.isArray(appt.shared_with) ? appt.shared_with : [],
         time: appt.time || '',
         end_time: appt.end_time || '',
       });
@@ -76,7 +88,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
       doctor_name: form.doctor_name || '',
       notes: form.notes || '',
       reminder_minutes: Number(form.reminder_minutes),
-      visibility: form.visibility === 'private' ? 'private' : 'family',
+      visibility: form.visibility === 'private' ? 'private' : form.visibility === 'some' ? 'some' : 'family',
+      shared_with: form.visibility === 'some' ? (form.shared_with || []).filter((id) => others.some((u) => u.id === id)) : [],
       last_changed_at: new Date().toISOString(),
     };
     onSave(data);
@@ -94,12 +107,29 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
           )}
           <div><Label>Title *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} className="mt-1" autoFocus={!editing} /></div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border p-3">
-            <div>
-              <p className="text-sm font-medium flex items-center gap-2">{form.visibility === 'private' ? <Lock className="w-4 h-4" /> : <Users className="w-4 h-4" />} {form.visibility === 'private' ? 'Only me' : 'Share with family'}</p>
-              <p className="text-xs text-muted-foreground">{form.visibility === 'private' ? 'Nobody else in the family sees it.' : 'Everyone in the family sees it and can get it on their phone.'}</p>
+          {/* Who this event is for: the one choice that decides who sees it,
+              who gets the push, and whose phone calendar it lands on. */}
+          <div className="rounded-xl border border-border p-3 space-y-2">
+            <p className="text-sm font-medium flex items-center gap-2"><Users className="w-4 h-4" /> Share with</p>
+            <div className="flex flex-wrap gap-2">
+              <Chip on={form.visibility === 'family'} onClick={() => set('visibility', 'family')}>Whole family</Chip>
+              <Chip on={form.visibility === 'private'} onClick={() => set('visibility', 'private')}><Lock className="w-3 h-3" /> Only me</Chip>
+              {others.map((u) => {
+                const on = form.visibility === 'some' && (form.shared_with || []).includes(u.id);
+                return (
+                  <Chip key={u.id} on={on} onClick={() => {
+                    const cur = form.visibility === 'some' ? (form.shared_with || []) : [];
+                    const next = cur.includes(u.id) ? cur.filter((x) => x !== u.id) : [...cur, u.id];
+                    setForm((f) => ({ ...f, visibility: next.length ? 'some' : 'private', shared_with: next }));
+                  }}>{(u.full_name || u.email || '?').split(' ')[0]}</Chip>
+                );
+              })}
             </div>
-            <Switch checked={form.visibility !== 'private'} onCheckedChange={(v) => set('visibility', v ? 'family' : 'private')} />
+            <p className="text-xs text-muted-foreground">
+              {form.visibility === 'private' ? 'Nobody else sees it.'
+                : form.visibility === 'some' ? 'Only the people ticked see it, get told about it, and can have it on their phone calendar.'
+                : 'Everyone in the family sees it, gets told about it, and can have it on their phone calendar.'}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
