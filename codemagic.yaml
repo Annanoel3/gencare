@@ -1,0 +1,71 @@
+# GenCare iPhone build on Codemagic (https://codemagic.io): compiles the iOS
+# app on Apple hardware in the cloud, signs it with Anna's Apple Developer
+# account, and uploads it to TestFlight. No Mac needed.
+#
+# One-time setup in Codemagic (details in the to-do list Claude wrote):
+#   1. Add the GitHub repo Annanoel3/gencare as an application.
+#   2. Teams > Integrations > App Store Connect: add the API key, name it "GenCare".
+#   3. The app's Environment variables, group "gencare":
+#        RC_APPLE_KEY           RevenueCat public iOS key (appl_...), secret
+#        GENCARE_APP_STORE_ID   the numeric Apple ID of the app in App Store Connect (optional)
+#
+# Starting a build: the "Start new build" button, or a git tag that starts with
+# "ios-" (e.g. ios-1). Base44's own pushes to main never start a build.
+workflows:
+  ios-testflight:
+    name: GenCare iPhone -> TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: GenCare
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.mediocreatbest.gencare
+      groups:
+        - gencare
+      node: 22
+      xcode: latest
+      vars:
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'ios-*'
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Install web dependencies
+        script: npm ci --no-audit --no-fund
+      - name: Sync Capacitor (iOS)
+        script: |
+          mkdir -p dist
+          [ -f dist/index.html ] || echo '<!doctype html><title>GenCare</title>' > dist/index.html
+          npx cap sync ios
+      - name: Put the secrets into Info.plist
+        script: |
+          plutil -replace RCAppleApiKey -string "${RC_APPLE_KEY:-}" ios/App/App/Info.plist
+          plutil -replace GenCareAppStoreId -string "${GENCARE_APP_STORE_ID:-}" ios/App/App/Info.plist
+      - name: Build number
+        script: |
+          cd ios/App
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Code signing
+        script: xcode-project use-profiles --project "$XCODE_PROJECT"
+      - name: Build the IPA
+        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+      email:
+        recipients:
+          - annanoelwenballew@gmail.com
+        notify:
+          success: true
+          failure: true
