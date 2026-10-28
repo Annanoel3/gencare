@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
+import { canSee } from '../../shared/sharing.ts';
 
 // The phone's calendars and the family calendar, both ways. Called by the web
 // app (on open, after edits, from the Phone calendar settings) and by the
@@ -13,18 +14,18 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 //        an event gone from the phone is removed here. Imported events are
 //        PRIVATE unless the person shared that calendar (import_share_calendar_ids),
 //        so importing a personal Google calendar never floods the family.
-//   { mode: "export_pull" }  -> what to write to THIS person's phone: the family
-//        events that pass their own filter (family members, categories), with
-//        the calendar to write into, plus the phone events to delete (no longer
-//        wanted, or export switched off). Events this person imported from
-//        their own phone are never sent back to it.
+//   { mode: "export_pull" }  -> what to write to THIS person's phone: every
+//        event that was shared with them (the whole family, or them by name)
+//        plus their own, with the calendar to write into, and the phone events
+//        to delete (no longer shared with them, deleted, or export switched
+//        off). Events this person imported from their own phone are never sent
+//        back to it.
 //   { mode: "export_report", results, deleted } -> what the phone wrote, so the
 //        same phone row is updated next time instead of duplicated.
 //   { mode: "status" } -> counts for the settings screen.
 
 const DAYS_AHEAD = 365;
 const DAYS_BACK = 7;
-const CATEGORIES = ['Doctor', 'Therapy', 'School', 'Sports', 'Social', 'Other'];
 
 function safeTz(tz: string | undefined) {
   try { new Intl.DateTimeFormat('en-US', { timeZone: tz || '' }); return tz as string; } catch (_) { return 'America/Chicago'; }
@@ -121,17 +122,6 @@ function fieldsMatch(a: any, b: any) {
   return ['title', 'date', 'time', 'end_time', 'end_date', 'all_day', 'location', 'notes', 'recurrence', 'visibility'].every((k) => (a?.[k] ?? '') === (b?.[k] ?? ''));
 }
 
-function passesFilter(a: any, user: any) {
-  const members: string[] = Array.isArray(user.export_member_ids) ? user.export_member_ids : [];
-  const cats: string[] = Array.isArray(user.export_categories) ? user.export_categories : [];
-  if (members.length && !members.includes(a.family_member_id || '')) {
-    // "Only these people": an event with no person attached still goes if it's mine.
-    if (!(a.created_by_user_id === user.id && !a.family_member_id)) return false;
-  }
-  if (cats.length && !cats.includes(a.category || 'Other')) return false;
-  return true;
-}
-
 Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch (_) { body = {}; }
@@ -154,8 +144,6 @@ Deno.serve(async (req) => {
       if (arr(body.import_share_calendar_ids)) patch.import_share_calendar_ids = arr(body.import_share_calendar_ids);
       if (typeof body.export_enabled === 'boolean') patch.export_enabled = body.export_enabled;
       if (typeof body.export_calendar_id === 'string') patch.export_calendar_id = body.export_calendar_id;
-      if (arr(body.export_member_ids)) patch.export_member_ids = arr(body.export_member_ids);
-      if (arr(body.export_categories)) patch.export_categories = arr(body.export_categories)!.filter((c) => CATEGORIES.includes(c));
       if (typeof body.export_reminder_minutes === 'number') patch.export_reminder_minutes = Math.max(-1, Math.min(1440, Math.round(body.export_reminder_minutes)));
       if (Object.keys(patch).length) await db.User.update(user.id, patch);
       // Sharing changed: the imported events follow the calendar's setting.
@@ -248,10 +236,9 @@ Deno.serve(async (req) => {
       const wanted = new Map<string, any>();
       for (const a of all) {
         if (!a.date || a.date < from || a.date > to) continue;
-        if (a.visibility === 'private' && a.created_by_user_id !== user.id && a.created_by_id !== user.id) continue;
+        if (!canSee(a, user.id)) continue;
         // Came from this person's own phone: it's already there.
         if (a.source === 'phone' && (a.created_by_user_id === user.id || a.created_by_id === user.id)) continue;
-        if (!passesFilter(a, user)) continue;
         wanted.set(a.id, a);
       }
       const reminder = typeof user.export_reminder_minutes === 'number' ? user.export_reminder_minutes : 30;
@@ -353,8 +340,6 @@ function pick(u: any) {
     import_share_calendar_ids: u.import_share_calendar_ids || [],
     export_enabled: !!u.export_enabled,
     export_calendar_id: u.export_calendar_id || '',
-    export_member_ids: u.export_member_ids || [],
-    export_categories: u.export_categories || [],
     export_reminder_minutes: typeof u.export_reminder_minutes === 'number' ? u.export_reminder_minutes : 30,
   };
 }
