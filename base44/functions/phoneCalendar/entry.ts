@@ -51,6 +51,11 @@ function localToMs(date: string, time: string, tz: string): number {
 }
 
 function todayIn(tz: string) { return localParts(Date.now(), tz).date; }
+// 'YYYY-MM-DD' -> UTC midnight ms (how Android stores all-day events).
+function utcDay(date: string): number {
+  const [y, m, d] = String(date).split('-').map(Number);
+  return y && m && d ? Date.UTC(y, m - 1, d) : 0;
+}
 function addDays(day: string, n: number) {
   const [y, m, d] = day.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
@@ -219,7 +224,7 @@ Deno.serve(async (req) => {
       for (const a of existing) {
         const cal = String(a.device_key || '').split(':')[1] || '';
         if (!calendarIds.includes(cal) || seen.has(a.device_key)) continue;
-        await db.Appointment.deleteMany ? await db.Appointment.delete(a.id) : await db.Appointment.delete(a.id);
+        await db.Appointment.delete(a.id);
         removed++;
       }
       return Response.json({ ok: true, created, updated, removed, synced_at: new Date().toISOString() });
@@ -255,10 +260,12 @@ Deno.serve(async (req) => {
         const forWhom = a.family_member_name ? `${a.family_member_name}: ` : '';
         const title = `${forWhom}${a.title}`;
         const description = [a.notes || '', a.doctor_name ? `With ${a.doctor_name}` : '', 'Added from GenCare'].filter(Boolean).join('\n');
-        const startMs = a.all_day ? Date.UTC(...(a.date.split('-').map(Number) as [number, number, number]).map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number]) : localToMs(a.date, a.time || '09:00', a.timezone ? safeTz(a.timezone) : tz);
+        const eventTz = a.timezone ? safeTz(a.timezone) : tz;
+        const startMs = a.all_day ? utcDay(a.date) : localToMs(a.date, a.time || '09:00', eventTz);
         let endMs = 0;
-        if (a.all_day) endMs = startMs + 86_400_000 * (a.end_date && a.end_date > a.date ? (Date.UTC(...(a.end_date.split('-').map(Number) as [number, number, number]).map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number]) - Date.UTC(...(a.date.split('-').map(Number) as [number, number, number]).map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number])) / 86_400_000 + 1 : 1);
-        else if (a.end_time) endMs = localToMs(a.end_date || a.date, a.end_time, a.timezone ? safeTz(a.timezone) : tz);
+        if (a.all_day) endMs = (a.end_date && a.end_date > a.date ? utcDay(a.end_date) : startMs) + 86_400_000;
+        else if (a.end_time) endMs = localToMs(a.end_date || a.date, a.end_time, eventTz);
+        if (!startMs) continue;
         if (!endMs || endMs <= startMs) endMs = startMs + (a.all_day ? 86_400_000 : 3_600_000);
         const hash = await hashOf([title, description, a.location || '', startMs, endMs, a.all_day ? 1 : 0, reminder, user.export_calendar_id].join('|'));
         if (link && link.status === 'written' && link.written_hash === hash && link.device_calendar_id === user.export_calendar_id) continue;
