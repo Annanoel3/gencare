@@ -64,6 +64,13 @@
       "description": "NoteRecording made for this appointment",
       "type": "string"
     },
+    "prep_questions": {
+      "description": "Things to bring up at this appointment, written beforehand on the Record Notes page",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "recurrence": {
       "description": "RRULE for repeating events",
       "type": "string"
@@ -109,6 +116,7 @@
     "title",
     "date"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -139,6 +147,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
