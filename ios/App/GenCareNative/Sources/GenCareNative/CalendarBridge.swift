@@ -327,8 +327,12 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
                 ev.alarms = nil
                 let reminder = Int(CalendarBridge.number(e["reminderMinutes"]))
                 if reminder >= 0 && !allDay { ev.addAlarm(EKAlarm(relativeOffset: TimeInterval(-reminder * 60))) }
+                // A repeating GenCare event is written as one series (same as Android).
+                let rule = CalendarBridge.recurrenceRule(from: (e["rrule"] as? String) ?? "")
+                let wasSeries = ev.hasRecurrenceRules
+                ev.recurrenceRules = rule.map { [$0] }
                 do {
-                    try store.save(ev, span: .thisEvent, commit: true)
+                    try store.save(ev, span: (rule != nil || wasSeries) ? .futureEvents : .thisEvent, commit: true)
                     results.append(["key": key, "ok": true, "deviceEventId": ev.eventIdentifier ?? "", "hash": (e["hash"] as? String) ?? ""])
                 } catch {
                     results.append(["key": key, "ok": false, "error": error.localizedDescription])
@@ -346,10 +350,53 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
             var deleted = 0
             for id in ids {
                 guard let ev = store.event(withIdentifier: id) else { continue }
-                do { try store.remove(ev, span: .thisEvent, commit: true); deleted += 1 } catch { /* already gone */ }
+                // A series GenCare wrote goes as a whole, not one day of it.
+                let span: EKSpan = ev.hasRecurrenceRules ? .futureEvents : .thisEvent
+                do { try store.remove(ev, span: span, commit: true); deleted += 1 } catch { /* already gone */ }
             }
             call.resolve(["granted": true, "deleted": deleted])
         }
+    }
+
+    /// "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;UNTIL=20261231" -> EKRecurrenceRule.
+    /// Covers what GenCare writes (daily, weekdays, weekly, every other week,
+    /// monthly, yearly, with an optional end date or count).
+    static func recurrenceRule(from raw: String) -> EKRecurrenceRule? {
+        let body = raw.replacingOccurrences(of: "RRULE:", with: "", options: .caseInsensitive)
+        guard !body.isEmpty else { return nil }
+        var parts: [String: String] = [:]
+        for p in body.split(separator: ";") {
+            let kv = p.split(separator: "=", maxSplits: 1).map(String.init)
+            if kv.count == 2 { parts[kv[0].uppercased()] = kv[1] }
+        }
+        let freq: EKRecurrenceFrequency
+        switch parts["FREQ"]?.uppercased() {
+        case "DAILY": freq = .daily
+        case "WEEKLY": freq = .weekly
+        case "MONTHLY": freq = .monthly
+        case "YEARLY": freq = .yearly
+        default: return nil
+        }
+        let interval = max(1, Int(parts["INTERVAL"] ?? "1") ?? 1)
+        let dayMap: [String: EKWeekday] = ["SU": .sunday, "MO": .monday, "TU": .tuesday, "WE": .wednesday, "TH": .thursday, "FR": .friday, "SA": .saturday]
+        let days: [EKRecurrenceDayOfWeek]? = parts["BYDAY"].map { list in
+            list.split(separator: ",").compactMap { code in
+                let letters = String(code.filter { $0.isLetter }).uppercased()
+                return dayMap[letters].map { EKRecurrenceDayOfWeek($0) }
+            }
+        }
+        var end: EKRecurrenceEnd? = nil
+        if let until = parts["UNTIL"], until.count >= 8,
+           let y = Int(until.prefix(4)), let m = Int(until.dropFirst(4).prefix(2)), let d = Int(until.dropFirst(6).prefix(2)) {
+            var c = DateComponents(); c.year = y; c.month = m; c.day = d; c.hour = 23; c.minute = 59
+            if let date = Calendar.current.date(from: c) { end = EKRecurrenceEnd(end: date) }
+        } else if let count = Int(parts["COUNT"] ?? ""), count > 0 {
+            end = EKRecurrenceEnd(occurrenceCount: count)
+        }
+        return EKRecurrenceRule(recurrenceWith: freq, interval: interval,
+                                daysOfTheWeek: (days?.isEmpty ?? true) ? nil : days,
+                                daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil,
+                                daysOfTheYear: nil, setPositions: nil, end: end)
     }
 
     private static func number(_ v: Any?) -> Int64 {
