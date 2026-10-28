@@ -242,11 +242,11 @@ export default function FamilyMemberDetail() {
                 <p className="text-muted-foreground text-sm py-4 text-center">No medications tracked for {member.name}.</p>
               ) : (
                 <div className="space-y-3">
-                  {medications.map(med => (
-                    <div key={med.id} className="p-3 rounded-xl bg-muted/50">
+                  {medications.filter(med => med.is_active !== false).map(med => (
+                    <Link key={med.id} to={`/medications?med=${med.id}`} className="block p-3 rounded-xl bg-muted/50 hover:bg-muted">
                       <p className="font-medium">{med.medication_name}</p>
-                      <p className="text-sm text-muted-foreground">{med.dosage} · {med.frequency}</p>
-                    </div>
+                      <p className="text-sm text-muted-foreground">{[med.dosage, med.frequency, Array.isArray(med.times) && med.times.length ? med.times.join(', ') : ''].filter(Boolean).join(' · ')}</p>
+                    </Link>
                   ))}
                 </div>
               )}

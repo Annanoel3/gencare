@@ -1,163 +1,194 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { format } from 'date-fns';
+import { Pill, Plus, AlertCircle, Check, Clock, X, Bell, BellOff, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { withFamily } from '@/lib/family';
-import { Pill, Plus, RefreshCw, Check, AlertCircle } from 'lucide-react';
+import { withFamily, useFamily } from '@/lib/family';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { motion } from 'framer-motion';
+import { toast } from '@/components/ui/use-toast';
+import { getMemberColorByMemberId } from '@/utils/memberColors';
+import MedicationDialog from '@/components/medications/MedicationDialog';
+import { slotsForDay, markDose, cleanMed, adherence, fmtClock, todayStr } from '@/lib/medications';
 
-const frequencies = ['Once daily', 'Twice daily', 'Three times daily', 'Four times daily', 'Weekly', 'Bi-weekly', 'Monthly', 'As needed'];
-
+/**
+ * Medications: today's doses to tick off at the top, then every medication
+ * per person. Dose pushes, missed-dose pushes and refill pushes come from the
+ * reminder job (functions/cronReminders) using the times set here.
+ */
 export default function Medications() {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ medication_name: '', dosage: '', frequency: 'Once daily', family_member_id: '', instructions: '', prescribing_doctor: '', pharmacy: '', refill_date: '' });
+  const [params, setParams] = useSearchParams();
+  const [dialog, setDialog] = useState({ open: false, med: null });
+  const [busyKey, setBusyKey] = useState(null);
   const queryClient = useQueryClient();
+  const { me } = useFamily();
+  const today = todayStr();
 
-  const { data: medications = [] } = useQuery({
-    queryKey: ['medications'],
-    queryFn: () => base44.entities.Medication.list('-created_date', 100),
-  });
+  const { data: medications = [] } = useQuery({ queryKey: ['medications'], queryFn: () => base44.entities.Medication.list('-created_date', 200) });
+  const { data: members = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list() });
+  const since = format(new Date(Date.now() - 14 * 86400000), 'yyyy-MM-dd');
+  const { data: logs = [] } = useQuery({ queryKey: ['medicationLogs', since], queryFn: () => base44.entities.MedicationLog.filter({ day: { $gte: since } }, '-day', 500) });
 
-  const { data: members = [] } = useQuery({
-    queryKey: ['familyMembers'],
-    queryFn: () => base44.entities.FamilyMember.list(),
-  });
+  // A push tap lands on its medication.
+  useEffect(() => {
+    const id = params.get('med');
+    if (!id || !medications.length) return;
+    const m = medications.find((x) => x.id === id);
+    if (m) setDialog({ open: true, med: m });
+    const next = new URLSearchParams(params); next.delete('med'); setParams(next, { replace: true });
+  }, [medications]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const createMutation = useMutation({
-    mutationFn: (data) => {
-      const member = members.find(m => m.id === data.family_member_id);
-      return base44.entities.Medication.create(withFamily({ ...data, family_member_name: member?.name || '' }));
+  const refresh = () => { queryClient.invalidateQueries({ queryKey: ['medications'] }); queryClient.invalidateQueries({ queryKey: ['medicationLogs'] }); };
+
+  const save = useMutation({
+    mutationFn: async (form) => {
+      const data = cleanMed(form, members);
+      if (dialog.med?.id) return base44.entities.Medication.update(dialog.med.id, data);
+      return base44.entities.Medication.create(withFamily(data));
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medications'] });
-      setDialogOpen(false);
-      setForm({ medication_name: '', dosage: '', frequency: 'Once daily', family_member_id: '', instructions: '', prescribing_doctor: '', pharmacy: '', refill_date: '' });
+    onSuccess: () => { refresh(); setDialog({ open: false, med: null }); },
+    onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
+  });
+  const remove = useMutation({
+    mutationFn: async (med) => {
+      const mine = (await base44.entities.MedicationLog.filter({ medication_id: med.id })) || [];
+      for (const l of mine) await base44.entities.MedicationLog.delete(l.id);
+      return base44.entities.Medication.delete(med.id);
     },
+    onSuccess: () => { refresh(); setDialog({ open: false, med: null }); },
   });
 
-  const toggleMutation = useMutation({
-    mutationFn: ({ id, is_active }) => base44.entities.Medication.update(id, { is_active: !is_active }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['medications'] }),
-  });
+  const slots = useMemo(() => slotsForDay(medications, logs, today), [medications, logs, today]);
+  const mark = async (slot, status) => {
+    setBusyKey(slot.key);
+    try { await markDose(slot, status, me); } catch (e) { toast({ title: "Couldn't save", description: e?.message, variant: 'destructive' }); }
+    finally { setBusyKey(null); }
+    queryClient.invalidateQueries({ queryKey: ['medicationLogs'] });
+  };
 
-  const active = medications.filter(m => m.is_active !== false);
-  const inactive = medications.filter(m => m.is_active === false);
+  const active = medications.filter((m) => m.is_active !== false);
+  const stopped = medications.filter((m) => m.is_active === false);
+  const byMember = groupBy(active, (m) => m.family_member_name || 'Unassigned');
+  const nowClock = format(new Date(), 'HH:mm');
 
   return (
     <div className="pb-24 lg:pb-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3">
-            <Pill className="w-7 h-7 text-primary" />
-            Medications
-          </h1>
-          <p className="text-muted-foreground mt-1">Track and manage medications for your family.</p>
+          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Pill className="w-7 h-7 text-primary" /> Medications</h1>
+          <p className="text-muted-foreground mt-1">Who takes what, when, and whether today's doses happened.</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="rounded-xl gap-2">
-          <Plus className="w-4 h-4" /> Add Medication
-        </Button>
+        <Button onClick={() => setDialog({ open: true, med: null })} className="rounded-xl gap-2"><Plus className="w-4 h-4" /><span className="hidden sm:inline">Add medication</span></Button>
       </div>
 
+      {slots.length > 0 && (
+        <section className="mb-8">
+          <h2 className="font-heading text-base font-semibold mb-2">Today's doses</h2>
+          <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/50">
+            {slots.map((s) => {
+              const color = getMemberColorByMemberId(s.med.family_member_id, members);
+              const done = s.status === 'taken' || s.status === 'skipped';
+              const late = s.status === 'missed' || (s.status === 'due' && s.time < nowClock);
+              const busy = busyKey === s.key;
+              return (
+                <div key={s.key} className={`flex items-center gap-3 p-3 ${done ? 'opacity-60' : ''}`}>
+                  <span className={`w-1.5 self-stretch rounded-full ${color}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${s.status === 'taken' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {s.med.family_member_name} · {fmtClock(s.time)}
+                      {s.status === 'taken' && s.log?.taken_by_name ? ` · taken by ${s.log.taken_by_name.split(' ')[0]}` : ''}
+                      {s.status === 'skipped' ? ' · skipped' : ''}
+                      {s.status === 'missed' ? ' · missed' : ''}
+                    </p>
+                  </div>
+                  {done ? (
+                    <Button variant="ghost" size="sm" onClick={() => mark(s, 'due')} disabled={busy} className="text-xs">Undo</Button>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="icon" onClick={() => mark(s, 'skipped')} disabled={busy} aria-label="Skip" className="rounded-full text-muted-foreground"><X className="w-4 h-4" /></Button>
+                      <Button size="sm" onClick={() => mark(s, 'taken')} disabled={busy} className={`rounded-xl gap-1 ${late ? '' : 'bg-primary/90'}`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Taken</Button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {medications.length === 0 ? (
-        <div className="text-center py-20">
-          <Pill className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-          <h2 className="font-heading text-xl font-semibold mb-2">No medications tracked</h2>
-          <p className="text-muted-foreground mb-6">Start tracking medications for your family members.</p>
-          <Button onClick={() => setDialogOpen(true)} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Medication</Button>
+        <div className="text-center py-16">
+          <Pill className="w-14 h-14 mx-auto mb-3 text-muted-foreground/30" />
+          <h2 className="font-heading text-xl font-semibold mb-1">No medications yet</h2>
+          <p className="text-muted-foreground text-sm mb-5">Add one and set its times; the whole family gets reminded.</p>
+          <Button onClick={() => setDialog({ open: true, med: null })} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add medication</Button>
         </div>
       ) : (
         <>
-          {active.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Active ({active.length})</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {active.map((med, i) => (
-                  <MedCard key={med.id} med={med} i={i} onToggle={() => toggleMutation.mutate({ id: med.id, is_active: med.is_active })} />
-                ))}
+          {Object.entries(byMember).map(([name, meds]) => (
+            <section key={name} className="mb-6">
+              <h2 className="font-heading text-base font-semibold mb-2 flex items-center gap-2"><span className={`w-2.5 h-2.5 rounded-full ${getMemberColorByMemberId(meds[0].family_member_id, members)}`} />{name}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {meds.map((m) => <MedCard key={m.id} med={m} logs={logs} onOpen={() => setDialog({ open: true, med: m })} />)}
               </div>
-            </div>
-          )}
-          {inactive.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Inactive ({inactive.length})</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {inactive.map((med, i) => (
-                  <MedCard key={med.id} med={med} i={i} onToggle={() => toggleMutation.mutate({ id: med.id, is_active: med.is_active })} inactive />
-                ))}
+            </section>
+          ))}
+          {stopped.length > 0 && (
+            <section className="mb-6">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Stopped ({stopped.length})</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {stopped.map((m) => <MedCard key={m.id} med={m} logs={logs} onOpen={() => setDialog({ open: true, med: m })} inactive />)}
               </div>
-            </div>
+            </section>
           )}
         </>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle className="font-heading text-xl">Add Medication</DialogTitle></DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div><Label>Medication Name *</Label><Input value={form.medication_name} onChange={e => setForm({...form, medication_name: e.target.value})} className="mt-1" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Dosage</Label><Input value={form.dosage} onChange={e => setForm({...form, dosage: e.target.value})} placeholder="e.g. 10mg" className="mt-1" /></div>
-              <div>
-                <Label>Frequency</Label>
-                <Select value={form.frequency} onValueChange={v => setForm({...form, frequency: v})}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>{frequencies.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label>Family Member</Label>
-              <Select value={form.family_member_id} onValueChange={v => setForm({...form, family_member_id: v})}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select member" /></SelectTrigger>
-                <SelectContent>{members.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label>Instructions</Label><Input value={form.instructions} onChange={e => setForm({...form, instructions: e.target.value})} placeholder="e.g. Take with food" className="mt-1" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Doctor</Label><Input value={form.prescribing_doctor} onChange={e => setForm({...form, prescribing_doctor: e.target.value})} className="mt-1" /></div>
-              <div><Label>Pharmacy</Label><Input value={form.pharmacy} onChange={e => setForm({...form, pharmacy: e.target.value})} className="mt-1" /></div>
-            </div>
-            <div><Label>Next Refill Date</Label><Input type="date" value={form.refill_date} onChange={e => setForm({...form, refill_date: e.target.value})} className="mt-1" /></div>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={() => createMutation.mutate(form)} disabled={!form.medication_name || createMutation.isPending}>
-                {createMutation.isPending ? 'Adding...' : 'Add Medication'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <MedicationDialog
+        open={dialog.open}
+        onOpenChange={(o) => setDialog((d) => ({ ...d, open: o }))}
+        med={dialog.med}
+        members={members}
+        onSave={(form) => save.mutate(form)}
+        onDelete={(m) => remove.mutate(m)}
+        saving={save.isPending || remove.isPending}
+        adherence={dialog.med ? adherence(dialog.med, logs) : null}
+      />
     </div>
   );
 }
 
-function MedCard({ med, i, onToggle, inactive }) {
+function MedCard({ med, logs, onOpen, inactive }) {
+  const refillSoon = med.refill_date && new Date(med.refill_date + 'T12:00:00') <= new Date(Date.now() + 7 * 86400000);
+  const a = adherence(med, logs);
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-      <Card className={`p-4 border-border/50 ${inactive ? 'opacity-60' : ''}`}>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
+    <button onClick={onOpen} className="text-left">
+      <Card className={`p-4 border-border/50 h-full hover:border-primary/40 transition-colors ${inactive ? 'opacity-60' : ''}`}>
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold">{med.medication_name}</h3>
-              {med.refill_date && new Date(med.refill_date) <= new Date(Date.now() + 7 * 86400000) && (
-                <Badge variant="destructive" className="text-xs gap-1"><AlertCircle className="w-3 h-3" /> Refill soon</Badge>
-              )}
+              {refillSoon && !inactive && <Badge variant="destructive" className="text-xs gap-1"><AlertCircle className="w-3 h-3" /> Refill {med.refill_date < todayStr() ? 'overdue' : 'soon'}</Badge>}
             </div>
-            <p className="text-sm text-muted-foreground mt-1">{med.dosage} · {med.frequency}</p>
-            {med.family_member_name && <p className="text-xs text-muted-foreground mt-1">For {med.family_member_name}</p>}
+            <p className="text-sm text-muted-foreground mt-0.5">{[med.dosage, med.frequency].filter(Boolean).join(' · ')}</p>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
+              {Array.isArray(med.times) && med.times.length ? (<><Clock className="w-3 h-3" />{med.times.map(fmtClock).join(', ')}</>) : <span>No set times</span>}
+              {med.remind === false ? <BellOff className="w-3 h-3 ml-1" aria-label="Reminders off" /> : (med.times?.length ? <Bell className="w-3 h-3 ml-1" aria-label="Reminders on" /> : null)}
+            </p>
             {med.instructions && <p className="text-xs text-muted-foreground mt-1 italic">{med.instructions}</p>}
+            {a.total > 0 && <p className="text-xs text-muted-foreground mt-1">Last 14 days: {a.taken} taken{a.missed ? `, ${a.missed} missed` : ''}</p>}
           </div>
-          <Button variant="ghost" size="icon" onClick={onToggle} className="rounded-full">
-            {inactive ? <RefreshCw className="w-4 h-4" /> : <Check className="w-4 h-4 text-emerald-600" />}
-          </Button>
         </div>
       </Card>
-    </motion.div>
+    </button>
   );
+}
+
+function groupBy(list, keyOf) {
+  const out = {};
+  for (const x of list) (out[keyOf(x)] ||= []).push(x);
+  return out;
 }
