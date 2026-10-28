@@ -23,13 +23,14 @@ export default function TaskCard({ task, members = [], onOpen, stepsPreloaded })
   const [expanded, setExpanded] = useState(isChecklist);
   const done = task.status === 'completed';
 
+  // The Tasks page hands the steps in (one list query for everything); other
+  // places let the card fetch its own.
   const stepsQ = useQuery({
     queryKey: ['careTasks', 'steps', task.id],
     queryFn: () => base44.entities.CareTask.filter({ parent_task_id: task.id }),
     enabled: !stepsPreloaded,
-    initialData: stepsPreloaded,
   });
-  const steps = stepsQ.data || [];
+  const steps = stepsPreloaded || stepsQ.data || [];
   const doneSteps = steps.filter((s) => s.status === 'completed').length;
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['careTasks'] });
 
