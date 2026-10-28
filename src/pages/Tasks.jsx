@@ -43,7 +43,8 @@ export default function Tasks() {
       const member = members.find(m => m.id === data.family_member_id);
       return base44.entities.CareTask.create(withFamily({ ...data, family_member_name: member?.name || '' }));
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
+      if (created?.id) base44.functions.invoke('notifyFamily', { kind: 'task', action: 'added', task_id: created.id }).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ['careTasks'] });
       setDialogOpen(false);
       setForm({ title: '', description: '', priority: 'medium', category: 'Other', due_date: '', assigned_to: '', family_member_id: '' });
@@ -51,8 +52,11 @@ export default function Tasks() {
   });
 
   const completeMutation = useMutation({
-    mutationFn: (id) => base44.entities.CareTask.update(id, { status: 'completed' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['careTasks'] }),
+    mutationFn: (id) => base44.entities.CareTask.update(id, { status: 'completed', completed_at: new Date().toISOString() }),
+    onSuccess: (_r, id) => {
+      base44.functions.invoke('notifyFamily', { kind: 'task', action: 'completed', task_id: id }).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: ['careTasks'] });
+    },
   });
 
   const pending = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
