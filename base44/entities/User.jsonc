@@ -73,8 +73,8 @@
     },
     "messages_seen_at": {
       "description": "When this person last opened Messages (unread badge)",
-      "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "type": "string"
     },
     "notify_family_events": {
       "default": true,
@@ -105,8 +105,16 @@
     "timezone": {
       "description": "IANA timezone, e.g. America/Chicago",
       "type": "string"
+    },
+    "wellness_reminded_on": {
+      "description": "YYYY-MM-DD the wellness reminder last went out",
+      "type": "string"
+    },
+    "wellness_reminder_hour": {
+      "description": "Local hour (0-23) for the daily 'how are you holding up?' push; null = off",
+      "type": "number"
     }
   },
-  "type": "object",
-  "required": []
+  "required": [],
+  "type": "object"
 }

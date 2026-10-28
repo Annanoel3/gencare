@@ -1,0 +1,63 @@
+{
+  "description": "A caregiver's own daily check-in (mood, stress, sleep, self-care). Private to that person.",
+  "name": "WellnessCheckin",
+  "properties": {
+    "day": {
+      "format": "date",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "mood": {
+      "enum": [
+        "great",
+        "good",
+        "okay",
+        "poor",
+        "bad"
+      ],
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    },
+    "self_care": {
+      "description": "Things they did for themselves today",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "sleep_hours": {
+      "type": "number"
+    },
+    "stress": {
+      "description": "1 (calm) to 5 (maxed out)",
+      "type": "number"
+    },
+    "user_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "day",
+    "mood"
+  ],
+  "rls": {
+    "create": {
+      "data.user_id": "{{user.id}}"
+    },
+    "delete": {
+      "data.user_id": "{{user.id}}"
+    },
+    "read": {
+      "data.user_id": "{{user.id}}"
+    },
+    "update": {
+      "data.user_id": "{{user.id}}"
+    }
+  },
+  "type": "object"
+}
