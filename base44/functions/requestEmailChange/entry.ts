@@ -14,17 +14,26 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'New email must be different from your current email' }, { status: 400 });
     }
 
-    await base44.entities.EmailChangeRequest.create({
+    const db = base44.asServiceRole.entities;
+    await db.EmailChangeRequest.create({
       current_email: user.email,
       requested_email: newEmail,
       user_id: user.id,
       status: 'pending'
     });
 
-    await base44.asServiceRole.integrations.Core.SendEmail({
+    // Nobody can change a login email from inside the app, so the request goes
+    // to the person who can: the support mailbox gets it, the user gets a copy.
+    const mail = base44.asServiceRole.integrations.Core;
+    await mail.SendEmail({
+      to: 'mediocreatbestdev@outlook.com',
+      subject: `GenCare email change: ${user.email} -> ${newEmail}`,
+      body: `${user.full_name || user.email} (user id ${user.id}) asked to change their GenCare login email.\n\nFrom: ${user.email}\nTo: ${newEmail}\n\nChange it in the Base44 dashboard (Users), then reply to both addresses so they know.`,
+    });
+    await mail.SendEmail({
       to: user.email,
-      subject: 'Email Change Request Received',
-      body: `Hi ${user.full_name || 'there'},\n\nWe received your request to change your GenCare email to ${newEmail}.\n\nOur team will review and process this request. You'll receive a confirmation at your new email once it has been approved.\n\nIf you did not make this request, please contact support immediately.\n\nGenCare Team`
+      subject: 'Your GenCare email change request',
+      body: `Hi ${user.full_name || 'there'},\n\nWe got your request to change your GenCare email to ${newEmail}. A person handles these by hand, usually within a few days, and will reply to both addresses when it's done. Until then, keep signing in with ${user.email}.\n\nIf you did not ask for this, reply to this email.\n\nGenCare`
     });
 
     return Response.json({ success: true });

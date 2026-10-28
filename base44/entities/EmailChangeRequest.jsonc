@@ -1,5 +1,6 @@
 {
   "name": "EmailChangeRequest",
+  "type": "object",
   "properties": {
     "current_email": {
       "type": "string"
@@ -7,17 +8,17 @@
     "requested_email": {
       "type": "string"
     },
+    "user_id": {
+      "type": "string"
+    },
     "status": {
-      "default": "pending",
+      "type": "string",
       "enum": [
         "pending",
         "done",
         "rejected"
       ],
-      "type": "string"
-    },
-    "user_id": {
-      "type": "string"
+      "default": "pending"
     }
   },
   "required": [
@@ -29,11 +30,6 @@
     "create": {
       "data.user_id": "{{user.id}}"
     },
-    "delete": {
-      "user_condition": {
-        "role": "admin"
-      }
-    },
     "read": {
       "data.user_id": "{{user.id}}"
     },
@@ -41,7 +37,11 @@
       "user_condition": {
         "role": "admin"
       }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
     }
-  },
-  "type": "object"
+  }
 }

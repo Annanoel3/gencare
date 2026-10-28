@@ -166,13 +166,13 @@ export default function Settings() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl">Request Email Change</DialogTitle>
-            <DialogDescription>Enter the new email you'd like to use. Our team will review and process your request.</DialogDescription>
+            <DialogDescription>Logins can't be renamed from inside the app, so this sends a request to a person. It usually takes a few days; keep signing in with your current email until you hear back.</DialogDescription>
           </DialogHeader>
           {submitted ? (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <CheckCircle2 className="w-12 h-12 text-primary" />
               <p className="font-medium">Request Submitted</p>
-              <p className="text-sm text-muted-foreground">We've received your request to change your email to <strong>{newEmail}</strong>. A confirmation has been sent to your current email.</p>
+              <p className="text-sm text-muted-foreground">Your request to change to <strong>{newEmail}</strong> is on its way. You'll get an email at both addresses once it's done; keep using your current email until then.</p>
               <Button onClick={closeEmailDialog} className="mt-2">Done</Button>
             </div>
           ) : (
