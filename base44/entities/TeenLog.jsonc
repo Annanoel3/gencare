@@ -1,73 +1,90 @@
 {
   "name": "TeenLog",
-  "type": "object",
   "properties": {
-    "family_member_id": {
-      "type": "string",
-      "description": "ID of the teen"
+    "amount": {
+      "description": "Dollar amount for financial entries",
+      "type": "number"
     },
-    "family_member_name": {
+    "contact": {
+      "description": "Driver or other parent contact",
+      "type": "string"
+    },
+    "date": {
+      "description": "Deadline, pickup, or event date",
+      "format": "date",
+      "type": "string"
+    },
+    "doc_url": {
+      "description": "Link to a stored document",
       "type": "string"
     },
     "entry_type": {
-      "type": "string",
+      "default": "transport",
       "enum": [
         "transport",
         "financial",
         "document",
         "academic"
       ],
-      "default": "transport"
-    },
-    "sub_type": {
-      "type": "string",
-      "description": "Specific kind within the entry type"
-    },
-    "timestamp": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "title": {
       "type": "string"
     },
-    "date": {
-      "type": "string",
-      "format": "date",
-      "description": "Deadline, pickup, or event date"
+    "family_id": {
+      "type": "string"
     },
-    "time": {
-      "type": "string",
-      "description": "Pickup or drop-off time"
+    "family_member_id": {
+      "description": "ID of the teen",
+      "type": "string"
     },
-    "amount": {
-      "type": "number",
-      "description": "Dollar amount for financial entries"
+    "family_member_name": {
+      "type": "string"
     },
     "location": {
       "type": "string"
     },
-    "contact": {
-      "type": "string",
-      "description": "Driver or other parent contact"
+    "notes": {
+      "type": "string"
     },
     "status": {
-      "type": "string",
       "enum": [
         "pending",
         "scheduled",
         "done"
-      ]
+      ],
+      "type": "string"
     },
-    "doc_url": {
-      "type": "string",
-      "description": "Link to a stored document"
+    "sub_type": {
+      "description": "Specific kind within the entry type",
+      "type": "string"
     },
-    "notes": {
+    "time": {
+      "description": "Pickup or drop-off time",
+      "type": "string"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "title": {
       "type": "string"
     }
   },
   "required": [
     "family_member_id",
     "entry_type"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
