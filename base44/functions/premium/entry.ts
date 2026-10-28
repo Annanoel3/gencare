@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
-import { accessOf } from '../family/entry.ts';
+import { accessOf } from '../../shared/access.ts';
 
 // The GenCare Family plan: free for 7 days from when the family was made,
 // then a subscription (Google Play / App Store through RevenueCat) that ONE

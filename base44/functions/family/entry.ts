@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
+import { accessOf } from '../../shared/access.ts';
 
 // The family (household) a GenCare account belongs to. Every family-scoped
 // record (FamilyMember, Appointment, CareTask, ...) carries family_id, and the
@@ -36,21 +37,6 @@ function code6() {
   let s = '';
   for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
   return s;
-}
-
-export function accessOf(family: any, user: any) {
-  const now = Date.now();
-  if (user?.role === 'admin') return { access: true, reason: 'owner', trial_ends_at: family?.trial_ends_at || null };
-  if (!family) return { access: false, reason: 'no_family', trial_ends_at: null };
-  const promo = family.promo_until ? Date.parse(family.promo_until) : 0;
-  if (promo && promo > now) return { access: true, reason: 'promo', until: family.promo_until, trial_ends_at: family.trial_ends_at || null };
-  const exp = family.subscription_expires_at ? Date.parse(family.subscription_expires_at) : 0;
-  if (family.subscription_active && (!exp || exp > now)) {
-    return { access: true, reason: 'subscribed', until: family.subscription_expires_at || null, will_renew: !!family.subscription_will_renew, trial_ends_at: family.trial_ends_at || null };
-  }
-  const trial = family.trial_ends_at ? Date.parse(family.trial_ends_at) : 0;
-  if (trial && trial > now) return { access: true, reason: 'trial', until: family.trial_ends_at, trial_ends_at: family.trial_ends_at };
-  return { access: false, reason: trial ? 'trial_over' : 'no_plan', trial_ends_at: family.trial_ends_at || null };
 }
 
 async function membersOf(db: any, familyId: string) {
