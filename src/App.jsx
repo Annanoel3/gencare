@@ -36,6 +36,7 @@ import AccountManagement from '@/pages/AccountManagement';
 import Notes from '@/pages/Notes';
 import Subscribe from '@/pages/Subscribe';
 import FamilySettings from '@/pages/FamilySettings';
+import Terms from '@/pages/Terms';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -90,6 +91,7 @@ const AuthenticatedApp = () => {
           <Route path="/family-settings" element={<FamilySettings />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="/account-management" element={<AccountManagement />} />
         </Route>
       </Route>
