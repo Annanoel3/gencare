@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, Pill, CalendarDays,
   ClipboardList, BookOpen, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Baby, Footprints, Backpack, School, Car, HeartHandshake
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Baby, Footprints, Backpack, School, Car, HeartHandshake, Mic
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { isBaby, isToddler, isSchoolAge, isPreteen, isTeen, isSenior } from '@/utils/age';
 import QuickCaptureButton from '@/components/shared/QuickCaptureButton';
 import OneSignalInit from '@/components/shared/OneSignalInit';
+import RecordingBar from '@/components/shared/RecordingBar';
+import AppUpdateCard from '@/components/shared/AppUpdateCard';
+import FamilyGate from '@/components/family/FamilyGate';
+import { FamilyProvider, useFamily } from '@/lib/family';
+import { syncOnOpen } from '@/lib/calendarSync';
+import { isNativeApp, plugin, waitForPlugin } from '@/lib/phone';
 
 // Care nav items only appear when at least one family member falls in that age band.
 const careNavItems = [
@@ -22,7 +28,7 @@ const careNavItems = [
   { path: '/senior-care', icon: HeartHandshake, label: 'Senior Care', predicate: isSenior },
 ];
 
-function buildNavStructure(members) {
+function buildNavStructure(members, canRecord) {
   const visibleCare = careNavItems.filter(item => members.some(m => item.predicate(m)));
   return [
     { type: 'link', path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -36,6 +42,7 @@ function buildNavStructure(members) {
     { type: 'group', label: 'Tools', icon: Wrench, children: [
       { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
       { path: '/journal', icon: BookOpen, label: 'Journal' },
+      ...(canRecord ? [{ path: '/notes', icon: Mic, label: 'Record Notes' }] : []),
     ]},
     { type: 'link', path: '/wellness', icon: Heart, label: 'Wellness' },
     { type: 'link', path: '/settings', icon: SettingsIcon, label: 'Settings' },
@@ -117,19 +124,64 @@ function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
 }
 
 export default function AppLayout() {
+  return (
+    <FamilyProvider>
+      <FamilyGate>
+        <AppShell />
+      </FamilyGate>
+    </FamilyProvider>
+  );
+}
+
+function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { me } = useFamily();
   const [currentUser, setCurrentUser] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({ Family: true, Tools: true });
+  const [canRecord, setCanRecord] = useState(() => !!plugin('RecorderBridge'));
 
   const { data: members = [] } = useQuery({
     queryKey: ['familyMembers'],
     queryFn: () => base44.entities.FamilyMember.list('-created_date'),
   });
 
-  const navStructure = useMemo(() => buildNavStructure(members), [members]);
+  const navStructure = useMemo(() => buildNavStructure(members, canRecord), [members, canRecord]);
 
   useEffect(() => { base44.auth.me().then(u => setCurrentUser(u)).catch(() => {}); }, []);
+
+  // Record Notes only exists on app builds with the recorder.
+  useEffect(() => {
+    if (canRecord || !isNativeApp()) return;
+    waitForPlugin('RecorderBridge', 10000).then((p) => { if (p) setCanRecord(true); });
+  }, [canRecord]);
+
+  // Phone calendars: tell the phone what to watch, and sync on every open / return.
+  useEffect(() => {
+    if (!me) return undefined;
+    syncOnOpen(me);
+    const onVisible = () => { if (document.visibilityState === 'visible') syncOnOpen(me); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [me]);
+
+  // Android back button: go back in the app, or close the menu; leave the app
+  // only from the home screen (the @capacitor/app plugin owns the button).
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    let handle = null;
+    (async () => {
+      const App = await waitForPlugin('App', 8000);
+      if (!App?.addListener) return;
+      handle = await App.addListener('backButton', () => {
+        if (mobileOpen) { setMobileOpen(false); return; }
+        if (window.location.pathname === '/' || window.history.length <= 1) App.exitApp?.();
+        else navigate(-1);
+      });
+    })();
+    return () => { handle?.remove?.(); };
+  }, [mobileOpen, navigate]);
 
   // Auto-expand group containing the active route
   useEffect(() => {
@@ -180,7 +232,8 @@ export default function AppLayout() {
       </aside>
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border flex items-center justify-between px-4 z-40">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-40">
+      <div className="h-16 flex items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Heart className="w-4 h-4 text-primary-foreground" />
@@ -190,6 +243,8 @@ export default function AppLayout() {
         <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
+      </div>
+      <RecordingBar />
       </div>
 
       {/* Mobile Menu Overlay */}
@@ -214,6 +269,7 @@ export default function AppLayout() {
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-64 pt-16 lg:pt-0 min-h-screen min-w-0 overflow-x-hidden">
+        <AppUpdateCard />
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
           <Outlet />
         </div>
