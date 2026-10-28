@@ -49,7 +49,7 @@ export default function Dashboard() {
 
   const todayAppts = expandAppointments(appointments, new Date(), new Date());
   const activeMeds = medications.filter(m => m.is_active !== false);
-  const topLevel = tasks.filter(t => !t.parent_task_id);
+  const topLevel = tasks.filter(t => !t.parent_task_id && t.kind !== 'checklist');
   const pendingTasks = topLevel.filter(t => t.status === 'pending' || t.status === 'in_progress');
   const urgentTasks = topLevel.filter(t => t.priority === 'urgent' && t.status !== 'completed');
 

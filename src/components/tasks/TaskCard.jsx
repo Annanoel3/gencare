@@ -4,7 +4,7 @@ import { Check, Loader2, Repeat, ChevronDown, ChevronUp, User, ListChecks } from
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
-import { getMemberColorByMemberId } from '@/utils/memberColors';
+import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import TaskSteps from './TaskSteps';
 import { completeTask, uncompleteTask, toggleStep, addStep, recurrenceLabel, isOverdue, dueDateOf, repeats } from '@/lib/tasks';
 
@@ -49,12 +49,14 @@ export default function TaskCard({ task, members = [], onOpen, stepsPreloaded })
   const onAddStep = async (label) => { await addStep(task, label); refresh(); };
 
   const color = task.family_member_id ? getMemberColorByMemberId(task.family_member_id, members) : null;
+  // The card is tinted with the person's color, like the home-page family rows.
+  const tint = task.family_member_id ? getMemberLightColorByMemberId(task.family_member_id, members) : 'bg-card';
   const overdue = !done && isOverdue(task);
   const due = dueDateOf(task);
   const when = due ? `${overdue ? 'Overdue · ' : ''}${format(due, 'EEE, MMM d')}${task.due_time ? ` · ${fmtTime(task.due_time)}` : ''}` : '';
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-card border border-border/50 ${done ? 'opacity-60' : ''}`}>
+    <div className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 ${done ? 'opacity-60' : ''}`}>
       {color && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
       <div className="flex items-start gap-3 p-3.5 pl-4">
         <button

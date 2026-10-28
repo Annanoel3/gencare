@@ -23,7 +23,8 @@ export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
   });
 
   const open = tasks
-    .filter(t => (t.status === 'pending' || t.status === 'in_progress') && !t.parent_task_id)
+    // Steps live under their task and family checklists live on the Tasks page.
+    .filter(t => (t.status === 'pending' || t.status === 'in_progress') && !t.parent_task_id && t.kind !== 'checklist')
     .map(t => {
       const due = t.due_date ? parseISO(t.due_date) : null;
       return { ...t, due: due && isValid(due) ? due : null };
