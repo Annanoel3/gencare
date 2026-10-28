@@ -1,18 +1,17 @@
 {
   "name": "QuickNote",
-  "type": "object",
   "properties": {
+    "ai_category": {
+      "type": "string"
+    },
+    "ai_summary": {
+      "type": "string"
+    },
     "content": {
       "type": "string"
     },
-    "type": {
-      "type": "string",
-      "enum": [
-        "voice",
-        "text",
-        "photo"
-      ],
-      "default": "text"
+    "family_id": {
+      "type": "string"
     },
     "family_member_id": {
       "type": "string"
@@ -21,17 +20,35 @@
       "type": "string"
     },
     "is_processed": {
-      "type": "boolean",
-      "default": false
+      "default": false,
+      "type": "boolean"
     },
-    "ai_category": {
-      "type": "string"
-    },
-    "ai_summary": {
+    "type": {
+      "default": "text",
+      "enum": [
+        "voice",
+        "text",
+        "photo"
+      ],
       "type": "string"
     }
   },
   "required": [
     "content"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
 }
