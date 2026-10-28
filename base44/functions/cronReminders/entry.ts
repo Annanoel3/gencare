@@ -124,24 +124,7 @@ Deno.serve(async (req) => {
         const open = allTasks.filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled');
         const dueToday = open.filter((t: any) => t.due_date === today);
         const overdue = open.filter((t: any) => t.due_date && t.due_date < today);
-        // Birthdays from the family members' profiles: today, or in the next 3 days.
-        const birthdays: string[] = [];
-        try {
-          const people = (await db.FamilyMember.filter({ family_id: fam.id })) || [];
-          const [ty, tm, td] = today.split('-').map(Number);
-          for (const p of people) {
-            if (!p.birthdate || p.is_active === false) continue;
-            const [, bm, bd] = String(p.birthdate).split('-').map(Number);
-            if (!bm || !bd) continue;
-            let next = new Date(Date.UTC(ty, bm - 1, bd));
-            const todayUtc = new Date(Date.UTC(ty, tm - 1, td));
-            if (next < todayUtc) next = new Date(Date.UTC(ty + 1, bm - 1, bd));
-            const days = Math.round((next.getTime() - todayUtc.getTime()) / 86400e3);
-            if (days === 0) birthdays.push(`${p.name}'s birthday is today 🎂`);
-            else if (days <= 3) birthdays.push(`${p.name}'s birthday in ${days} day${days === 1 ? '' : 's'}`);
-          }
-        } catch (_) { /* no birthdays then */ }
-        if (!todays.length && !dueToday.length && !overdue.length && !birthdays.length) continue; // an empty day sends nothing
+        if (!todays.length && !dueToday.length && !overdue.length) continue; // an empty day sends nothing
         for (const u of users) {
           if (!wantsPush(u, 'reminders')) continue;
           if (u.digest_sent_on === today) continue;
@@ -150,7 +133,6 @@ Deno.serve(async (req) => {
           if (mine.length) parts.push(`${mine.length} event${mine.length > 1 ? 's' : ''}: ${mine.slice(0, 3).map((a: any) => `${a.title}${a.time ? ` ${whenText(a.date, a.time, tz).split(' at ')[1]}` : ''}`).join(', ')}${mine.length > 3 ? ` +${mine.length - 3}` : ''}`);
           if (dueToday.length) parts.push(`${dueToday.length} task${dueToday.length > 1 ? 's' : ''} due today`);
           if (overdue.length) parts.push(`${overdue.length} overdue`);
-          parts.push(...birthdays);
           if (!parts.length) continue;
           await sendPush({
             email: u.email,
