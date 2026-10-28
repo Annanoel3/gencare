@@ -33,6 +33,9 @@
     "created_by_name": {
       "type": "string"
     },
+    "created_by_user_id": {
+      "type": "string"
+    },
     "description": {
       "type": "string"
     },
@@ -78,6 +81,11 @@
       ],
       "type": "string"
     },
+    "reminder_sent_at": {
+      "description": "When the due-time push went out, so it goes once",
+      "format": "date-time",
+      "type": "string"
+    },
     "status": {
       "default": "pending",
       "enum": [
@@ -95,6 +103,7 @@
   "required": [
     "title"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -108,6 +117,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
