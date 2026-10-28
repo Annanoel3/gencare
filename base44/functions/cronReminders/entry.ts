@@ -248,6 +248,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
         }
       }
     }
+    console.log('[cronReminders] ran', JSON.stringify(out));
     return Response.json({ ok: true, ...out });
   } catch (e) {
     console.error('[cronReminders]', (e as Error).message);
