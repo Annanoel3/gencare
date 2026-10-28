@@ -84,6 +84,10 @@
       "default": false,
       "type": "boolean"
     },
+    "reminder_sent_for": {
+      "description": "For a repeating event: the day (YYYY-MM-DD) whose occurrence was last reminded about, so each day's reminder goes once",
+      "type": "string"
+    },
     "shared_with": {
       "description": "User ids this event is shared with when visibility is 'some'",
       "items": {
