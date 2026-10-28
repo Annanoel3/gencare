@@ -1,0 +1,49 @@
+# Compiles the iPhone app on GitHub's free Mac runners (no signing, no upload)
+# so a Swift mistake shows up here instead of in a Codemagic build. Runs when
+# anything under ios/ changes, or by hand from the Actions tab.
+name: iPhone compile check
+on:
+  push:
+    paths:
+      - 'ios/**'
+      - 'capacitor.config.ts'
+      - '.github/workflows/ios-compile-check.yml'
+  workflow_dispatch:
+jobs:
+  compile:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pick the newest Xcode on the runner
+        run: |
+          ls /Applications | grep -i xcode || true
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          xcodebuild -version
+      - name: Install web dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Sync Capacitor (iOS)
+        run: |
+          mkdir -p dist
+          [ -f dist/index.html ] || echo '<!doctype html><title>GenCare</title>' > dist/index.html
+          npx cap sync ios
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App
+      - name: Build for the simulator (no signing)
+        run: |
+          set -o pipefail
+          xcodebuild build -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            RC_APPLE_KEY= GENCARE_APP_STORE_ID= \
+            | tee build.log | grep -E "error:|warning: unre|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+      - name: Keep the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build.log
