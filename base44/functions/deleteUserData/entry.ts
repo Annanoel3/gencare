@@ -13,7 +13,9 @@ Deno.serve(async (req) => {
 
     const entityNames = [
       'FamilyMember', 'Medication', 'Appointment', 'CareTask',
-      'CareJournal', 'FamilyMessage', 'Checklist', 'ChecklistItem', 'QuickNote'
+      'CareJournal', 'FamilyMessage', 'Checklist', 'ChecklistItem', 'QuickNote',
+      'BabyCareLog', 'ToddlerCareLog', 'SchoolAgeLog', 'PreteenLog', 'TeenLog', 'SeniorLog',
+      'NoteRecording', 'CalendarExportLink', 'Invite'
     ];
 
     const deleted = {};
