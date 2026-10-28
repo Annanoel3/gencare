@@ -1,0 +1,26 @@
+{
+  "name": "RecordingUsage",
+  "properties": {
+    "family_id": {
+      "type": "string"
+    },
+    "month": {
+      "description": "YYYY-MM in the family's timezone",
+      "type": "string"
+    },
+    "seconds_used": {
+      "default": 0,
+      "type": "number"
+    }
+  },
+  "required": [
+    "family_id",
+    "month"
+  ],
+  "rls": {
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
+}

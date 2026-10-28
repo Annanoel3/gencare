@@ -1,0 +1,131 @@
+{
+  "name": "NoteRecording",
+  "properties": {
+    "appointment_id": {
+      "description": "The calendar event (Appointment) this recording was made at, when it was started from that event",
+      "type": "string"
+    },
+    "device_session_id": {
+      "description": "The recording's id on the phone (RecorderBridge), which holds the audio until it has been transcribed",
+      "type": "string"
+    },
+    "duration_ms": {
+      "description": "How long it recorded, not counting pauses",
+      "type": "number"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "description": "Whose appointment it was",
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "notes": {
+      "description": "{ title, gist[], todos[{text, who, at}], details[{label, value, at}], sections[{heading, points[], at}], decisions[{text, at}], questions[{text, at}], asked[{question, answered, answer, at}] }",
+      "type": "object"
+    },
+    "parent_record_id": {
+      "description": "Set on a Record-more recording: the first recording's id",
+      "type": "string"
+    },
+    "parts_total": {
+      "type": "number"
+    },
+    "questions": {
+      "description": "The questions the user wrote down for that event, as they were when recording started",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "shared_with_family": {
+      "default": true,
+      "description": "Family members can read these notes (a doctor's visit for mom is for everyone caring for her)",
+      "type": "boolean"
+    },
+    "started_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "status": {
+      "description": "recording, transcribing (parts being turned into text), ready (notes made), notes_failed (transcript saved, notes not made yet), over_limit (stopped at the monthly cap), merged (a Record-more recording whose notes went into its parent)",
+      "type": "string"
+    },
+    "title": {
+      "description": "What the person called it, or the title the notes gave it",
+      "type": "string"
+    },
+    "transcript_parts": {
+      "description": "The word-for-word transcript, one entry per part, in order",
+      "items": {
+        "properties": {
+          "end_ms": {
+            "type": "number"
+          },
+          "index": {
+            "type": "number"
+          },
+          "start_ms": {
+            "type": "number"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "user_id": {
+      "description": "Who recorded it",
+      "type": "string"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "data.user_id": "{{user.id}}"
+        }
+      ]
+    },
+    "read": {
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.shared_with_family": true
+            },
+            {
+              "data.user_id": "{{user.id}}"
+            }
+          ]
+        }
+      ]
+    },
+    "update": {
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "data.user_id": "{{user.id}}"
+        }
+      ]
+    }
+  },
+  "type": "object"
+}

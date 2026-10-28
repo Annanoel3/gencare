@@ -1,0 +1,64 @@
+{
+  "name": "CalendarExportLink",
+  "properties": {
+    "appointment_id": {
+      "type": "string"
+    },
+    "device_calendar_id": {
+      "description": "The phone calendar it was written into",
+      "type": "string"
+    },
+    "device_event_id": {
+      "description": "The event's id in the phone's calendar provider",
+      "type": "string"
+    },
+    "error": {
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "status": {
+      "default": "pending",
+      "enum": [
+        "pending",
+        "written",
+        "delete_pending",
+        "deleted",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "user_id": {
+      "description": "Whose phone the event was written to",
+      "type": "string"
+    },
+    "written_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "written_hash": {
+      "description": "Hash of what was last written, so unchanged events aren't rewritten",
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "appointment_id"
+  ],
+  "rls": {
+    "create": {
+      "data.user_id": "{{user.id}}"
+    },
+    "delete": {
+      "data.user_id": "{{user.id}}"
+    },
+    "read": {
+      "data.user_id": "{{user.id}}"
+    },
+    "update": {
+      "data.user_id": "{{user.id}}"
+    }
+  },
+  "type": "object"
+}
