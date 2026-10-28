@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users } from 'lucide-react';
+import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug } from 'lucide-react';
+import SupportDialog from '@/components/shared/SupportDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ export default function Settings() {
   const [newEmail, setNewEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [support, setSupport] = useState(null); // 'support' | 'bug' | null
 
   useEffect(() => {
     base44.auth.me().then(u => { setUser(u); setLoadingUser(false); }).catch(() => setLoadingUser(false));
@@ -113,10 +115,28 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Help */}
+        <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
+          <h2 className="font-heading text-lg font-semibold mb-4">Help</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" onClick={() => setSupport('support')} className="gap-2 h-12"><LifeBuoy className="w-4 h-4" /> Ask for help</Button>
+            <Button variant="outline" onClick={() => setSupport('bug')} className="gap-2 h-12"><Bug className="w-4 h-4" /> Report a bug</Button>
+          </div>
+        </div>
+
         {/* Links */}
         <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
           <h2 className="font-heading text-lg font-semibold mb-4">Legal & Account</h2>
           <div className="space-y-2">
+            <Link to="/terms" className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted transition-colors">
+              <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">Terms of Use</p>
+                <p className="text-xs text-muted-foreground">The rules for using GenCare</p>
+              </div>
+            </Link>
             <Link to="/privacy-policy" className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted transition-colors">
               <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
                 <Shield className="w-4 h-4 text-muted-foreground" />
@@ -138,6 +158,8 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      <SupportDialog open={!!support} kind={support || 'support'} onClose={() => setSupport(null)} />
 
       {/* Email Change Dialog */}
       <Dialog open={emailDialogOpen} onOpenChange={closeEmailDialog}>
