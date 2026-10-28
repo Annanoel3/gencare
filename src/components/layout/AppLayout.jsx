@@ -17,14 +17,15 @@ import PullToRefresh from '@/components/shared/PullToRefresh';
 import FamilyGate from '@/components/family/FamilyGate';
 import { FamilyProvider, useFamily } from '@/lib/family';
 import { syncOnOpen } from '@/lib/calendarSync';
+import { useUnreadMessages } from '@/lib/messages';
 import { isNativeApp, plugin, waitForPlugin } from '@/lib/phone';
 
-function buildNavStructure(members, canRecord) {
+function buildNavStructure(members, canRecord, unread = 0) {
   return [
     { type: 'link', path: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { type: 'group', label: 'Family', icon: Users, children: [
       { path: '/family', icon: Users, label: 'Family Members' },
-      { path: '/messages', icon: MessageCircle, label: 'Messages' },
+      { path: '/messages', icon: MessageCircle, label: 'Messages', badge: unread },
       { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
       { path: '/medications', icon: Pill, label: 'Medications' },
       { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
@@ -102,7 +103,8 @@ function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
                   }`}
                 >
                   <child.icon className="w-4 h-4" />
-                  {child.label}
+                  <span className="flex-1">{child.label}</span>
+                  {child.badge > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold flex items-center justify-center">{child.badge > 99 ? '99+' : child.badge}</span>}
                 </Link>
               );
             })}
@@ -138,7 +140,8 @@ function AppShell() {
     queryFn: () => base44.entities.FamilyMember.list('-created_date'),
   });
 
-  const navStructure = useMemo(() => buildNavStructure(members, canRecord), [members, canRecord]);
+  const unread = useUnreadMessages(me);
+  const navStructure = useMemo(() => buildNavStructure(members, canRecord, unread), [members, canRecord, unread]);
 
   useEffect(() => { base44.auth.me().then(u => setCurrentUser(u)).catch(() => {}); }, []);
 

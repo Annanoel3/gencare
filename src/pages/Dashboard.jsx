@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { MESSAGES_KEY, listMessages } from '@/lib/messages';
 import { expandAppointments } from '@/lib/occurrences';
 import WelcomeHeader from '@/components/dashboard/WelcomeHeader';
 import StatCards from '@/components/dashboard/StatCards';
@@ -37,10 +38,8 @@ export default function Dashboard() {
     queryFn: () => base44.entities.CareTask.list('-created_date', 200),
   });
 
-  const { data: messages = [] } = useQuery({
-    queryKey: ['familyMessages'],
-    queryFn: () => base44.entities.FamilyMessage.list('-created_date', 10),
-  });
+  const { data: allMessages = [] } = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages });
+  const messages = allMessages.filter((m) => !m.parent_id).slice(0, 10);
 
   const { data: journalEntries = [] } = useQuery({
     queryKey: ['careJournal'],

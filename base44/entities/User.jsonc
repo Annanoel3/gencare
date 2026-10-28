@@ -73,8 +73,8 @@
     },
     "messages_seen_at": {
       "description": "When this person last opened Messages (unread badge)",
-      "format": "date-time",
-      "type": "string"
+      "type": "string",
+      "format": "date-time"
     },
     "notify_family_events": {
       "default": true,
@@ -107,6 +107,6 @@
       "type": "string"
     }
   },
-  "required": [],
-  "type": "object"
+  "type": "object",
+  "required": []
 }
