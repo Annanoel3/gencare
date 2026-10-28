@@ -8,6 +8,7 @@ import FamilyOverview from '@/components/dashboard/FamilyOverview';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import CareFeed from '@/components/dashboard/CareFeed';
 import QuickAddTask from '@/components/shared/QuickAddTask';
+import TodoCard from '@/components/dashboard/TodoCard';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -33,7 +34,7 @@ export default function Dashboard() {
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['careTasks'],
-    queryFn: () => base44.entities.CareTask.list('-created_date', 50),
+    queryFn: () => base44.entities.CareTask.list('-created_date', 200),
   });
 
   const { data: messages = [] } = useQuery({
@@ -62,6 +63,7 @@ export default function Dashboard() {
       />
 
       <QuickAddTask placeholder="Add a task for the family…" className="mb-6" />
+      <TodoCard tasks={tasks} members={members} />
 
       <div className="mb-6">
         <h2 className="font-heading text-lg font-semibold mb-3">Today Across the Family</h2>
