@@ -4,6 +4,7 @@ import { Heart, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
+import { lookupInvite, joinFamily, PENDING_INVITE_KEY } from '@/lib/family';
 
 export default function JoinPage() {
   const [code, setCode] = useState('');
@@ -23,21 +24,17 @@ export default function JoinPage() {
     }
   }, []);
 
+  // The server checks the code (no sign-in needed) and says whose family it opens.
   const lookupCode = async (c) => {
     setChecking(true);
     setError('');
     setInvite(null);
-    const results = await base44.entities.Invite.filter({ code: c.toUpperCase(), is_active: true });
-    if (!results || results.length === 0) {
-      setError('Code not found or has expired. Please check and try again.');
-    } else {
-      const found = results[0];
-      const now = new Date();
-      if (found.expires_at && new Date(found.expires_at) < now) {
-        setError('This invite code has expired. Please ask for a new one.');
-      } else {
-        setInvite(found);
-      }
+    try {
+      const found = await lookupInvite(c.toUpperCase());
+      if (!found?.ok) setError(found?.error || 'Code not found or has expired. Please check and try again.');
+      else setInvite({ code: c.toUpperCase(), family_name: found.family_name, created_by_name: found.invited_by });
+    } catch (e) {
+      setError('Could not check that code. Try again in a moment.');
     }
     setChecking(false);
   };
@@ -48,10 +45,25 @@ export default function JoinPage() {
   };
 
   const handleJoin = async () => {
-    // Increment use count
-    await base44.entities.Invite.update(invite.id, { uses_count: (invite.uses_count || 0) + 1 });
+    // Remember the code across sign-up (Google sign-in comes back without the
+    // URL), so the first open after signing in joins this family.
+    try { localStorage.setItem(PENDING_INVITE_KEY, invite.code); } catch (e) { /* fine */ }
     setConfirmed(true);
-    // Redirect to register with code pre-filled in URL
+    let signedIn = false;
+    try { signedIn = await base44.auth.isAuthenticated(); } catch (e) { signedIn = false; }
+    if (signedIn) {
+      // Already have an account: join right now.
+      try {
+        await joinFamily(invite.code);
+        try { localStorage.removeItem(PENDING_INVITE_KEY); } catch (e) { /* fine */ }
+        window.location.href = '/';
+        return;
+      } catch (e) {
+        setConfirmed(false);
+        setError(e?.message || 'Could not join that family');
+        return;
+      }
+    }
     setTimeout(() => {
       navigate(`/register?invite=${invite.code}`);
     }, 1500);
@@ -89,7 +101,7 @@ export default function JoinPage() {
                 Join Family <ArrowRight className="w-4 h-4" />
               </Button>
               <p className="text-xs text-center text-muted-foreground">
-                You'll create a free account to get started.
+                You'll create an account to get started, or <Link to="/login" className="text-primary underline">sign in</Link> if you have one.
               </p>
             </div>
           ) : (
