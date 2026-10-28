@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       // 2. Tasks at their due time.
       const dueTasks = (await db.CareTask.filter({ family_id: fam.id, due_date: today })) || [];
       for (const t of dueTasks) {
-        if (!t.due_time || t.reminder_sent_at) continue;
+        if (!t.due_time || t.reminder_sent_at || t.parent_task_id) continue;
         if (t.status === 'completed' || t.status === 'cancelled') continue;
         const dueMs = localToMs(t.due_date, t.due_time, tz);
         if (!dueMs || now < dueMs || now >= dueMs + WINDOW_MS) continue;
@@ -122,7 +122,8 @@ Deno.serve(async (req) => {
       if (local.hour === DIGEST_HOUR && local.minute < 15) {
         const todays = appts.filter((a: any) => a.date === today);
         const allTasks = (await db.CareTask.filter({ family_id: fam.id })) || [];
-        const open = allTasks.filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled');
+        // Steps live inside their task and never count on their own.
+        const open = allTasks.filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled' && !t.parent_task_id);
         const dueToday = open.filter((t: any) => t.due_date === today);
         const overdue = open.filter((t: any) => t.due_date && t.due_date < today);
         if (!todays.length && !dueToday.length && !overdue.length) continue; // an empty day sends nothing

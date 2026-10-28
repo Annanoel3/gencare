@@ -57,7 +57,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
     });
   });
 
-  (taskQ.data || []).forEach(t => {
+  (taskQ.data || []).filter(t => !t.parent_task_id).forEach(t => {
     let when = t.due_date ? parseISO(t.due_date) : null;
     if (when && isValid(when) && t.due_time) { const [h, m] = t.due_time.split(':'); when.setHours(+h, +(m || 0)); }
     items.push({

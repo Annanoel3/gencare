@@ -19,7 +19,6 @@ import FamilyMemberDetail from '@/pages/FamilyMemberDetail';
 import Medications from '@/pages/Medications';
 import CalendarPage from '@/pages/CalendarPage';
 import Tasks from '@/pages/Tasks';
-import Checklists from '@/pages/Checklists';
 import Journal from '@/pages/Journal';
 import BabyCare from '@/pages/BabyCare';
 import ToddlerCare from '@/pages/ToddlerCare';
@@ -84,7 +83,7 @@ const AuthenticatedApp = () => {
           <Route path="/medications" element={<Medications />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tasks" element={<Tasks />} />
-          <Route path="/checklists" element={<Checklists />} />
+          <Route path="/checklists" element={<Navigate to="/tasks" replace />} />
           <Route path="/journal" element={<Journal />} />
           <Route path="/baby-care" element={<BabyCare />} />
           <Route path="/toddler-care" element={<ToddlerCare />} />

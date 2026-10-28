@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
+import { createTask } from '@/lib/tasks';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,19 +39,24 @@ export default function QuickCaptureButton() {
 
   const handleSave = async () => {
     setSaving(true);
-    if (captureType === 'note') {
-      await base44.entities.QuickNote.create(withFamily({ content, type: 'text' }));
-    } else if (captureType === 'task') {
-      await base44.entities.CareTask.create(withFamily({ title: title || content, description: content, due_date: date || undefined }));
-    } else if (captureType === 'appointment') {
-      await base44.entities.Appointment.create(withFamily({ title: title || content, date: date, notes: content }));
-    } else if (captureType === 'medication') {
-      await base44.entities.QuickNote.create(withFamily({ content: `Medication note: ${content}`, type: 'text', ai_category: 'medication' }));
+    try {
+      if (captureType === 'note') {
+        // Quick notes used to go to a table nothing read; they are journal entries now.
+        await base44.entities.CareJournal.create(withFamily({ content, category: 'General' }));
+      } else if (captureType === 'task') {
+        await createTask({ title: (title || content).trim(), description: title ? content : undefined, due_date: date || undefined });
+      } else if (captureType === 'appointment') {
+        await base44.entities.Appointment.create(withFamily({ title: (title || content).trim(), date, notes: title ? content : undefined }));
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      } else if (captureType === 'medication') {
+        await base44.entities.CareJournal.create(withFamily({ content, category: 'Doctor Note' }));
+      }
+      queryClient.invalidateQueries();
+      setDialogOpen(false);
+      setCaptureType(null);
+    } finally {
+      setSaving(false);
     }
-    queryClient.invalidateQueries();
-    setSaving(false);
-    setDialogOpen(false);
-    setCaptureType(null);
   };
 
   const typeLabels = { note: 'Quick Note', appointment: 'New Appointment', medication: 'Medication Note', task: 'New Task' };
@@ -119,7 +125,7 @@ export default function QuickCaptureButton() {
             )}
             <div className="flex gap-3 justify-end">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving || !content.trim()}>
+              <Button onClick={handleSave} disabled={saving || !(title.trim() || content.trim()) || (captureType === 'appointment' && !date)}>
                 {saving ? 'Saving...' : 'Save'}
               </Button>
             </div>

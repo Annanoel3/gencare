@@ -49,8 +49,9 @@ export default function Dashboard() {
 
   const todayAppts = appointments.filter(a => a.date && isToday(parseISO(a.date)));
   const activeMeds = medications.filter(m => m.is_active !== false);
-  const pendingTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
-  const urgentTasks = tasks.filter(t => t.priority === 'urgent' && t.status !== 'completed');
+  const topLevel = tasks.filter(t => !t.parent_task_id);
+  const pendingTasks = topLevel.filter(t => t.status === 'pending' || t.status === 'in_progress');
+  const urgentTasks = topLevel.filter(t => t.priority === 'urgent' && t.status !== 'completed');
 
   return (
     <div className="pb-24 lg:pb-8">

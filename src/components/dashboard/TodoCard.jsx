@@ -4,7 +4,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseISO, isValid, isToday, isPast, startOfDay, format } from 'date-fns';
 import { Check } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { useFamily } from '@/lib/family';
 import { getMemberColorByMemberId } from '@/utils/memberColors';
+import { completeTask } from '@/lib/tasks';
 
 /**
  * The family's open tasks on the home page, newest-due first, tick to complete.
@@ -14,16 +16,14 @@ import { getMemberColorByMemberId } from '@/utils/memberColors';
  */
 export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
   const queryClient = useQueryClient();
+  const { me } = useFamily();
   const complete = useMutation({
-    mutationFn: (id) => base44.entities.CareTask.update(id, { status: 'completed', completed_at: new Date().toISOString() }),
-    onSuccess: (_r, id) => {
-      base44.functions.invoke('notifyFamily', { kind: 'task', action: 'completed', task_id: id }).catch(() => {});
-      queryClient.invalidateQueries({ queryKey: ['careTasks'] });
-    },
+    mutationFn: (task) => completeTask(task, me),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['careTasks'] }),
   });
 
   const open = tasks
-    .filter(t => t.status === 'pending' || t.status === 'in_progress')
+    .filter(t => (t.status === 'pending' || t.status === 'in_progress') && !t.parent_task_id)
     .map(t => {
       const due = t.due_date ? parseISO(t.due_date) : null;
       return { ...t, due: due && isValid(due) ? due : null };
@@ -53,7 +53,7 @@ export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
           return (
             <div key={t.id} className="flex items-center gap-3 py-2">
               <button
-                onClick={() => complete.mutate(t.id)}
+                onClick={() => complete.mutate(t)}
                 disabled={complete.isPending}
                 aria-label={`Mark "${t.title}" done`}
                 className="w-6 h-6 rounded-full border-2 border-primary/40 hover:border-primary hover:bg-primary/10 flex items-center justify-center flex-shrink-0 transition-all"
