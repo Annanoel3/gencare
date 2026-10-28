@@ -102,8 +102,8 @@ export default function Subscribe({ gate = false }) {
           {access?.reason === 'subscribed' ? (
             <div className="space-y-3">
               <div className="rounded-xl bg-muted p-3 text-sm flex items-center gap-2"><Users className="w-4 h-4" /> {members.length} member{members.length === 1 ? '' : 's'} covered{sub?.mine ? ' by your subscription' : sub ? ' by another member’s subscription' : ''}.</div>
-              {sub?.mine && isAndroidApp() && (
-                <Button variant="outline" className="w-full gap-2" onClick={() => openInPlay(manageSubscriptionUrl(sub.product_id))}><ExternalLink className="w-4 h-4" /> Manage in Google Play</Button>
+              {sub?.mine && isNativeApp() && (
+                <Button variant="outline" className="w-full gap-2" onClick={() => openInPlay(manageSubscriptionUrl(sub.product_id))}><ExternalLink className="w-4 h-4" /> {isAndroidApp() ? 'Manage in Google Play' : 'Manage in the App Store'}</Button>
               )}
             </div>
           ) : !isNativeApp() ? (
@@ -113,7 +113,7 @@ export default function Subscribe({ gate = false }) {
             </div>
           ) : billing && !billing.available ? (
             <div className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">
-              {billing.reason === 'update_needed' ? 'Update GenCare from Google Play to subscribe.' : 'Subscriptions aren’t switched on in this build yet.'}
+              {billing.reason === 'update_needed' ? `Update GenCare from ${isAndroidApp() ? 'Google Play' : 'the App Store'} to subscribe.` : 'Subscriptions aren’t switched on in this build yet.'}
             </div>
           ) : plans?.error ? (
             <p className="text-sm text-destructive">{plans.error}</p>
