@@ -14,7 +14,9 @@
         "Announcement",
         "Question",
         "Care Update",
+        "Visit Summary",
         "Photo",
+        "Task",
         "General"
       ],
       "type": "string"
@@ -22,11 +24,15 @@
     "content": {
       "type": "string"
     },
+    "edited_at": {
+      "format": "date-time",
+      "type": "string"
+    },
     "family_id": {
       "type": "string"
     },
     "family_member_id": {
-      "description": "Related family member if applicable",
+      "description": "The person this post is about, if any",
       "type": "string"
     },
     "family_member_name": {
@@ -36,7 +42,22 @@
       "default": false,
       "type": "boolean"
     },
+    "parent_id": {
+      "description": "Set on replies: the message this answers",
+      "type": "string"
+    },
     "photo_url": {
+      "type": "string"
+    },
+    "photos": {
+      "description": "Private file URIs",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "task_id": {
+      "description": "For task discussions: the CareTask",
       "type": "string"
     }
   },
