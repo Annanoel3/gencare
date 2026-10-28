@@ -12,6 +12,10 @@
       },
       "type": "array"
     },
+    "digest_sent_on": {
+      "description": "YYYY-MM-DD the morning digest last went out",
+      "type": "string"
+    },
     "display_name": {
       "description": "How this person is shown to the family",
       "type": "string"
