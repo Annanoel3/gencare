@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { parseISO, isToday, format, isValid } from 'date-fns';
 import { getMemberLightColorByMemberId } from '@/utils/memberColors';
+import { expandAppointments } from '@/lib/occurrences';
 
 function toWhen(entry) {
   if (entry.timestamp) { const d = parseISO(entry.timestamp); if (isValid(d)) return d; }
@@ -44,7 +45,9 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
   (preteenQ.data || []).forEach(e => items.push(normalizeLog(e, 'pre-teen')));
   (teenQ.data || []).forEach(e => items.push(normalizeLog(e, 'teen')));
   (seniorQ.data || []).forEach(e => items.push(normalizeLog(e, 'senior')));
-  (apptQ.data || []).forEach(a => {
+  // Repeating / multi-day events count on each day they land on (today, or the last 30 days for 'recent').
+  const apptRows = scope === 'today' ? expandAppointments(apptQ.data || [], new Date(), new Date()) : expandAppointments(apptQ.data || [], new Date(Date.now() - 30 * 86400000), new Date(Date.now() + 30 * 86400000));
+  apptRows.forEach(a => {
     let when = a.date ? parseISO(a.date) : null;
     if (when && isValid(when) && a.time) { const [h, m] = a.time.split(':'); when.setHours(+h, +(m || 0)); }
     items.push({

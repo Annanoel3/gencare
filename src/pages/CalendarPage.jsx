@@ -4,7 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
 import { exportSoon } from '@/lib/calendarSync';
-import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isValid } from 'date-fns';
+import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isValid, startOfMonth, endOfMonth, min as minDate, max as maxDate } from 'date-fns';
+import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { CalendarDays, Plus, Smartphone } from 'lucide-react';
 import MonthView from '@/components/calendar/MonthView';
 import WeekView from '@/components/calendar/WeekView';
@@ -108,12 +109,20 @@ export default function CalendarPage() {
 
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
-  const selectedDayAppointments = appointments
+  // Repeating and multi-day events, one entry per day, for the days in view.
+  const occurrences = useMemo(() => {
+    const from = minDate([addDays(startOfMonth(currentMonth), -7), addDays(selectedDate, -7)]);
+    const to = maxDate([addDays(endOfMonth(currentMonth), 7), addDays(selectedDate, 7)]);
+    return expandAppointments(appointments, from, to);
+  }, [appointments, currentMonth, selectedDate]);
+
+  const selectedDayAppointments = occurrences
     .filter(a => a.date && isSameDay(parseISO(a.date), selectedDate))
     .sort((a, b) => (a.all_day ? '' : a.time || '').localeCompare(b.all_day ? '' : b.time || ''));
 
   const openNew = () => { setEditing(null); setDialogOpen(true); };
-  const openEdit = (appt) => { setEditing(appt); setDialogOpen(true); };
+  // An occurrence of a series opens the series itself.
+  const openEdit = (occ) => { setEditing(appointments.find((a) => a.id === rowIdOf(occ)) || occ); setDialogOpen(true); };
 
   const onSave = (data) => {
     if (editing?.id) updateMutation.mutate({ id: editing.id, data, wasPrivate: editing.visibility === 'private' });
@@ -160,7 +169,7 @@ export default function CalendarPage() {
             setCurrentMonth={setCurrentMonth}
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
-            appointments={appointments}
+            appointments={occurrences}
             members={members}
           />
           <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6">
@@ -186,7 +195,7 @@ export default function CalendarPage() {
             setSelectedDate={setSelectedDate}
             onPrev={() => setSelectedDate(subWeeks(selectedDate, 1))}
             onNext={() => setSelectedDate(addWeeks(selectedDate, 1))}
-            appointments={appointments}
+            appointments={occurrences}
             members={members}
             onOpen={openEdit}
           />
@@ -198,7 +207,7 @@ export default function CalendarPage() {
             onPrev={() => setSelectedDate(subDays(selectedDate, 1))}
             onNext={() => setSelectedDate(addDays(selectedDate, 1))}
             onAdd={openNew}
-            appointments={appointments}
+            appointments={occurrences}
             members={members}
             onOpen={openEdit}
           />

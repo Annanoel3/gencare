@@ -254,7 +254,7 @@ Deno.serve(async (req) => {
         else if (a.end_time) endMs = localToMs(a.end_date || a.date, a.end_time, eventTz);
         if (!startMs) continue;
         if (!endMs || endMs <= startMs) endMs = startMs + (a.all_day ? 86_400_000 : 3_600_000);
-        const hash = await hashOf([title, description, a.location || '', startMs, endMs, a.all_day ? 1 : 0, reminder, user.export_calendar_id].join('|'));
+        const hash = await hashOf([title, description, a.location || '', startMs, endMs, a.all_day ? 1 : 0, reminder, user.export_calendar_id, a.recurrence || ''].join('|'));
         if (link && link.status === 'written' && link.written_hash === hash && link.device_calendar_id === user.export_calendar_id) continue;
         if (link && link.status === 'written' && link.device_event_id && link.device_calendar_id && link.device_calendar_id !== user.export_calendar_id) {
           // Moved to another calendar: the old row goes, a new one is written.
@@ -268,6 +268,8 @@ Deno.serve(async (req) => {
           allDay: !!a.all_day,
           timezone: a.timezone || tz,
           reminderMinutes: a.all_day ? -1 : reminder,
+          // A repeating event goes to the phone as a series (the phone expands it).
+          rrule: a.recurrence ? String(a.recurrence).replace(/^RRULE:/i, '') : '',
           deviceEventId: link && link.device_calendar_id === user.export_calendar_id ? (link.device_event_id || '') : '',
           hash,
         });

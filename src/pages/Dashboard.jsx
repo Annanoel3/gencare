@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { isToday, parseISO } from 'date-fns';
+import { expandAppointments } from '@/lib/occurrences';
 import WelcomeHeader from '@/components/dashboard/WelcomeHeader';
 import StatCards from '@/components/dashboard/StatCards';
 import FamilyOverview from '@/components/dashboard/FamilyOverview';
@@ -47,7 +47,7 @@ export default function Dashboard() {
     queryFn: () => base44.entities.CareJournal.list('-created_date', 10),
   });
 
-  const todayAppts = appointments.filter(a => a.date && isToday(parseISO(a.date)));
+  const todayAppts = expandAppointments(appointments, new Date(), new Date());
   const activeMeds = medications.filter(m => m.is_active !== false);
   const topLevel = tasks.filter(t => !t.parent_task_id);
   const pendingTasks = topLevel.filter(t => t.status === 'pending' || t.status === 'in_progress');

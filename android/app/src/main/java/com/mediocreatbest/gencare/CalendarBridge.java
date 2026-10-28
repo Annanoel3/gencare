@@ -477,7 +477,18 @@ public class CalendarBridge extends Plugin {
                 v.put(CalendarContract.Events.DESCRIPTION, e.optString("description", ""));
                 v.put(CalendarContract.Events.EVENT_LOCATION, e.optString("location", ""));
                 v.put(CalendarContract.Events.DTSTART, start);
-                v.put(CalendarContract.Events.DTEND, end);
+                String rrule = e.optString("rrule", "");
+                if (!rrule.isEmpty()) {
+                    // A series: Android wants RRULE + DURATION (RFC 5545) instead of DTEND.
+                    long secs = Math.max(60L, (end - start) / 1000L);
+                    v.put(CalendarContract.Events.RRULE, rrule);
+                    v.put(CalendarContract.Events.DURATION, allDay ? ("P" + Math.max(1L, secs / 86400L) + "D") : ("PT" + secs + "S"));
+                    v.putNull(CalendarContract.Events.DTEND);
+                } else {
+                    v.put(CalendarContract.Events.DTEND, end);
+                    v.putNull(CalendarContract.Events.RRULE);
+                    v.putNull(CalendarContract.Events.DURATION);
+                }
                 v.put(CalendarContract.Events.ALL_DAY, allDay ? 1 : 0);
                 v.put(CalendarContract.Events.EVENT_TIMEZONE, allDay ? "UTC" : (e.optString("timezone", "").isEmpty() ? tz : e.optString("timezone")));
                 v.put(CalendarContract.Events.HAS_ALARM, e.optInt("reminderMinutes", -1) >= 0 ? 1 : 0);

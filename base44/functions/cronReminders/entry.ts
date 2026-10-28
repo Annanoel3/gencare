@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { familyUsers, sendPush, wantsPush, whenText } from '../../shared/push.ts';
 import { canSee } from '../../shared/sharing.ts';
+import { expandAppointments } from '../../shared/recurrence.ts';
 
 // Runs every 15 minutes (workflow "Reminders every 15 minutes"). Three jobs,
 // each in the family's own time (the owner's timezone, else the first
@@ -67,12 +68,21 @@ Deno.serve(async (req) => {
 
       // 1. Appointment reminders (today's and tomorrow's rows; a reminder can
       //    land the evening before an early event).
-      const appts = [
+      //    A repeating event lands on today through its RRULE, not its row date,
+      //    so the series rows come along and are expanded per day; a reminder
+      //    for an occurrence is remembered by its day (reminder_sent_for).
+      const plain = [
         ...((await db.Appointment.filter({ family_id: fam.id, date: today })) || []),
         ...((await db.Appointment.filter({ family_id: fam.id, date: tomorrow })) || []),
-      ];
+      ].filter((a: any) => !a.recurrence);
+      let series: any[] = [];
+      try { series = (await db.Appointment.filter({ family_id: fam.id, recurrence: { $regex: '^RRULE' } })) || []; }
+      catch (_) { series = ((await db.Appointment.filter({ family_id: fam.id })) || []).filter((a: any) => a.recurrence); }
+      const appts = expandAppointments([...plain, ...series], today, tomorrow);
       for (const a of appts) {
-        if (a.reminder_sent || a.all_day || !a.time) continue;
+        const isSeries = !!a.occurrence_of;
+        if (isSeries ? a.reminder_sent_for === a.date : a.reminder_sent) continue;
+        if (a.all_day || !a.time) continue;
         const minutes = typeof a.reminder_minutes === 'number' ? a.reminder_minutes : 60;
         if (minutes < 0) continue;
         const startMs = localToMs(a.date, a.time, a.timezone ? safeTz(a.timezone) : tz);
@@ -93,7 +103,8 @@ Deno.serve(async (req) => {
           });
           out.appointment_reminders++;
         }
-        await db.Appointment.update(a.id, { reminder_sent: true });
+        if (isSeries) await db.Appointment.update(a.occurrence_of, { reminder_sent_for: a.date });
+        else await db.Appointment.update(a.id, { reminder_sent: true });
       }
 
       // 2. Tasks at their due time.

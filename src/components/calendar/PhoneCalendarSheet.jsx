@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import { useFamily } from '@/lib/family';
-import { isIPhoneApp, isNativeApp } from '@/lib/phone';
+import { isNativeApp } from '@/lib/phone';
 import {
   hasPhoneCalendars, listDeviceCalendars, listWritableCalendars, requestReadPermission, requestWritePermission,
   saveCalendarSettings, runImport, runExport, calendarStatus,
@@ -73,7 +73,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
 
   const allowRead = async () => {
     const ok = await requestReadPermission();
-    if (!ok) { toast({ title: 'Calendar access was not allowed', description: 'GenCare can only read calendars you allow in Android settings.' }); return; }
+    if (!ok) { toast({ title: 'Calendar access was not allowed', description: 'GenCare can only read calendars you allow in your phone settings.' }); return; }
     await load();
   };
   const allowWrite = async () => {
@@ -146,9 +146,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
 
         {!native ? (
           <div className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">
-            {isIPhoneApp()
-              ? 'Phone calendar sync is coming to the iPhone app.'
-              : 'This works in the GenCare app on your phone. Open GenCare on your phone to set it up.'}
+            This works in the GenCare app on your phone. Open GenCare on your phone to set it up.
           </div>
         ) : !settings ? (
           <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>

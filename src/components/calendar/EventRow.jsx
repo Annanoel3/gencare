@@ -37,6 +37,7 @@ export default function EventRow({ appt, members, onClick }) {
           {appt.recurrence && <Repeat className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Repeats" />}
         </div>
         <div className="flex flex-wrap gap-2 mt-1 items-center">
+          {appt.span_days > 1 && <span className="text-xs text-muted-foreground">Day {appt.span_index + 1} of {appt.span_days}</span>}
           {appt.all_day ? (
             <span className="text-xs text-muted-foreground">All day</span>
           ) : appt.time ? (
