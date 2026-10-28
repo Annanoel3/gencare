@@ -7,6 +7,7 @@ import StatCards from '@/components/dashboard/StatCards';
 import FamilyOverview from '@/components/dashboard/FamilyOverview';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import CareFeed from '@/components/dashboard/CareFeed';
+import QuickAddTask from '@/components/shared/QuickAddTask';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -59,6 +60,8 @@ export default function Dashboard() {
         tasks={pendingTasks.length}
         urgentTasks={urgentTasks.length}
       />
+
+      <QuickAddTask placeholder="Add a task for the family…" className="mb-6" />
 
       <div className="mb-6">
         <h2 className="font-heading text-lg font-semibold mb-3">Today Across the Family</h2>

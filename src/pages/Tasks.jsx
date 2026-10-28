@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
 import ChecklistsPanel from '@/components/checklists/ChecklistsPanel';
+import QuickAddTask from '@/components/shared/QuickAddTask';
 
 const priorityConfig = {
   low: { color: 'bg-blue-500/10 text-blue-600 border-blue-200', icon: Circle },
@@ -73,8 +74,10 @@ export default function Tasks() {
           </h1>
           <p className="text-muted-foreground mt-1">Keep track of everything that needs to get done.</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Task</Button>
+        <Button variant="outline" onClick={() => setDialogOpen(true)} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Details</Button>
       </div>
+
+      <QuickAddTask autoFocus className="mb-6" />
 
       <Tabs defaultValue="tasks">
         <TabsList className="bg-muted rounded-xl mb-6">
