@@ -1,6 +1,13 @@
 {
   "name": "Medication",
   "properties": {
+    "days_of_week": {
+      "description": "Weekdays the doses happen on, 0 = Sunday; empty = every day",
+      "items": {
+        "type": "integer"
+      },
+      "type": "array"
+    },
     "dosage": {
       "type": "string"
     },
@@ -15,7 +22,6 @@
       "type": "string"
     },
     "frequency": {
-      "default": "Once daily",
       "enum": [
         "Once daily",
         "Twice daily",
@@ -51,9 +57,30 @@
       "format": "date",
       "type": "string"
     },
+    "refill_reminded_on": {
+      "description": "The day the refill push last went out, so it goes once a day",
+      "type": "string"
+    },
+    "refill_reminder_days": {
+      "default": 3,
+      "description": "Push about the refill this many days before refill_date",
+      "type": "number"
+    },
+    "remind": {
+      "default": true,
+      "description": "Dose pushes on/off",
+      "type": "boolean"
+    },
     "start_date": {
       "format": "date",
       "type": "string"
+    },
+    "times": {
+      "description": "Dose times, HH:MM in the family's own time (08:00, 20:00). Each gets a push and a Taken button; empty = no dose reminders",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     }
   },
   "required": [
