@@ -1,5 +1,5 @@
 {
-  "description": "A caregiver's own daily check-in (mood, stress, sleep, self-care). Private to that person.",
+  "description": "A caregiver's own daily check-in (mood, stress, sleep, self-care, notes for the day). Private to that person. A day can be just a note.",
   "name": "WellnessCheckin",
   "properties": {
     "day": {
@@ -42,9 +42,9 @@
   },
   "required": [
     "user_id",
-    "day",
-    "mood"
+    "day"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.user_id": "{{user.id}}"
@@ -58,6 +58,5 @@
     "update": {
       "data.user_id": "{{user.id}}"
     }
-  },
-  "type": "object"
+  }
 }
