@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { format, parseISO, isValid, isToday, isYesterday } from 'date-fns';
 import { HeartHandshake, Plus, CalendarClock } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { useFamily } from '@/lib/family';
+import { useFamily, orderMembers } from '@/lib/family';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { formatAge } from '@/utils/age';
@@ -26,9 +26,11 @@ export default function CareLogPage() {
   const { me } = useFamily();
 
   const { data: members = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list('-created_date') });
-  const active = useMemo(() => members.filter((m) => m.is_active !== false), [members]);
+  // Same order as everywhere else (you, the other people, then pets); the
+  // page opens on the first person who isn't you, since that's who you log for.
+  const active = useMemo(() => orderMembers(members.filter((m) => m.is_active !== false), me?.id), [members, me?.id]);
   const [personId, setPersonId] = useState(params.get('for') || '');
-  const person = active.find((m) => m.id === personId) || active[0] || null;
+  const person = active.find((m) => m.id === personId) || active.find((m) => !(m.linked_user_id && m.linked_user_id === me?.id)) || active[0] || null;
   useEffect(() => { if (person && person.id !== personId) setPersonId(person.id); }, [person?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!personId) return;

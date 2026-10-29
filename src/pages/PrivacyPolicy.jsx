@@ -30,6 +30,7 @@ export default function PrivacyPolicy() {
             <li><strong>Family Data:</strong> Profiles, appointments, reminders, tasks, care logs, journal entries, messages, and notes you create. These can include personal details you choose to write down, including health details.</li>
             <li><strong>Phone Calendar Data:</strong> If you choose phone calendars to bring into GenCare, we read the events in those calendars (title, time, place and notes) to show them in the app. If you turn on sending events to your phone, we write the family's events into the phone calendar you pick.</li>
             <li><strong>Recordings:</strong> If you use Record Notes, the audio you record is turned into a transcript and notes.</li>
+            <li><strong>ZIP Code:</strong> If you look up places near you on the Resources page, the ZIP code you type. We save it to your account so the list is there next time, and we save the places found for that ZIP code so other families searching the same ZIP code see the same list.</li>
             <li><strong>Usage Data:</strong> How you interact with the app, device information, and crash reports.</li>
           </ul>
         </section>
@@ -48,7 +49,7 @@ export default function PrivacyPolicy() {
 
         <section>
           <h2 className="font-heading text-lg font-semibold mb-2">4. Data Sharing</h2>
-          <p className="text-muted-foreground">We do not sell your data. Your family care information is only visible to you and family members you explicitly invite. We share data with third-party providers only as necessary to provide the service: push notification services, and OpenAI, which processes Record Notes audio and transcripts and the calendar event details and family profile names used to sort events. These providers process the data only to provide those features for you.</p>
+          <p className="text-muted-foreground">We do not sell your data. Your family care information is only visible to you and family members you explicitly invite. We share data with third-party providers only as necessary to provide the service: push notification services, and OpenAI, which processes Record Notes audio and transcripts the calendar event details and family profile names used to sort events, and the ZIP code you search on the Resources page (to search the web for local services). These providers process the data only to provide those features for you.</p>
         </section>
 
         <section>

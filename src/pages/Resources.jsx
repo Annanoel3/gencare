@@ -3,6 +3,7 @@ import { LifeBuoy, Phone, ExternalLink, ChevronDown } from 'lucide-react';
 import { RESOURCE_GROUPS, RESOURCES_CHECKED } from '@/lib/resources';
 import SupportDialog from '@/components/shared/SupportDialog';
 import { externalClick } from '@/lib/phone';
+import NearbyHelp from '@/components/resources/NearbyHelp';
 
 // Resources: real organizations that help families caring for each other —
 // finding local help, support for the caregiver, help for an older adult,
@@ -10,7 +11,8 @@ import { externalClick } from '@/lib/phone';
 // opens and closes, so every section is visible at a glance. Tap to call or
 // open the site. Every section starts closed. The list lives in
 // lib/resources.js with when it was checked; people can suggest more (sent to
-// the owner's inbox).
+// the owner's inbox). "Find help near you" also looks up places for a ZIP
+// code (components/resources/NearbyHelp).
 const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, '')}`;
 
 function Entry({ r }) {
@@ -63,6 +65,7 @@ export default function Resources() {
               </button>
               {isOpen && (
                 <div className="px-4 pb-4 space-y-2.5">
+                  {g.key === 'local' && <NearbyHelp Entry={Entry} />}
                   {g.items.map((r) => <Entry key={r.name} r={r} />)}
                 </div>
               )}

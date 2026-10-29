@@ -5,7 +5,7 @@ export const RESOURCES_CHECKED = 'October 2026';
 
 export const RESOURCE_GROUPS = [
   {
-    key: 'local', icon: '📍', title: 'Find help near you', blurb: 'Local services, crisis support, reporting abuse',
+    key: 'local', icon: '📍', title: 'Find help near you', blurb: 'Local places by ZIP code, crisis support, reporting abuse',
     items: [
       {
         name: '211', url: 'https://211.org/about-us/your-local-211',
