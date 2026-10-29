@@ -2,13 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { BellOff, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isNativeApp, plugin, waitForPlugin } from '@/lib/phone';
+import { wasAsked, onPermissionAnswered } from '@/lib/notifyPermission';
 
 const SNOOZE_KEY = 'gencare_notif_banner_snoozed';
 const SNOOZE_MS = 3 * 24 * 3600e3;
 
 // Shows when the phone (or browser) is blocking GenCare's notifications, so
-// nobody silently misses family events and reminders. Checks again whenever
-// the app comes back to the front. "Not now" hides it for 3 days.
+// nobody silently misses family events and reminders. On a phone it only
+// appears after the person has been asked and skipped or said no: before the
+// question is answered, "not allowed" just means "not asked yet". It checks
+// again the moment the question is answered, and whenever the app comes back
+// to the front (someone may have turned them on in Settings). "Not now" hides
+// it for 3 days.
 export default function NotificationsOffBanner() {
   const [off, setOff] = useState(false);
   const [snoozed, setSnoozed] = useState(() => {
@@ -21,7 +26,8 @@ export default function NotificationsOffBanner() {
         const NB = plugin('NotifyBridge') || await waitForPlugin('NotifyBridge', 6000);
         if (!NB?.getPermissionState) return; // an older build: nothing to check
         const r = await NB.getPermissionState();
-        setOff(r?.granted === false);
+        if (r?.granted === true) { setOff(false); return; }
+        setOff(r?.granted === false && wasAsked());
       } else if (typeof Notification !== 'undefined') {
         setOff(Notification.permission === 'denied');
       }
@@ -31,8 +37,25 @@ export default function NotificationsOffBanner() {
   useEffect(() => {
     check();
     const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    const onFocus = () => check();
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onFocus);
+    const stopAnswered = onPermissionAnswered(() => check());
+    // Coming back from the phone's Settings app doesn't always fire the two
+    // events above inside the app, so listen for the app resuming too.
+    let resumeHandle = null;
+    (async () => {
+      try {
+        const App = plugin('App');
+        if (App?.addListener) resumeHandle = await App.addListener('appStateChange', (st) => { if (st?.isActive) check(); });
+      } catch (e) { /* not in the app, or an older build */ }
+    })();
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+      stopAnswered();
+      try { resumeHandle?.remove?.(); } catch (e) { /* fine */ }
+    };
   }, []);
 
   if (!off || snoozed) return null;

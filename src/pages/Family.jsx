@@ -126,6 +126,12 @@ export default function Family() {
             <DialogTitle className="font-heading text-xl">Add Family Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
+            <div className="rounded-xl bg-muted/60 p-3 flex items-center gap-3">
+              <p className="text-sm flex-1">Should they use GenCare on their own phone too? Send them an invite.</p>
+              <Button variant="outline" size="sm" className="gap-2 flex-shrink-0" onClick={() => { setDialogOpen(false); setInviteOpen(true); }}>
+                <QrCode className="w-4 h-4" /> Invite
+              </Button>
+            </div>
             <div>
               <Label>Name *</Label>
               <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Full name" className="mt-1" />
