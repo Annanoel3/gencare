@@ -87,7 +87,7 @@ export default function WelcomeChat({ plan, home, onDone }) {
   const sendName = () => {
     const name = draft.trim().replace(/\s+/g, ' ').slice(0, 60);
     if (!name) return;
-    base44.auth.updateMe({ display_name: name }).catch(() => {});
+    if (!plan.preview) base44.auth.updateMe({ display_name: name }).catch(() => {});
     track('action', 'welcome: name given');
     next(name);
   };
@@ -95,7 +95,8 @@ export default function WelcomeChat({ plan, home, onDone }) {
   const sendZip = async (zip) => {
     setBusy(true); setErr('');
     try {
-      const z = await saveHomeZip(zip);
+      if (plan.preview && !/^\d{5}$/.test(zip)) throw new Error('A ZIP code is 5 numbers');
+      const z = plan.preview ? zip : await saveHomeZip(zip);
       track('action', zip === home?.zip ? 'welcome: family ZIP kept' : 'welcome: ZIP given');
       next(z);
     } catch (e) {

@@ -20,6 +20,12 @@ import WelcomeChat from './WelcomeChat';
 // gets asked what's missing (their own home ZIP, a real name), and nothing at
 // all when nothing is.
 const DONE_KEY = 'gencare_welcome_done';
+// Settings (the app owner only) can show the whole chat as a new person sees
+// it. Nothing typed in a preview is saved, and it doesn't count as done.
+export const PREVIEW_EVENT = 'gencare-welcome-preview';
+export function previewWelcome() {
+  try { window.dispatchEvent(new Event(PREVIEW_EVENT)); } catch (e) { /* fine */ }
+}
 const NEW_ACCOUNT_DAYS = 3;
 
 const realName = (u) => {
@@ -75,6 +81,16 @@ export default function WelcomeDialog({ user: me }) {
     return () => { live = false; };
   }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    const open = () => {
+      // Shows the family-ZIP button the way a new family member sees it.
+      homeArea().then((h) => setHome(h?.zip ? { ...h, own: false } : null));
+      setPlan({ preview: true, fresh: true, needName: true, nameGuess: '', needZip: true, needNotify: isNativeApp(), solo: false });
+    };
+    window.addEventListener(PREVIEW_EVENT, open);
+    return () => window.removeEventListener(PREVIEW_EVENT, open);
+  }, []);
+
   function finish(shown = true) {
     try { localStorage.setItem(DONE_KEY, '1'); } catch (e) { /* the account flag still holds */ }
     base44.auth.updateMe({ welcome_done_at: new Date().toISOString() }).catch(() => {});
@@ -83,6 +99,7 @@ export default function WelcomeDialog({ user: me }) {
   }
 
   const close = (then) => {
+    if (plan?.preview) { setPlan(null); return; }
     finish(true);
     track('action', 'welcome chat closed', then || 'done');
     refresh?.();

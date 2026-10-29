@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon, LogOut, MessageCircleHeart } from 'lucide-react';
 import SupportDialog from '@/components/shared/SupportDialog';
+import { previewWelcome } from '@/components/onboarding/WelcomeDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,6 +70,15 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">Only you see this: who uses GenCare where, what works and what breaks.</p>
             </div>
           </Link>
+        )}
+        {user?.role === 'admin' && (
+          <button type="button" onClick={previewWelcome} className="w-full text-left flex items-center gap-3 bg-card rounded-2xl border border-border/50 p-5 hover:bg-muted/40 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><MessageCircleHeart className="w-5 h-5 text-primary" /></div>
+            <div className="flex-1">
+              <h2 className="font-heading text-lg font-semibold">Preview the welcome chat</h2>
+              <p className="text-xs text-muted-foreground">Only you see this: the chat new people get. Nothing you type in it is saved.</p>
+            </div>
+          </button>
         )}
 
         {/* Account / Email */}
