@@ -88,6 +88,13 @@ export default function CalendarPage() {
     return () => { cancelled = true; };
   }, [params.get('open')]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The + button's "Event" lands here with ?new=1.
+  useEffect(() => {
+    if (!params.get('new')) return;
+    setEditing(null); setDialogOpen(true);
+    const next = new URLSearchParams(params); next.delete('new'); setParams(next, { replace: true });
+  }, [params.get('new')]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const afterChange = () => {
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
     exportSoon();

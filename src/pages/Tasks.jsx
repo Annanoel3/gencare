@@ -78,6 +78,13 @@ export default function Tasks() {
   const { reminders, logs, isFetched, editor, openReminder } = useReminderEditor(members);
   const slots = useMemo(() => slotsForDay(reminders, logs, todayStr()), [reminders, logs]);
 
+  // The + button's "Task" lands here with ?task=new.
+  useEffect(() => {
+    if (params.get('task') !== 'new') return;
+    setSheet({ open: true, task: null, kind: 'task' });
+    const next = new URLSearchParams(params); next.delete('task'); setParams(next, { replace: true });
+  }, [params.get('task')]);
+
   // A reminder push, the + button's "Reminder", or an old /reminders link.
   const wanted = params.get('reminder');
   useEffect(() => {
@@ -118,16 +125,16 @@ export default function Tasks() {
   const openTask = (task) => setSheet({ open: true, task, kind: task.kind || 'task' });
   const newTask = (kind) => setSheet({ open: true, task: null, kind });
   const paused = reminders.filter((m) => m.is_active === false && !isFinishedOnce(m));
-  // Active reminders by who they're for, "Everyone" last.
+  // Active reminders by who they're for; ones for nobody in particular last.
   const byPerson = useMemo(() => {
     const groups = new Map();
     // "Until it's done" reminders drop off the list once someone finishes them.
     for (const m of reminders.filter((x) => x.is_active !== false)) {
-      const k = m.family_member_name || 'Everyone';
+      const k = m.family_member_name || 'General';
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(m);
     }
-    return [...groups.entries()].sort(([a], [b]) => (a === 'Everyone') - (b === 'Everyone') || a.localeCompare(b));
+    return [...groups.entries()].sort(([a], [b]) => (a === 'General') - (b === 'General') || a.localeCompare(b));
   }, [reminders]);
 
   return (

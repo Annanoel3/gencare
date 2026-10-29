@@ -1,159 +1,48 @@
 import React, { useState } from 'react';
-import { Plus, X, Calendar, BellRing, MessageSquare } from 'lucide-react';
+import { Plus, X, Calendar, BellRing, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { base44 } from '@/api/base44Client';
-import { withFamily, useFamily } from '@/lib/family';
-import { authorOf, todayStr } from '@/lib/journal';
-import { createTask } from '@/lib/tasks';
-import { sharingDefaultOf, startingVisibility, sortNewEvent, sortedLine } from '@/lib/events';
-import { exportSoon } from '@/lib/calendarSync';
-import { toast } from '@/components/ui/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// The floating + on every page. Each choice opens the same short form the
+// page itself uses (one form per kind, so there's one simple way to add each).
 const captureOptions = [
-  { icon: Calendar, label: 'Appointment', type: 'appointment', color: 'bg-purple-500' },
-  { icon: BellRing, label: 'Reminder', type: 'reminder', color: 'bg-emerald-500' },
-  { icon: MessageSquare, label: 'Task', type: 'task', color: 'bg-orange-500' },
+  { icon: Calendar, label: 'Event', to: '/calendar?new=1', color: 'bg-purple-500' },
+  { icon: BellRing, label: 'Reminder', to: '/tasks?reminder=new', color: 'bg-emerald-500' },
+  { icon: ClipboardList, label: 'Task', to: '/tasks?task=new', color: 'bg-orange-500' },
 ];
 
 export default function QuickCaptureButton() {
   const [expanded, setExpanded] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [captureType, setCaptureType] = useState(null);
-  const [content, setContent] = useState('');
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState('');
-  const [saving, setSaving] = useState(false);
-  const queryClient = useQueryClient();
-  const { me } = useFamily();
   const navigate = useNavigate();
 
-  const handleOptionClick = (type) => {
-    if (type === 'reminder') { setExpanded(false); navigate('/tasks?reminder=new'); return; }
-    setCaptureType(type);
-    setDialogOpen(true);
-    setExpanded(false);
-    setContent('');
-    setTitle('');
-    setDate('');
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      if (captureType === 'note') {
-        // Quick notes used to go to a table nothing read; they are journal entries now.
-        await base44.entities.CareJournal.create(withFamily({ content, category: 'General', entry_date: todayStr(), ...authorOf(me) }));
-      } else if (captureType === 'task') {
-        await createTask({ title: (title || content).trim(), description: title ? content : undefined, due_date: date || undefined });
-      } else if (captureType === 'appointment') {
-        // Same as adding on the Calendar: sharing follows the person's choice,
-        // then GenCare fills in who it's for, the category and (if they let it
-        // decide) the sharing.
-        const mode = sharingDefaultOf(me);
-        const created = await base44.entities.Appointment.create(withFamily({
-          title: (title || content).trim(), date, notes: title ? content : undefined,
-          visibility: startingVisibility(mode), auto_set: ['visibility', 'category'],
-        }));
-        const tell = (action) => base44.functions.invoke('notifyFamily', { kind: 'appointment', action, appointment_id: created.id }).catch(() => {});
-        if (created?.id && created.visibility !== 'private') tell('added');
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-        exportSoon();
-        sortNewEvent(created, { visibility: true, member: true, category: true }, mode).then((r) => {
-          if (!r) return;
-          if (r.becameShared) tell('added');
-          queryClient.invalidateQueries({ queryKey: ['appointments'] });
-          exportSoon();
-          const line = sortedLine(r);
-          if (line) toast({ title: 'Added', description: line });
-        }).catch(() => {});
-      }
-      queryClient.invalidateQueries();
-      setDialogOpen(false);
-      setCaptureType(null);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const typeLabels = { note: 'Quick Note', appointment: 'New Appointment', task: 'New Task' };
-
   return (
-    <>
-      {/* FAB */}
-      <div className="fixed bottom-20 right-4 lg:bottom-8 lg:right-8 z-50 flex flex-col-reverse items-end gap-3">
-        <AnimatePresence>
-          {expanded && captureOptions.map((opt, i) => (
-            <motion.button
-              key={opt.type}
-              initial={{ opacity: 0, y: 20, scale: 0.8 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.8 }}
-              transition={{ delay: i * 0.05 }}
-              onClick={() => handleOptionClick(opt.type)}
-              className="flex items-center gap-3 bg-card shadow-lg rounded-full pl-4 pr-2 py-2 border border-border hover:shadow-xl transition-shadow"
-            >
-              <span className="text-sm font-medium text-foreground whitespace-nowrap">{opt.label}</span>
-              <div className={`w-10 h-10 rounded-full ${opt.color} flex items-center justify-center`}>
-                <opt.icon className="w-5 h-5 text-white" />
-              </div>
-            </motion.button>
-          ))}
-        </AnimatePresence>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setExpanded(!expanded)}
-          className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
-            expanded ? 'bg-foreground rotate-45' : 'bg-primary'
-          }`}
-        >
-          {expanded ? <X className="w-6 h-6 text-background" /> : <Plus className="w-6 h-6 text-primary-foreground" />}
-        </motion.button>
-      </div>
-
-      {/* Capture Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-lg">{typeLabels[captureType]}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            {(captureType === 'task' || captureType === 'appointment') && (
-              <Input
-                placeholder="Title"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="text-base"
-              />
-            )}
-            <Textarea
-              placeholder={captureType === 'note' ? "What's on your mind?" : "Add details..."}
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              className="min-h-[100px] text-base"
-            />
-            {(captureType === 'task' || captureType === 'appointment') && (
-              <Input
-                type="date"
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="text-base"
-              />
-            )}
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving || !(title.trim() || content.trim()) || (captureType === 'appointment' && !date)}>
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
+    <div className="fixed bottom-20 right-4 lg:bottom-8 lg:right-8 z-50 flex flex-col-reverse items-end gap-3">
+      <AnimatePresence>
+        {expanded && captureOptions.map((opt, i) => (
+          <motion.button
+            key={opt.label}
+            initial={{ opacity: 0, y: 20, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.8 }}
+            transition={{ delay: i * 0.05 }}
+            onClick={() => { setExpanded(false); navigate(opt.to); }}
+            className="flex items-center gap-3 bg-card shadow-lg rounded-full pl-4 pr-2 py-2 border border-border hover:shadow-xl transition-shadow"
+          >
+            <span className="text-sm font-medium text-foreground whitespace-nowrap">{opt.label}</span>
+            <div className={`w-10 h-10 rounded-full ${opt.color} flex items-center justify-center`}>
+              <opt.icon className="w-5 h-5 text-white" />
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+          </motion.button>
+        ))}
+      </AnimatePresence>
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setExpanded(!expanded)}
+        aria-label={expanded ? 'Close' : 'Add'}
+        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${expanded ? 'bg-foreground rotate-45' : 'bg-primary'}`}
+      >
+        {expanded ? <X className="w-6 h-6 text-background" /> : <Plus className="w-6 h-6 text-primary-foreground" />}
+      </motion.button>
+    </div>
   );
 }

@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { isRecordable, categoryOf, CATEGORIES } from './EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import { EVENT_REPEATS, repeatLabel, parseRRule } from '@/lib/occurrences';
+import MoreOptions from '@/components/shared/MoreOptions';
 
 export { CATEGORIES };
 const REMINDERS = [
@@ -97,6 +98,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const pick = (field, fn) => { touched.current.add(field); fn(); };
+  // The folded "More options" line says where the event will go.
+  const shareSummary = form.visibility === 'auto' ? 'GenCare decides who sees it' : form.visibility === 'private' ? 'Only you' : form.visibility === 'some' ? 'Some of the family' : 'Whole family';
 
   // The fields to save, from the form.
   function buildData(f) {
@@ -170,18 +173,25 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
       <DialogContent className="sm:max-w-lg max-h-[92vh] overflow-y-auto">
-        <DialogHeader><DialogTitle className="font-heading text-xl">{editing ? 'Edit Event' : 'New Event'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-heading text-xl">{editing ? 'Event' : 'New event'}</DialogTitle></DialogHeader>
         <div className="space-y-4 mt-2">
           {fromPhone && (
             <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">
               This came from {appt.created_by_name ? `${appt.created_by_name}'s` : 'a'} phone calendar. Who it's for, the category and sharing are kept here; the title and time follow the phone.
             </p>
           )}
-          <div><Label>Title *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} className="mt-1" autoFocus={!editing} /></div>
+          <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Mom's speech therapy" className="mt-1" autoFocus={!editing} /></div>
 
-          {/* Who this event is for: the one choice that decides who sees it,
-              who gets the push, and whose phone calendar it lands on. */}
-          <div className="rounded-xl border border-border p-3 space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Day</Label><Input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} className="mt-1" /></div>
+            {!form.all_day ? (
+              <div><Label>Time</Label><Input type="time" value={form.time} onChange={(e) => set('time', e.target.value)} className="mt-1" /></div>
+            ) : <span />}
+          </div>
+          <label className="flex items-center gap-2 text-sm -mt-1"><Switch checked={!!form.all_day} onCheckedChange={(v) => set('all_day', v)} /> All day</label>
+
+          <MoreOptions defaultOpen={editing} hint={`${shareSummary} · who it's for, end time, repeats, reminder, place, notes`}>
+          <div className="space-y-2">
             <p className="text-sm font-medium flex items-center gap-2"><Users className="w-4 h-4" /> Share with</p>
             <div className="flex flex-wrap gap-2">
               {!editing && sharingDefault === 'auto' && (
@@ -209,66 +219,59 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} className="mt-1" /></div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 text-sm"><Switch checked={!!form.all_day} onCheckedChange={(v) => set('all_day', v)} /> All day</label>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>Last day <span className="text-muted-foreground font-normal">(multi-day)</span></Label><Input type="date" value={form.end_date} min={form.date} onChange={(e) => set('end_date', e.target.value)} className="mt-1" /></div>
-            <div>
-              <Label>Repeats</Label>
-              {fromPhone ? (
-                <p className="mt-2 text-sm text-muted-foreground">{repeatLabel(appt.recurrence) || 'No'}{appt.recurrence ? ' (set on the phone)' : ''}</p>
-              ) : (
-                <Select value={form.recurrence} onValueChange={(v) => set('recurrence', v)}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Does not repeat" /></SelectTrigger>
-                  <SelectContent>{EVENT_REPEATS.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}</SelectContent>
+            {!form.all_day && (
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Ends</Label><Input type="time" value={form.end_time} onChange={(e) => set('end_time', e.target.value)} className="mt-1" /></div>
+                <div>
+                  <Label>Reminder</Label>
+                  <Select value={String(form.reminder_minutes)} onValueChange={(v) => set('reminder_minutes', Number(v))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>{REMINDERS.map((r) => <SelectItem key={r.v} value={String(r.v)}>{r.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Who it's for</Label>
+                <Select value={form.family_member_id} onValueChange={(v) => pick('member', () => set('family_member_id', v))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Nobody in particular</SelectItem>
+                    {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                  </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Select value={form.category} onValueChange={(v) => pick('category', () => set('category', v))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Repeats</Label>
+                {fromPhone ? (
+                  <p className="mt-2 text-sm text-muted-foreground">{repeatLabel(appt.recurrence) || 'No'}{appt.recurrence ? ' (set on the phone)' : ''}</p>
+                ) : (
+                  <Select value={form.recurrence} onValueChange={(v) => set('recurrence', v)}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Does not repeat" /></SelectTrigger>
+                    <SelectContent>{EVENT_REPEATS.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                )}
+              </div>
+              {!fromPhone && form.recurrence && form.recurrence !== '__none__' ? (
+                <div><Label>Until <span className="text-muted-foreground font-normal">(optional)</span></Label><Input type="date" value={form.until} min={form.date} onChange={(e) => set('until', e.target.value)} className="mt-1" /></div>
+              ) : (
+                <div><Label>Last day <span className="text-muted-foreground font-normal">(trips)</span></Label><Input type="date" value={form.end_date} min={form.date} onChange={(e) => set('end_date', e.target.value)} className="mt-1" /></div>
               )}
             </div>
-          </div>
-          {!fromPhone && form.recurrence && form.recurrence !== '__none__' && (
-            <div><Label>Until <span className="text-muted-foreground font-normal">(optional)</span></Label><Input type="date" value={form.until} min={form.date} onChange={(e) => set('until', e.target.value)} className="mt-1" /></div>
-          )}
-          {!form.all_day && (
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Starts</Label><Input type="time" value={form.time} onChange={(e) => set('time', e.target.value)} className="mt-1" /></div>
-              <div><Label>Ends</Label><Input type="time" value={form.end_time} onChange={(e) => set('end_time', e.target.value)} className="mt-1" /></div>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Category</Label>
-              <Select value={form.category} onValueChange={(v) => pick('category', () => set('category', v))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Family Member</Label>
-              <Select value={form.family_member_id} onValueChange={(v) => pick('member', () => set('family_member_id', v))}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Nobody in particular</SelectItem>
-                  {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {!form.all_day && (
-            <div>
-              <Label>Reminder</Label>
-              <Select value={String(form.reminder_minutes)} onValueChange={(v) => set('reminder_minutes', Number(v))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{REMINDERS.map((r) => <SelectItem key={r.v} value={String(r.v)}>{r.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          )}
-          <div><Label>Location</Label><Input value={form.location} onChange={(e) => set('location', e.target.value)} className="mt-1" /></div>
-          <div><Label>With</Label><Input value={form.doctor_name} onChange={(e) => set('doctor_name', e.target.value)} placeholder="Who it's with (optional)" className="mt-1" /></div>
-          <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" /></div>
+            <div><Label>Where</Label><Input value={form.location} onChange={(e) => set('location', e.target.value)} className="mt-1" /></div>
+            <div><Label>With</Label><Input value={form.doctor_name} onChange={(e) => set('doctor_name', e.target.value)} placeholder="Who it's with (optional)" className="mt-1" /></div>
+            <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" /></div>
+          </MoreOptions>
 
           {editing && canRecord && isRecordable(form) && (
             <Link to={`/notes?appointment=${appt.id}`} className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/30 dark:border-red-800 p-3 text-sm font-medium text-red-700 dark:text-red-200">
@@ -299,7 +302,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               <div className="flex gap-2">
                 <Button variant="outline" onClick={onClose}>Cancel</Button>
                 <Button onClick={submit} disabled={!form.title.trim() || !form.date || saving}>
-                  {saving ? 'Saving...' : 'Create Event'}
+                  {saving ? 'Saving…' : 'Add'}
                 </Button>
               </div>
             )}
