@@ -2,6 +2,10 @@
   "description": "Reminders page: things the family does at set times. (Table name kept from when the page was a medication list.)",
   "name": "Medication",
   "properties": {
+    "anchor_time": {
+      "description": "For an \"until it's done\" reminder: the time the person picked (HH:MM); the other push times are worked out from it and the priority",
+      "type": "string"
+    },
     "days_of_week": {
       "description": "Weekdays it happens on, 0 = Sunday; empty = every day",
       "items": {
@@ -55,6 +59,15 @@
     },
     "owner_user_id": {
       "description": "Account that added it; for a private reminder, the only person who sees it and gets its push",
+      "type": "string"
+    },
+    "priority": {
+      "description": "For an \"until it's done\" reminder: how often it nags until someone marks it done. low = once a day at its time, medium = 3 times a day, high = every 2 hours from 8 AM to 8 PM (times holds the resulting push times)",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
       "type": "string"
     },
     "refill_date": {
