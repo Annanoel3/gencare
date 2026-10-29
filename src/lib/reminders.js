@@ -16,9 +16,9 @@ import { format } from 'date-fns';
 export const REMINDERS_KEY = ['reminders'];
 export const listReminders = () => base44.entities.Medication.list('-created_date', 200);
 
-export const FREQUENCIES = ['Once daily', 'Twice daily', 'Three times daily', 'Four times daily', 'Weekly', 'Bi-weekly', 'Monthly', 'As needed'];
+export const FREQUENCIES = ['Once', 'Once daily', 'Twice daily', 'Three times daily', 'Four times daily', 'Weekly', 'Bi-weekly', 'Monthly', 'As needed'];
 export const FREQUENCY_LABELS = {
-  'Once daily': 'Once a day', 'Twice daily': 'Twice a day', 'Three times daily': '3 times a day', 'Four times daily': '4 times a day',
+  Once: 'Just once', 'Once daily': 'Once a day', 'Twice daily': 'Twice a day', 'Three times daily': '3 times a day', 'Four times daily': '4 times a day',
   Weekly: 'Weekly', 'Bi-weekly': 'Every 2 weeks', Monthly: 'Monthly', 'As needed': 'No set time',
 };
 export const frequencyLabel = (f) => FREQUENCY_LABELS[f] || f || '';
@@ -31,6 +31,7 @@ export function defaultTimes(frequency) {
     case 'Three times daily': return ['08:00', '14:00', '20:00'];
     case 'Four times daily': return ['08:00', '12:00', '16:00', '20:00'];
     case 'As needed': return [];
+    case 'Once': { const h = Math.min(new Date().getHours() + 1, 23); return [`${String(h).padStart(2, '0')}:00`]; }
     default: return ['08:00'];
   }
 }
@@ -50,8 +51,10 @@ export function slotsForDay(meds, logs, day = todayStr()) {
   const out = [];
   for (const m of meds) {
     if (m.is_active === false) continue;
-    const days = Array.isArray(m.days_of_week) ? m.days_of_week : [];
-    if (days.length && !days.includes(dow)) continue;
+    if (m.frequency === 'Once') { if (m.once_date !== day) continue; } else {
+      const days = Array.isArray(m.days_of_week) ? m.days_of_week : [];
+      if (days.length && !days.includes(dow)) continue;
+    }
     for (const t of (Array.isArray(m.times) ? m.times : [])) {
       const log = logs.find((l) => l.medication_id === m.id && l.day === day && l.time === t) || null;
       out.push({ key: `${m.id}@${t}`, med: m, time: t, day, log, status: log?.status || 'upcoming' });
@@ -66,6 +69,9 @@ export async function markSlot(slot, status, me) {
     medication_id: slot.med.id, medication_name: slot.med.medication_name,
     family_member_id: slot.med.family_member_id, family_member_name: slot.med.family_member_name,
     day: slot.day, time: slot.time,
+    // A "just me" reminder's log is just as private as the reminder.
+    visibility: slot.med.visibility === 'private' ? 'private' : 'family',
+    owner_user_id: slot.med.owner_user_id || slot.med.created_by_id || '',
   };
   const patch = status === 'taken' || status === 'skipped'
     ? { status, taken_at: new Date().toISOString(), taken_by_user_id: me?.id, taken_by_name: me?.display_name || me?.full_name }
@@ -74,9 +80,10 @@ export async function markSlot(slot, status, me) {
   return base44.entities.MedicationLog.create(withFamily({ ...base, ...patch }));
 }
 
-export function cleanMed(form, members) {
+export function cleanMed(form, members, me) {
   const member = members.find((m) => m.id === form.family_member_id);
   const times = (form.times || []).filter((t) => /^\d{2}:\d{2}$/.test(t)).sort();
+  const once = form.frequency === 'Once';
   const data = {
     medication_name: form.medication_name.trim(),
     dosage: form.dosage || '',
@@ -85,15 +92,24 @@ export function cleanMed(form, members) {
     family_member_name: member?.name || form.family_member_name || '',
     notes: (form.notes || '').trim(),
     times,
-    days_of_week: Array.isArray(form.days_of_week) ? form.days_of_week : [],
+    days_of_week: !once && Array.isArray(form.days_of_week) ? form.days_of_week : [],
+    once_date: once ? (form.once_date || todayStr()) : null,
+    // Everyone in the family, or only the person who added it ("Just me").
+    visibility: form.visibility === 'private' ? 'private' : 'family',
+    // Whoever makes it "Just me" is the one who keeps it.
+    owner_user_id: (form.visibility === 'private' ? me?.id || form.owner_user_id : form.owner_user_id || me?.id) || '',
     remind: form.remind !== false,
     refill_reminder_days: Number(form.refill_reminder_days ?? 3),
     is_active: form.is_active !== false,
   };
-  if (form.refill_date) data.refill_date = form.refill_date; else data.refill_date = null;
+  if (form.refill_date && !once) data.refill_date = form.refill_date; else data.refill_date = null;
   if (form.start_date) data.start_date = form.start_date; else data.start_date = null;
   return data;
 }
+
+/** A one-time reminder whose day has gone by (kept for its history, not listed). */
+export const isPastOnce = (m, today = todayStr()) => m?.frequency === 'Once' && !!m.once_date && m.once_date < today;
+export const isPrivate = (m) => m?.visibility === 'private';
 
 /** Done / total over the last `days` days for one reminder. */
 export function adherence(med, logs, days = 14) {

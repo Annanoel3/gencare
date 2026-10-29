@@ -15,7 +15,8 @@ import { expandAppointments } from '../../shared/recurrence.ts';
 //   3. The morning digest at 7:00 local: today's events and the tasks due
 //      today or overdue, one push per person, once a day.
 //   4. Reminders (stored in the Medication / MedicationLog tables): a push at
-//      each set time (and a log row marked 'due' so the Done button has
+//      each set time (to the whole family, or only its owner for a "Just me"
+//      one; a "Just once" reminder only on its day) (and a log row marked 'due' so the Done button has
 //      something to flip), a "not done yet?" push and 'missed' status 90
 //      minutes later if nobody marked it, and a "runs out" push once a day
 //      from refill_reminder_days before the runs-out date (refill_date).
@@ -153,17 +154,23 @@ const MISSED_AFTER_MS = 90 * 60_000;
           const times: string[] = Array.isArray(m.times) ? m.times.filter((t: string) => /^\d{2}:\d{2}$/.test(t)) : [];
           const days: number[] = Array.isArray(m.days_of_week) ? m.days_of_week : [];
           const label = `${m.medication_name}${m.dosage ? ` (${m.dosage})` : ''}${m.family_member_name ? ` · ${m.family_member_name}` : ''}`;
-          const screen = `/reminders?item=${m.id}`;
-          if (m.remind !== false && (!days.length || days.includes(dow))) {
+          const screen = `/tasks?reminder=${m.id}`;
+          // "Just me" reminders go only to the person who keeps them.
+          const isPrivate = m.visibility === 'private';
+          const ownerId = m.owner_user_id || m.created_by_id || '';
+          const audience = isPrivate ? users.filter((u: any) => u.id === ownerId) : users;
+          // A one-time reminder happens on its day only.
+          const onToday = m.frequency === 'Once' ? m.once_date === today : (!days.length || days.includes(dow));
+          if (m.remind !== false && onToday) {
             for (const t of times) {
               const slotMs = localToMs(today, t, tz);
               if (!slotMs) continue;
               let log = logFor(m, t);
               // Due now: one push, one 'due' row.
               if (now >= slotMs && now < slotMs + WINDOW_MS && !log) {
-                log = await db.MedicationLog.create({ family_id: fam.id, medication_id: m.id, medication_name: m.medication_name, family_member_id: m.family_member_id, family_member_name: m.family_member_name, day: today, time: t, status: 'due', due_pushed_at: new Date(now).toISOString() });
+                log = await db.MedicationLog.create({ family_id: fam.id, medication_id: m.id, medication_name: m.medication_name, family_member_id: m.family_member_id, family_member_name: m.family_member_name, day: today, time: t, status: 'due', due_pushed_at: new Date(now).toISOString(), visibility: isPrivate ? 'private' : 'family', owner_user_id: ownerId });
                 logsToday.push(log);
-                for (const u of users) {
+                for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
                   await sendPush({ email: u.email, title: label, message: m.notes ? String(m.notes).split('\n')[0].slice(0, 120) : 'Tap to mark it done', data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.reminder_pushes++;
@@ -174,7 +181,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
               if (log && log.status === 'due' && !log.missed_pushed_at && now >= slotMs + MISSED_AFTER_MS) {
                 await db.MedicationLog.update(log.id, { status: 'missed', missed_pushed_at: new Date(now).toISOString() });
                 log.status = 'missed';
-                for (const u of users) {
+                for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
                   await sendPush({ email: u.email, title: `Not done yet? ${label}`, message: `The ${fmtClock(t)} reminder wasn't marked done. Tap to mark it, or skip it.`, data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.missed_pushes++;
@@ -188,7 +195,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
             const daysLeft = Math.round((Date.UTC(+m.refill_date.slice(0, 4), +m.refill_date.slice(5, 7) - 1, +m.refill_date.slice(8, 10)) - Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10))) / 86_400_000);
             if (daysLeft <= leadDays && daysLeft >= -30) {
               const when = daysLeft < 0 ? `ran out ${-daysLeft} day${daysLeft === -1 ? '' : 's'} ago` : daysLeft === 0 ? 'runs out today' : daysLeft === 1 ? 'runs out tomorrow' : `runs out in ${daysLeft} days`;
-              for (const u of users) {
+              for (const u of audience) {
                 if (!wantsPush(u, 'reminders')) continue;
                 await sendPush({ email: u.email, title: `${m.medication_name} ${when}`, message: m.family_member_name ? `For ${m.family_member_name}. Time to restock.` : 'Time to restock.', data: { type: 'reminder_restock', reminderId: m.id, screen } });
                 out.runs_out_pushes++;

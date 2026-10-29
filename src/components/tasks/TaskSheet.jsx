@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, RotateCcw, Check, Repeat, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { useFamily } from '@/lib/family';
+import { useFamily, orderMembers } from '@/lib/family';
+import { isPet } from '@/utils/memberColors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,8 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const [form, setForm] = useState(blank(kind));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [stepBusy, setStepBusy] = useState(null);
+  // An older task that's already for a pet keeps showing its pet.
+  const forPeople = orderMembers(members, me?.id).filter((m) => !isPet(m) || m.id === form.family_member_id);
   const [pendingSteps, setPendingSteps] = useState([]); // steps typed before a new task exists
 
   useEffect(() => {
@@ -126,7 +129,8 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Anyone" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>Whole family</SelectItem>
-                  {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                  {/* People only (Anna, Oct 29 2026: pets don't belong here); you first. */}
+                  {forPeople.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

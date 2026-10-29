@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { BellRing, Check, X, Loader2 } from 'lucide-react';
+import { BellRing, Check, X, Loader2, Lock } from 'lucide-react';
 import { useFamily } from '@/lib/family';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -44,6 +44,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen }) {
             {s.status === 'taken' && s.log?.taken_by_name ? ` · done by ${s.log.taken_by_name.split(' ')[0]}` : ''}
             {s.status === 'skipped' ? ' · skipped' : ''}
             {s.status === 'missed' ? ' · not done yet' : ''}
+            {s.med.visibility === 'private' && <Lock className="inline w-3 h-3 ml-1 -mt-0.5" aria-label="Just you" />}
           </p>
         </button>
         {done ? (

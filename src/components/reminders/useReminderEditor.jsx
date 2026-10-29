@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
-import { withFamily } from '@/lib/family';
+import { withFamily, useFamily } from '@/lib/family';
 import { toast } from '@/components/ui/use-toast';
 import ReminderDialog from '@/components/reminders/ReminderDialog';
 import { REMINDERS_KEY, listReminders, cleanMed, adherence } from '@/lib/reminders';
@@ -14,6 +14,7 @@ import { REMINDERS_KEY, listReminders, cleanMed, adherence } from '@/lib/reminde
  */
 export default function useReminderEditor(members = []) {
   const queryClient = useQueryClient();
+  const { me } = useFamily();
   const [dialog, setDialog] = useState({ open: false, med: null });
   const { data: reminders = [], isFetched } = useQuery({ queryKey: REMINDERS_KEY, queryFn: listReminders });
   const since = format(new Date(Date.now() - 14 * 86400000), 'yyyy-MM-dd');
@@ -24,7 +25,7 @@ export default function useReminderEditor(members = []) {
 
   const save = useMutation({
     mutationFn: async (form) => {
-      const data = cleanMed(form, members);
+      const data = cleanMed(form, members, me);
       if (dialog.med?.id) return base44.entities.Medication.update(dialog.med.id, data);
       return base44.entities.Medication.create(withFamily(data));
     },
