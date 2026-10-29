@@ -5,6 +5,8 @@ import { parseISO, isToday, format, isValid } from 'date-fns';
 import { getMemberLightColorByMemberId } from '@/utils/memberColors';
 import { expandAppointments } from '@/lib/occurrences';
 import { summarize } from '@/lib/careLog';
+import { aroundKey, listEventsAround } from '@/lib/events';
+import { categoryOf } from '@/components/calendar/EventRow';
 
 function toWhen(entry) {
   if (entry.timestamp) { const d = parseISO(entry.timestamp); if (isValid(d)) return d; }
@@ -27,7 +29,7 @@ function normalizeLog(entry) {
 
 export default function CareFeed({ members = [], memberId, scope = 'today', limit = 15, title }) {
   const logQ = useQuery({ queryKey: ['careLog', 'feed'], queryFn: () => base44.entities.CareLog.list('-timestamp', 300) });
-  const apptQ = useQuery({ queryKey: ['appointments', 'feed'], queryFn: () => base44.entities.Appointment.list('-date', 100) });
+  const apptQ = useQuery({ queryKey: aroundKey(), queryFn: listEventsAround });
 
   const taskQ = useQuery({ queryKey: ['careTasks', 'feed'], queryFn: () => base44.entities.CareTask.filter({ status: { $in: ['pending', 'in_progress'] } }, '-due_date', 100) });
 
@@ -39,13 +41,16 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
   const apptRows = scope === 'today' ? expandAppointments(apptQ.data || [], new Date(), new Date()) : expandAppointments(apptQ.data || [], new Date(Date.now() - 30 * 86400000), new Date(Date.now() + 30 * 86400000));
   apptRows.forEach(a => {
     let when = a.date ? parseISO(a.date) : null;
-    if (when && isValid(when) && a.time) { const [h, m] = a.time.split(':'); when.setHours(+h, +(m || 0)); }
+    if (when && isValid(when) && a.time && !a.all_day) { const [h, m] = a.time.split(':'); when.setHours(+h, +(m || 0)); }
+    const cat = categoryOf(a);
     items.push({
       id: a.id,
       memberId: a.family_member_id,
-      memberName: a.family_member_name,
-      label: 'Appointment',
-      detail: [a.title, a.time, a.category].filter(Boolean).join(' · '),
+      // An event only you can see isn't the whole family's.
+      memberName: a.family_member_name || (a.visibility === 'private' ? 'You' : ''),
+      label: cat && cat !== 'Other' ? cat : 'Event',
+      detail: [a.title, a.all_day ? 'All day' : ''].filter(Boolean).join(' · '),
+      allDay: !!a.all_day || !a.time,
       when,
     });
   });
@@ -59,6 +64,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       memberName: t.family_member_name,
       label: 'Task',
       detail: [t.title, t.assigned_to && `→ ${t.assigned_to}`].filter(Boolean).join(' · '),
+      allDay: !t.due_time,
       when,
     });
   });
@@ -97,7 +103,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
             </div>
             {i.when && (
               <span className="text-xs text-muted-foreground flex-shrink-0">
-                {scope === 'today' ? format(i.when, 'h:mm a') : format(i.when, 'MMM d')}
+                {scope === 'today' ? (i.allDay ? '' : format(i.when, 'h:mm a')) : format(i.when, 'MMM d')}
               </span>
             )}
           </div>

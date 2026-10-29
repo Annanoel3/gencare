@@ -11,8 +11,16 @@ import { useFamily } from '@/lib/family';
 import { isNativeApp } from '@/lib/phone';
 import {
   hasPhoneCalendars, listDeviceCalendars, listWritableCalendars, requestReadPermission, requestWritePermission,
-  saveCalendarSettings, runImport, runExport, calendarStatus,
+  saveCalendarSettings, runImport, runExport, calendarStatus, peekCalendars, pruneImports,
 } from '@/lib/calendarSync';
+import { format } from 'date-fns';
+
+// "Thu, Oct 29, 9:00 AM" (all-day events sit at UTC midnight of their day).
+function peekWhen(next) {
+  const d = new Date(next.start);
+  if (next.allDay) return format(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), 'EEE, MMM d');
+  return format(d, 'EEE, MMM d, h:mm a');
+}
 
 const REMINDERS = [
   { v: -1, label: 'No reminder on the phone' },
@@ -37,6 +45,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
   const [settings, setSettings] = useState(null);
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState('');
+  const [peek, setPeek] = useState({});
 
   const native = isNativeApp() && hasPhoneCalendars();
 
@@ -51,6 +60,8 @@ export default function PhoneCalendarSheet({ open, onClose }) {
     if (native) {
       const r = await listDeviceCalendars();
       setGranted(r.granted); setCalendars(r.calendars);
+      // What's in each one, so it's clear which calendar to tick.
+      if (r.granted && r.calendars.length) peekCalendars(r.calendars.map((c) => c.id), 30).then(setPeek).catch(() => {});
       const w = await listWritableCalendars();
       setWriteGranted(w.granted); setWritable(w.calendars);
     }
@@ -86,6 +97,11 @@ export default function PhoneCalendarSheet({ open, onClose }) {
     const ids = new Set(settings.device_calendar_ids || []);
     if (on) ids.add(id); else ids.delete(id);
     const next = await save({ device_calendar_ids: [...ids] });
+    if (next && !on) {
+      // Its events leave GenCare (ones you shared or gave a "For" stay).
+      setBusy('import');
+      try { await pruneImports(); await refreshStatus(); } catch (e) { /* the next sync does it */ } finally { setBusy(''); }
+    }
     if (next && on) {
       setBusy('import');
       try {
@@ -94,6 +110,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
           const n = typeof r.total === 'number' ? r.total : r.created;
           toast({ title: 'Calendar brought in', description: n ? `${n} upcoming event${n === 1 ? '' : 's'} from your phone. Only you see them until you open one and share it.` : 'No upcoming events in that calendar.' });
         }
+        await refreshStatus();
       } catch (e) {
         toast({ title: 'Could not read that calendar', description: 'Check that GenCare is allowed to read your calendar.', variant: 'destructive' });
       } finally { setBusy(''); }
@@ -171,12 +188,19 @@ export default function PhoneCalendarSheet({ open, onClose }) {
                           <span className="flex-1 min-w-0">
                             <span className="block text-sm font-medium truncate">{c.name}</span>
                             <span className="block text-xs text-muted-foreground truncate">{c.account}</span>
+                            {peek[c.id]?.next ? (
+                              <span className="block text-xs text-muted-foreground truncate">
+                                Next: {peek[c.id].next.title} · {peekWhen(peek[c.id].next)}{peek[c.id].count > 1 ? ` (+${peek[c.id].count - 1} more in 30 days)` : ''}
+                              </span>
+                            ) : Object.keys(peek).length > 0 ? (
+                              <span className="block text-xs text-muted-foreground">Nothing in the next 30 days</span>
+                            ) : null}
                           </span>
                         </label>
                       </div>
                     );
                   })}
-                  <p className="text-xs text-muted-foreground">Events from your phone come in as "Only me". To share one, open it on the calendar and pick who it's for under Share with. Birthdays aren't brought in.</p>
+                  <p className="text-xs text-muted-foreground">Tick every calendar you want in GenCare. Events come in as "Only me": to share one, open it on the calendar and pick who it's for under Share with. Birthdays aren't brought in. Untick a calendar and its events leave GenCare, except ones you shared.</p>
                   {status && <p className="text-xs text-muted-foreground">{status.imported} event{status.imported === 1 ? '' : 's'} from your phone. New ones come in on their own, even with GenCare closed.</p>}
                 </div>
               )}

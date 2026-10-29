@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
 import { exportSoon } from '@/lib/calendarSync';
 import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isValid, startOfMonth, endOfMonth, min as minDate, max as maxDate } from 'date-fns';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
+import { listEvents } from '@/lib/events';
 import { CalendarDays, Plus, Smartphone } from 'lucide-react';
 import MonthView from '@/components/calendar/MonthView';
 import WeekView from '@/components/calendar/WeekView';
@@ -43,9 +44,18 @@ export default function CalendarPage() {
     try { localStorage.setItem('gencare_calendar_view', view); } catch {}
   }, [view]);
 
+  // The days in view (the month, a week either side, and the picked day's
+  // week), loaded by date so a year of phone events can't crowd them out.
+  const range = useMemo(() => ({
+    from: minDate([addDays(startOfMonth(currentMonth), -7), addDays(selectedDate, -7)]),
+    to: maxDate([addDays(endOfMonth(currentMonth), 7), addDays(selectedDate, 7)]),
+  }), [currentMonth, selectedDate]);
+  const fromKey = format(range.from, 'yyyy-MM-dd');
+  const toKey = format(range.to, 'yyyy-MM-dd');
   const { data: appointments = [] } = useQuery({
-    queryKey: ['appointments'],
-    queryFn: () => base44.entities.Appointment.list('-date', 1000),
+    queryKey: ['appointments', 'calendar', fromKey, toKey],
+    queryFn: () => listEvents(range.from, range.to),
+    placeholderData: keepPreviousData,
   });
 
   const { data: members = [] } = useQuery({
@@ -53,16 +63,27 @@ export default function CalendarPage() {
     queryFn: () => base44.entities.FamilyMember.list('-created_date'),
   });
 
-  // A push tap lands on the event it was about.
+  // A push tap (or an event tapped on Tasks) lands on that event.
   useEffect(() => {
     const open = params.get('open');
-    if (!open || !appointments.length) return;
+    if (!open) return;
+    const clear = () => {
+      const next = new URLSearchParams(params);
+      next.delete('open');
+      setParams(next, { replace: true });
+    };
     const found = appointments.find((a) => a.id === open);
-    if (found) { setEditing(found); setDialogOpen(true); }
-    const next = new URLSearchParams(params);
-    next.delete('open');
-    setParams(next, { replace: true });
-  }, [appointments]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (found) { setEditing(found); setDialogOpen(true); clear(); return; }
+    // Not in the days loaded (or not loaded yet): fetch that one event.
+    let cancelled = false;
+    base44.entities.Appointment.filter({ id: open }).then((rows) => {
+      if (cancelled) return;
+      const row = rows?.[0];
+      if (row) { setEditing(row); setDialogOpen(true); }
+      clear();
+    }).catch(() => { if (!cancelled) clear(); });
+    return () => { cancelled = true; };
+  }, [params.get('open')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const afterChange = () => {
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
@@ -110,11 +131,7 @@ export default function CalendarPage() {
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   // Repeating and multi-day events, one entry per day, for the days in view.
-  const occurrences = useMemo(() => {
-    const from = minDate([addDays(startOfMonth(currentMonth), -7), addDays(selectedDate, -7)]);
-    const to = maxDate([addDays(endOfMonth(currentMonth), 7), addDays(selectedDate, 7)]);
-    return expandAppointments(appointments, from, to);
-  }, [appointments, currentMonth, selectedDate]);
+  const occurrences = useMemo(() => expandAppointments(appointments, range.from, range.to), [appointments, range]);
 
   const selectedDayAppointments = occurrences
     .filter(a => a.date && isSameDay(parseISO(a.date), selectedDate))

@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { plugin } from '@/lib/phone';
+import { queryClientInstance } from '@/lib/query-client';
 
 // Phone calendars, both ways (Android app only; the browser has no phone
 // calendar, so everything here is a no-op there). Ported from ADHDone's
@@ -121,9 +122,56 @@ export function runImport(calendarIds, { force = false } = {}) {
     }
     localStorage.removeItem(PERMISSION_LOST_KEY);
     const res = await base44.functions.invoke('phoneCalendar', { mode: 'import', source: 'device', calendarIds: ids, rows: read.events || [] });
-    return res?.data || res;
+    const out = res?.data || res;
+    // Whatever page is open shows the new events now, not on the next visit.
+    if (out?.ok) refreshEvents();
+    return out;
   })().finally(() => { importInFlight = null; });
   return importInFlight;
+}
+
+export function refreshEvents() {
+  try { queryClientInstance.invalidateQueries({ queryKey: ['appointments'] }); } catch (e) { /* no cache yet */ }
+}
+
+// A calendar was unticked: its events leave GenCare (ones the person shared
+// or gave a "For" stay). Works when the last calendar is unticked too.
+export async function pruneImports() {
+  const res = await base44.functions.invoke('phoneCalendar', { mode: 'prune' });
+  refreshEvents();
+  return res?.data || res;
+}
+
+const isBirthdayRow = (r) => /birthday/i.test(String(r?.calendarName || '')) || /\b(birthday|bday|b-day)\b/i.test(String(r?.title || ''));
+
+/**
+ * What's coming up in each phone calendar, so the person can tell which one
+ * holds what: { [calendarId]: { count, next: { title, start, allDay } } } for
+ * the next `days` days. Birthdays don't count (they aren't brought in).
+ */
+export async function peekCalendars(calendarIds, days = 30) {
+  const B = bridge();
+  const ids = (calendarIds || []).map(String).filter(Boolean);
+  if (!B?.listEvents || !ids.length) return {};
+  try {
+    const read = await B.listEvents({ calendarIds: ids, days });
+    if (!read?.granted) return {};
+    const now = Date.now();
+    const out = {};
+    for (const r of read.events || []) {
+      if (isBirthdayRow(r)) continue;
+      const start = Number(r.nextBegin) || Number(r.dtstart) || 0;
+      const end = Number(r.nextEnd) || Number(r.dtend) || start;
+      if (!start || end < now - 86400000) continue;
+      const cal = String(r.calendarId || '');
+      const slot = (out[cal] ||= { count: 0, next: null });
+      slot.count++;
+      if (!slot.next || start < slot.next.start) slot.next = { title: String(r.title || '').trim() || 'Untitled event', start, allDay: !!r.allDay };
+    }
+    return out;
+  } catch (e) {
+    return {};
+  }
 }
 
 // Pulls what belongs on this phone, writes it, reports back.

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { MESSAGES_KEY, listMessages } from '@/lib/messages';
 import { expandAppointments } from '@/lib/occurrences';
+import { aroundKey, listEventsAround } from '@/lib/events';
 import { REMINDERS_KEY, listReminders, slotsForDay, todayStr } from '@/lib/reminders';
 import WelcomeHeader from '@/components/dashboard/WelcomeHeader';
 import StatCards from '@/components/dashboard/StatCards';
@@ -24,8 +25,8 @@ export default function Dashboard() {
   });
 
   const { data: appointments = [] } = useQuery({
-    queryKey: ['appointments'],
-    queryFn: () => base44.entities.Appointment.list('-date', 50),
+    queryKey: aroundKey(),
+    queryFn: listEventsAround,
   });
 
   const { data: reminders = [] } = useQuery({ queryKey: REMINDERS_KEY, queryFn: listReminders });

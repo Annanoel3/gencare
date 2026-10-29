@@ -14,6 +14,9 @@ import { canSee } from '../../shared/sharing.ts';
 //        as "Only me": sharing is decided per event by the person (Share with on
 //        the event), never for a whole calendar at once, and a share they set
 //        stays when the phone changes the event. Birthdays are not brought in.
+//        Events that already happened stay (the phone only reports from now
+//        on). A calendar the person unticked takes its events with it, except
+//        ones they shared or gave a "For": those stay as ordinary events.
 //        Two imports can run at once (the app and the phone's background sync):
 //        each one checks for the event again right before saving it, and the
 //        end of every run removes any copy that slipped through.
@@ -25,6 +28,8 @@ import { canSee } from '../../shared/sharing.ts';
 //        back to it.
 //   { mode: "export_report", results, deleted } -> what the phone wrote, so the
 //        same phone row is updated next time instead of duplicated.
+//   { mode: "prune" } -> the unticking half of the above, on its own (the
+//        app calls it when a calendar is unticked, even the last one).
 //   { mode: "status" } -> counts for the settings screen.
 
 const DAYS_AHEAD = 365;
@@ -117,12 +122,45 @@ function rowToAppointment(row: any, calendarId: string, tz: string, user: any) {
 
 function guessCategory(title: string) {
   const t = title.toLowerCase();
+  if (/\b(appt|appointment|doctor|dr\.?|dentist|orthodontist|optometrist|pediatrician|clinic|haircut|salon|vet|checkup|check-up)\b/.test(t)) return 'Appointment';
   if (/\b(school|class|teacher|pta|parent|conference|tutor|homework|exam|test)\b/.test(t)) return 'School';
   if (/\b(work|shift|standup|meeting with|interview)\b/.test(t)) return 'Work';
   if (/\b(practice|game|soccer|football|baseball|basketball|swim|dance|gym|match|tournament|karate|ballet)\b/.test(t)) return 'Sports';
   if (/\b(birthday|party|dinner|lunch|brunch|visit|wedding|playdate|sleepover|bbq)\b/.test(t)) return 'Social';
-  if (/\b(appt|appointment|dr\.?|dentist|haircut|salon|vet|checkup|check-up)\b/.test(t)) return 'Appointment';
   return 'Other';
+}
+
+// Someone shared it, said who it's for, or changed its category: the family
+// relies on it, so it's kept when its phone calendar is unticked.
+function touched(a: any) {
+  return (a.visibility && a.visibility !== 'private') || a.family_member_id || (a.category && a.category !== 'Other' && a.category !== guessCategory(a.title || ''));
+}
+
+// Over already (or today and all-day)? The phone only reports events from now
+// on, so one that's over drops out of what it sends; that's not a delete.
+function alreadyHappened(a: any, now: { date: string; time: string }) {
+  const last = String(a.end_date || a.date || '');
+  if (!last) return false;
+  if (last !== now.date) return last < now.date;
+  const clock = String(a.end_time || a.time || '');
+  return !!a.all_day || !clock || clock <= now.time;
+}
+
+// Imports from a calendar that's no longer ticked: gone, unless touched (then
+// it stays as an ordinary GenCare event).
+async function pruneUnticked(db: any, user: any, familyId: string) {
+  const ticked = new Set((Array.isArray(user.device_calendar_ids) ? user.device_calendar_ids : []).map(String));
+  const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
+  let removed = 0, kept = 0;
+  for (const a of mine) {
+    const cal = String(a.device_key || '').split(':')[1] || '';
+    if (!cal || ticked.has(cal)) continue;
+    try {
+      if (touched(a)) { await db.Appointment.update(a.id, { device_key: '', source: 'app' }); kept++; }
+      else { await db.Appointment.delete(a.id); removed++; }
+    } catch (_) { /* another run got it */ }
+  }
+  return { removed, kept };
 }
 
 function fieldsMatch(a: any, b: any) {
@@ -156,10 +194,21 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, settings: pick(after) });
     }
 
+    if (mode === 'prune') {
+      const r = await pruneUnticked(db, user, familyId);
+      return Response.json({ ok: true, ...r });
+    }
+
     if (mode === 'import') {
-      const calendarIds: string[] = (Array.isArray(body.calendarIds) ? body.calendarIds : []).map(String).filter(Boolean);
+      // The calendars saved as ticked decide; a phone still running on an
+      // older list can't bring an unticked calendar back.
+      const saved = Array.isArray(user.device_calendar_ids) ? new Set(user.device_calendar_ids.map(String)) : null;
+      const calendarIds: string[] = (Array.isArray(body.calendarIds) ? body.calendarIds : []).map(String).filter(Boolean).filter((id: string) => !saved || saved.has(id));
       const rows: any[] = Array.isArray(body.rows) ? body.rows : [];
-      if (!calendarIds.length) return Response.json({ ok: true, created: 0, updated: 0, removed: 0, skipped: 'no_calendars' });
+      if (!calendarIds.length) {
+        const r = await pruneUnticked(db, user, familyId);
+        return Response.json({ ok: true, created: 0, updated: 0, removed: r.removed, skipped: 'no_calendars' });
+      }
       // Rows GenCare itself wrote to this phone (exports) must not come back as imports.
       const links = (await db.CalendarExportLink.filter({ user_id: user.id })) || [];
       const exportedIds = new Set(links.map((l: any) => String(l.device_event_id || '')).filter(Boolean));
@@ -209,13 +258,17 @@ Deno.serve(async (req) => {
           }
         }
       }
-      // Gone from the phone (in a calendar we were sent), or a birthday: gone here.
+      // Gone from the phone (in a calendar we were sent), or a birthday: gone
+      // here. One that's simply over stays, as a record of what happened.
+      const nowHere = localParts(Date.now(), tz);
       for (const a of existing) {
         const cal = String(a.device_key || '').split(':')[1] || '';
         if (!calendarIds.includes(cal) || seen.has(a.device_key)) continue;
-        await db.Appointment.delete(a.id);
-        removed++;
+        const birthday = /\b(birthday|bday|b-day)\b/i.test(String(a.title || ''));
+        if (!birthday && !a.recurrence && alreadyHappened(a, nowHere)) continue;
+        try { await db.Appointment.delete(a.id); removed++; } catch (_) { /* another run got it */ }
       }
+      removed += (await pruneUnticked(db, user, familyId)).removed;
       // Two imports at once can each save the same event: keep one copy. Every
       // run picks the same keeper (one someone shared or assigned, else the
       // oldest), so two runs cleaning up at once never delete each other's.
@@ -225,7 +278,6 @@ Deno.serve(async (req) => {
       let duplicates = 0;
       for (const list of groups.values()) {
         if (list.length < 2) continue;
-        const touched = (a: any) => (a.visibility && a.visibility !== 'private') || a.family_member_id || (a.category && a.category !== 'Other' && a.category !== guessCategory(a.title || ''));
         list.sort((a: any, b: any) => (Number(!!touched(b)) - Number(!!touched(a))) || String(a.created_date || '').localeCompare(String(b.created_date || '')) || String(a.id).localeCompare(String(b.id)));
         for (const extra of list.slice(1)) {
           try { await db.Appointment.delete(extra.id); duplicates++; } catch (_) { /* the other run got it */ }

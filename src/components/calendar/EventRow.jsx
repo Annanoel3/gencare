@@ -62,7 +62,7 @@ export default function EventRow({ appt, members, onClick }) {
           {appt.location && <span className="text-xs text-muted-foreground">📍 {appt.location}</span>}
           {canRecord && isRecordable(appt) && (
             <Link
-              to={`/notes?appointment=${appt.id}`}
+              to={`/notes?appointment=${appt.occurrence_of || appt.id}`}
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700"
             >

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { listEvents } from "@/lib/events";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
@@ -255,7 +256,7 @@ export default function Notes() {
   const loadUpcoming = useCallback(async () => {
     try {
       const now = Date.now();
-      const rows = (await base44.entities.Appointment.list("-date", 1000)) || [];
+      const rows = (await listEvents(new Date(now - 61 * DAY), new Date(now + 366 * DAY))) || [];
       const withStart = rows.filter((a) => startOf(a) !== null && startOf(a) > now - 60 * DAY);
       setEvents(withStart);
       const soon = withStart
