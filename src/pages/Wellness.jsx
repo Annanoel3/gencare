@@ -1,3 +1,4 @@
+import { externalClick } from '@/lib/phone';
 import { Link } from 'react-router-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -62,11 +63,12 @@ export default function Wellness() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const row = { mood: form.mood, stress: form.stress || null, sleep_hours: form.sleep_hours === '' ? null : Number(form.sleep_hours), self_care: form.self_care, note: form.note.trim() };
+      // A day can be just a note; mood is left off when none was picked.
+      const row = { ...(form.mood ? { mood: form.mood } : {}), stress: form.stress || null, sleep_hours: form.sleep_hours === '' ? null : Number(form.sleep_hours), self_care: form.self_care, note: form.note.trim() };
       if (todays) return base44.entities.WellnessCheckin.update(todays.id, row);
       return base44.entities.WellnessCheckin.create({ ...row, user_id: me.id, family_id: me.family_id || family?.id || null, day: today });
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['wellnessCheckins'] }); toast({ title: todays ? 'Check-in updated' : 'Checked in', description: 'Just for you — the family never sees this.' }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['wellnessCheckins'] }); toast({ title: 'Saved', description: 'Just for you. The family never sees this.' }); },
     onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
   });
   const remove = useMutation({
@@ -108,7 +110,7 @@ export default function Wellness() {
             <p className="font-heading font-semibold mb-1">{roughDays} of the last 7 days have been hard.</p>
             <p className="text-sm text-muted-foreground mb-3">That's a lot to carry. Burnout sneaks up on caregivers; it isn't a personal failing. A few places that exist for exactly this:</p>
             <ul className="text-sm space-y-1.5">
-              <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> Caregiver Action Network Help Desk: <a href="tel:+18552273640" className="text-primary underline">(855) 227-3640</a> · <a href="https://caregiveraction.org/helpdesk/" target="_blank" rel="noreferrer" className="text-primary underline inline-flex items-center gap-1">caregiveraction.org <ExternalLink className="w-3 h-3" /></a></li>
+              <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> Caregiver Action Network Help Desk: <a href="tel:+18552273640" className="text-primary underline">(855) 227-3640</a> ·  <a href="https://caregiveraction.org/helpdesk/" target="_blank" rel="noreferrer" onClick={externalClick('https://caregiveraction.org/helpdesk/')} className="text-primary underline inline-flex items-center gap-1">caregiveraction.org <ExternalLink className="w-3 h-3" /></a></li>
               <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> If you're in crisis in the US, call or text <a href="tel:988" className="text-primary underline">988</a> any time.</li>
               <li className="flex items-center gap-2"><Heart className="w-4 h-4 text-primary" /> Post in Messages asking someone to take a shift. People usually want to help and don't know how.</li>
               <li className="flex items-center gap-2"><Heart className="w-4 h-4 text-primary" /> <Link to="/resources" className="text-primary underline">More places that help caregivers</Link></li>
@@ -130,12 +132,12 @@ export default function Wellness() {
       <Card className="mb-6 border-border/50">
         <CardHeader className="pb-3"><CardTitle className="font-heading text-lg">{todays ? "Today's check-in" : 'How are you today?'}</CardTitle></CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {MOODS.map((m) => (
               <button key={m.value} type="button" onClick={() => setForm((f) => ({ ...f, mood: m.value }))}
                 className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all ${form.mood === m.value ? `${m.color} shadow-sm scale-105` : 'border-border/50 hover:border-border'}`}>
                 <span className="text-2xl md:text-3xl">{m.emoji}</span>
-                <span className="text-[11px] md:text-xs font-medium text-center leading-tight">{m.label}</span>
+                <span className="text-xs font-medium text-center leading-tight">{m.label}</span>
               </button>
             ))}
           </div>
@@ -165,13 +167,20 @@ export default function Wellness() {
                   ))}
                 </div>
               </div>
-              <Textarea placeholder="Anything you want to get out of your head? (optional)" value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} className="min-h-[70px]" />
-              <div className="flex items-center gap-2">
-                {todays && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => remove.mutate(todays)}><Trash2 className="w-4 h-4" /> Remove</Button>}
-                <div className="flex-1" />
-                <Button onClick={() => save.mutate()} disabled={save.isPending} className="rounded-xl">{save.isPending ? 'Saving…' : todays ? 'Update check-in' : 'Save check-in'}</Button>
-              </div>
             </>
+          )}
+
+          {/* Notes for the day: always here, with or without a mood. */}
+          <div>
+            <p className="text-sm font-medium mb-1.5">Notes for today</p>
+            <Textarea placeholder="Anything on your mind today. Only you see this." value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} className="min-h-[90px]" />
+          </div>
+          {(form.mood || form.note.trim() || todays) && (
+            <div className="flex items-center gap-2">
+              {todays && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => remove.mutate(todays)}><Trash2 className="w-4 h-4" /> Remove</Button>}
+              <div className="flex-1" />
+              <Button onClick={() => save.mutate()} disabled={save.isPending || (!form.mood && !form.note.trim())} className="rounded-xl">{save.isPending ? 'Saving…' : todays ? 'Update' : 'Save'}</Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -183,8 +192,8 @@ export default function Wellness() {
             {days.map(({ day, c }) => {
               const m = c ? MOODS.find((x) => x.value === c.mood) : null;
               return (
-                <div key={day} className="flex flex-col items-center gap-1" title={c ? `${format(parseISO(day), 'EEE MMM d')}: ${m?.label}${c.stress ? `, stress ${c.stress}/5` : ''}${typeof c.sleep_hours === 'number' ? `, ${c.sleep_hours}h sleep` : ''}${c.note ? ` — ${c.note}` : ''}` : format(parseISO(day), 'EEE MMM d')}>
-                  <span className={`h-9 w-full rounded-md flex items-center justify-center text-base ${c ? '' : 'bg-muted/60'}`}>{m?.emoji || ''}</span>
+                <div key={day} className="flex flex-col items-center gap-1" title={c ? `${format(parseISO(day), 'EEE MMM d')}: ${m?.label || 'Note'}${c.stress ? `, stress ${c.stress}/5` : ''}${typeof c.sleep_hours === 'number' ? `, ${c.sleep_hours}h sleep` : ''}${c.note ? ` — ${c.note}` : ''}` : format(parseISO(day), 'EEE MMM d')}>
+                  <span className={`h-9 w-full rounded-md flex items-center justify-center text-base ${c ? '' : 'bg-muted/60'}`}>{m?.emoji || (c ? '📝' : '')}</span>
                   <span className={`h-1.5 w-full rounded-full ${c?.stress ? ['bg-emerald-400', 'bg-emerald-300', 'bg-amber-300', 'bg-orange-400', 'bg-red-500'][c.stress - 1] : 'bg-transparent'}`} />
                   <span className="text-[10px] text-muted-foreground">{format(parseISO(day), 'd')}</span>
                 </div>
@@ -225,7 +234,7 @@ export default function Wellness() {
               const d = parseISO(c.day);
               return (
                 <div key={c.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
-                  <span className="text-xl mt-0.5">{m?.emoji}</span>
+                  <span className="text-xl mt-0.5">{m?.emoji || '📝'}</span>
                   <div className="flex-1"><p className="text-sm whitespace-pre-wrap">{c.note}</p><p className="text-xs text-muted-foreground mt-1">{isValid(d) ? format(d, 'EEE, MMM d') : c.day}</p></div>
                 </div>
               );

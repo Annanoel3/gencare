@@ -3,7 +3,7 @@ import { Heart, Check, Loader2, Users, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useFamily } from '@/lib/family';
-import { isNativeApp, isAndroidApp } from '@/lib/phone';
+import { isNativeApp, isAndroidApp , externalClick } from '@/lib/phone';
 import {
   billingAvailable, getPlans, buyPlan, restorePurchases, getPlanStatus,
   manageSubscriptionUrl, openInPlay, PRICE_MONTHLY_TEXT, PRICE_YEARLY_TEXT, PLAY_STORE_URL,
@@ -109,7 +109,7 @@ export default function Subscribe({ gate = false }) {
           ) : !isNativeApp() ? (
             <div className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">
               Subscribe from the GenCare app on your phone. One person subscribing covers the whole family.
-              <a href={PLAY_STORE_URL} target="_blank" rel="noreferrer" className="block mt-2 text-primary underline">Get GenCare on Google Play</a>
+               <a href={PLAY_STORE_URL} target="_blank" rel="noreferrer" onClick={externalClick(PLAY_STORE_URL)} className="block mt-2 text-primary underline">Get GenCare on Google Play</a>
             </div>
           ) : billing && !billing.available ? (
             <div className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">

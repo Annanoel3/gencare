@@ -46,3 +46,19 @@ export async function appBuild() {
     return 0;
   }
 }
+
+// A link to another website: in the app it opens in the phone's browser
+// (NotifyBridge.openUrl on Android), because a site opened inside the app's
+// WebView has no way back to GenCare. On the web, or an older Android build
+// without openUrl, it opens in a new tab.
+export async function openExternal(url) {
+  if (!url) return;
+  const nb = plugin('NotifyBridge');
+  if (isNativeApp() && nb?.openUrl) {
+    try { await nb.openUrl({ url }); return; } catch (e) { /* fall through */ }
+  }
+  window.open(url, '_blank', 'noopener');
+}
+
+// onClick for an <a href> to another site: same as openExternal.
+export const externalClick = (url) => (e) => { e.preventDefault(); e.stopPropagation(); openExternal(url); };

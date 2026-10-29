@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { LifeBuoy, Phone, ExternalLink, ChevronDown } from 'lucide-react';
 import { RESOURCE_GROUPS, RESOURCES_CHECKED } from '@/lib/resources';
+import SupportDialog from '@/components/shared/SupportDialog';
+import { externalClick } from '@/lib/phone';
 
 // Resources: real organizations that help families caring for each other —
 // finding local help, support for the caregiver, help for an older adult,
 // free or low-cost equipment and supplies, kids and parents. Each section
 // opens and closes, so every section is visible at a glance. Tap to call or
-// open the site. The list lives in lib/resources.js with when it was checked.
+// open the site. Every section starts closed. The list lives in
+// lib/resources.js with when it was checked; people can suggest more (sent to
+// the owner's inbox).
 const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, '')}`;
 
 function Entry({ r }) {
@@ -22,7 +26,7 @@ function Entry({ r }) {
           </a>
         ))}
         {r.url && (
-          <a href={r.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium">
+          <a href={r.url} target="_blank" rel="noreferrer" onClick={externalClick(r.url)} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium">
             <ExternalLink className="w-3.5 h-3.5" /> Website
           </a>
         )}
@@ -32,7 +36,8 @@ function Entry({ r }) {
 }
 
 export default function Resources() {
-  const [open, setOpen] = useState(() => new Set([RESOURCE_GROUPS[0]?.key]));
+  const [open, setOpen] = useState(() => new Set());
+  const [suggest, setSuggest] = useState(false);
   const toggle = (k) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   return (
@@ -66,7 +71,13 @@ export default function Resources() {
         })}
       </div>
 
-      <p className="text-xs text-muted-foreground mt-6">Checked {RESOURCES_CHECKED}. Programs and phone numbers change, and GenCare isn't connected to any of these groups. In an emergency, call 911.</p>
+      <button type="button" onClick={() => setSuggest(true)} className="mt-5 text-sm text-primary font-medium hover:underline">
+        Have a resource you think would be handy? Let us know.
+      </button>
+
+      <p className="text-xs text-muted-foreground mt-4">Checked {RESOURCES_CHECKED}. Programs and phone numbers change, and GenCare isn't connected to any of these groups. In an emergency, call 911.</p>
+
+      <SupportDialog open={suggest} onClose={() => setSuggest(false)} kind="resource" />
     </div>
   );
 }
