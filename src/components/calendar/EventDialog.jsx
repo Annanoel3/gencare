@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { isRecordable, categoryOf, CATEGORIES } from './EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import { EVENT_REPEATS, repeatLabel, parseRRule } from '@/lib/occurrences';
 import AddressField from '@/components/shared/AddressField';
+import NotesField from '@/components/shared/NotesField';
 
 export { CATEGORIES };
 
@@ -241,7 +241,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
           </div>
 
           <div><Label>Where</Label><AddressField value={form.location} onChange={(v) => set('location', v)} className="mt-1" /></div>
-          <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={form.notes && form.notes.length > 120 ? 5 : 2} /></div>
+          <NotesField value={form.notes} onChange={(v) => set('notes', v)} resetKey={`${open}${appt?.id || ''}${prefill ? 'copy' : ''}`} />
 
           {editing && canRecord && isRecordable(form) && (
             <Link to={`/notes?appointment=${appt.id}`} className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/30 dark:border-red-800 p-3 text-sm font-medium text-red-700 dark:text-red-200">

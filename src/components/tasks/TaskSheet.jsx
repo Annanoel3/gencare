@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import NotesField from '@/components/shared/NotesField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TaskSteps from './TaskSteps';
 import { Choices } from '@/components/shared/MoreOptions';
@@ -208,7 +208,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             )}
           </div>
 
-          <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={2} placeholder="Anything the person doing it should know" /></div>
+          <NotesField value={form.notes} onChange={(v) => set('notes', v)} placeholder="Anything the person doing it should know" resetKey={`${open}${task?.id || ''}`} />
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {!isNew && (

@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Choices } from '@/components/shared/MoreOptions';
+import NotesField from '@/components/shared/NotesField';
 import { useFamily, orderMembers } from '@/lib/family';
 import { format, parseISO, addDays } from 'date-fns';
 import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME } from '@/lib/reminders';
@@ -197,7 +197,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             </div>
           )}
 
-          <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={2} placeholder="Anything the person doing it should know" /></div>
+          <NotesField value={form.notes} onChange={(v) => set('notes', v)} placeholder="Anything the person doing it should know" resetKey={`${open}${med?.id || ''}`} />
 
           {editing && !once && (
             <div className="flex items-center justify-between rounded-xl bg-muted/60 p-3">
