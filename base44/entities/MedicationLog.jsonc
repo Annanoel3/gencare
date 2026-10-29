@@ -35,6 +35,10 @@
     "notes": {
       "type": "string"
     },
+    "owner_user_id": {
+      "description": "Copied from the reminder",
+      "type": "string"
+    },
     "status": {
       "default": "due",
       "enum": [
@@ -58,6 +62,15 @@
     "time": {
       "description": "The dose's time, HH:MM",
       "type": "string"
+    },
+    "visibility": {
+      "default": "family",
+      "description": "Copied from the reminder: private logs are seen only by owner_user_id",
+      "enum": [
+        "family",
+        "private"
+      ],
+      "type": "string"
     }
   },
   "required": [
@@ -65,6 +78,7 @@
     "day",
     "time"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -78,6 +92,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
