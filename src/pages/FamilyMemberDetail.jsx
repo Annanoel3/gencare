@@ -208,7 +208,7 @@ export default function FamilyMemberDetail() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="font-heading flex items-center gap-2"><BellRing className="w-5 h-5 text-emerald-500" /> Reminders</CardTitle>
-                <Link to="/reminders" className="text-sm text-primary hover:underline">See all</Link>
+                <Link to="/tasks?tab=reminders" className="text-sm text-primary hover:underline">See all</Link>
               </div>
             </CardHeader>
             <CardContent>
@@ -217,7 +217,7 @@ export default function FamilyMemberDetail() {
               ) : (
                 <div className="space-y-3">
                   {reminders.filter(r => r.is_active !== false).map(r => (
-                    <Link key={r.id} to={`/reminders?item=${r.id}`} className="block p-3 rounded-xl bg-muted/50 hover:bg-muted">
+                    <Link key={r.id} to={`/tasks?reminder=${r.id}`} className="block p-3 rounded-xl bg-muted/50 hover:bg-muted">
                       <p className="font-medium">{r.medication_name}</p>
                       <p className="text-sm text-muted-foreground">{[r.dosage, frequencyLabel(r.frequency), Array.isArray(r.times) && r.times.length ? r.times.map(fmtClock).join(', ') : ''].filter(Boolean).join(' · ')}</p>
                     </Link>

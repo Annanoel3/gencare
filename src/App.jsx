@@ -76,7 +76,7 @@ const AuthenticatedApp = () => {
           <Route path="/family" element={<Family />} />
           <Route path="/family/:id" element={<FamilyMemberDetail />} />
           <Route path="/reminders" element={<Reminders />} />
-          <Route path="/medications" element={<Navigate to="/reminders" replace />} />
+          <Route path="/medications" element={<Navigate to="/tasks?tab=reminders" replace />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/todo" element={<Navigate to="/tasks" replace />} />

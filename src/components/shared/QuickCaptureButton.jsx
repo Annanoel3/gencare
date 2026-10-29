@@ -34,7 +34,7 @@ export default function QuickCaptureButton() {
   const navigate = useNavigate();
 
   const handleOptionClick = (type) => {
-    if (type === 'reminder') { setExpanded(false); navigate('/reminders?new=1'); return; }
+    if (type === 'reminder') { setExpanded(false); navigate('/tasks?reminder=new'); return; }
     setCaptureType(type);
     setDialogOpen(true);
     setExpanded(false);
