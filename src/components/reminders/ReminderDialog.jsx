@@ -9,19 +9,24 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Choices } from '@/components/shared/MoreOptions';
 import { useFamily, orderMembers } from '@/lib/family';
-import { DAY_NAMES, defaultTimes, fmtClock, todayStr } from '@/lib/reminders';
+import { format, parseISO, addDays } from 'date-fns';
+import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME } from '@/lib/reminders';
 
 const NOBODY = '__nobody__';
-const HOW = [['once', "Until it's done"], ['daily', 'Every day'], ['days', 'Certain days']];
+// "Remind me at 12" (one push) or "until it's done" (keeps reminding by
+// priority): either one, never both (Anna, Oct 29 2026). Every day and Certain
+// days are the repeating ones, at the times picked.
+const HOW = [['one', 'One time'], ['once', "Until it's done"], ['daily', 'Every day'], ['days', 'Certain days']];
 
 function blank() {
-  return { medication_name: '', dosage: '', how: 'once', family_member_id: NOBODY, notes: '', refill_date: '', refill_reminder_days: 3, times: defaultTimes('Once'), days_of_week: [], remind: true, is_active: true, once_date: todayStr(), visibility: 'family' };
+  return { medication_name: '', dosage: '', how: 'once', priority: 'medium', anchor_time: '', family_member_id: NOBODY, notes: '', refill_date: '', refill_reminder_days: 3, times: defaultTimes('Once'), days_of_week: [], remind: true, is_active: true, once_date: todayStr(), visibility: 'family' };
 }
-const howOf = (m) => (m.frequency === 'Once' ? 'once' : Array.isArray(m.days_of_week) && m.days_of_week.length ? 'days' : 'daily');
+const howOf = (m) => (m.frequency === ONE_TIME ? 'one' : m.frequency === 'Once' ? 'once' : Array.isArray(m.days_of_week) && m.days_of_week.length ? 'days' : 'daily');
 
 // How often, from the picks: the times decide how many a day.
 function frequencyFor(how, times) {
   if (how === 'once') return 'Once';
+  if (how === 'one') return ONE_TIME;
   return ['As needed', 'Once daily', 'Twice daily', 'Three times daily'][times.length] || 'Four times daily';
 }
 
@@ -54,6 +59,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
         is_active: med.is_active !== false,
         once_date: med.once_date || todayStr(),
         visibility: med.visibility === 'private' ? 'private' : 'family',
+        // Older "until it's done" reminders (before priorities) get the one
+        // closest to how many times a day they already had.
+        priority: med.priority || (med.id && med.frequency === 'Once' ? (med.times?.length > 3 ? 'high' : med.times?.length > 1 ? 'medium' : 'low') : 'medium'),
+        anchor_time: med.anchor_time || (Array.isArray(med.times) ? med.times[0] : '') || '',
       });
     } else setForm(blank());
   }, [open, med]);
@@ -61,7 +70,8 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const once = form.how === 'once';
   const justMe = form.visibility === 'private';
-  const setHow = (v) => setForm((f) => ({ ...f, how: v, times: f.times.length ? f.times : defaultTimes(v === 'once' ? 'Once' : 'Once daily') }));
+  const oneTime = form.how === 'one';
+  const setHow = (v) => setForm((f) => ({ ...f, how: v, times: (v === 'one' ? f.times.slice(0, 1) : f.times).length ? (v === 'one' ? f.times.slice(0, 1) : f.times) : defaultTimes(v === 'once' || v === 'one' ? 'Once' : 'Once daily') }));
   const setTime = (i, v) => set('times', form.times.map((t, j) => (j === i ? v : t)));
   const addTime = () => {
     const last = form.times[form.times.length - 1] || '08:00';
@@ -73,8 +83,17 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const times = form.times.filter((t) => /^\d{2}:\d{2}$/.test(t));
   const at = times.map(fmtClock).join(' and ');
   const who = justMe ? 'You get' : 'Everyone gets';
-  const summary = !form.remind || !times.length ? "No pushes; it shows in To do on its days."
-    : once ? `${who} a push at ${at} every day until ${justMe ? 'you mark' : 'someone marks'} it done.`
+  // "Until it's done" starts at the next full hour (or the time it already had).
+  const start = nagStart(form.anchor_time || times[0] || defaultTimes('Once')[0], form.once_date || todayStr());
+  const anchor = start.anchor;
+  const nags = nagTimes(anchor, form.priority);
+  const startsLater = !editing && start.day > todayStr();
+  const list = (ts) => (ts.length < 3 ? ts.map(fmtClock).join(' and ') : `${ts.slice(0, -1).map(fmtClock).join(', ')} and ${fmtClock(ts[ts.length - 1])}`);
+  const dayText = (d) => (d === todayStr() ? 'today' : d === format(addDays(new Date(), 1), 'yyyy-MM-dd') ? 'tomorrow' : format(parseISO(d), 'EEE, MMM d'));
+  const summary = !form.remind ? "No pushes; it shows in To do on its days."
+    : oneTime ? `${who} one push at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date || todayStr())}, and that's all.`
+    : once ? `${who} a push at ${list(nags)} every day${startsLater ? ', starting tomorrow,' : ''} until ${justMe ? 'you mark' : 'someone marks'} it done.`
+    : !times.length ? 'No pushes; it shows in To do on its days.'
     : form.how === 'days' && form.days_of_week.length ? `${who} a push at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}.`
     : `${who} a push at ${at} every day.`;
 
@@ -82,7 +101,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
     const sorted = [...new Set(times)].sort();
     onSave({
       ...form,
-      times: sorted,
+      times: once ? [anchor] : oneTime ? sorted.slice(0, 1) : sorted,
+      anchor_time: once ? anchor : '',
+      // Added in the evening: it starts at 8 the next morning.
+      ...(once && startsLater ? { once_date: start.day } : {}),
       frequency: frequencyFor(form.how, sorted),
       days_of_week: form.how === 'days' ? form.days_of_week : [],
       family_member_id: form.family_member_id === NOBODY ? '' : form.family_member_id,
@@ -112,6 +134,28 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             )}
           </div>
 
+          {once ? (
+            <div>
+              <Label>Priority</Label>
+              <div className="grid grid-cols-3 gap-2 mt-1.5">
+                {PRIORITIES.map(([v, label, how]) => (
+                  <button key={v} type="button" onClick={() => set('priority', v)}
+                    className={`rounded-xl border px-2 py-2 text-center ${form.priority === v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}>
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className={`block text-[11px] ${form.priority === v ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>{how}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : oneTime ? (
+            <div>
+              <Label>When</Label>
+              <div className="grid grid-cols-2 gap-3 mt-1">
+                <Input type="date" value={form.once_date || todayStr()} min={editing ? undefined : todayStr()} onChange={(e) => set('once_date', e.target.value)} aria-label="Day" />
+                <Input type="time" value={form.times[0] || ''} onChange={(e) => set('times', [e.target.value])} aria-label="Time" />
+              </div>
+            </div>
+          ) : (
           <div>
             <Label>Time</Label>
             <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -124,6 +168,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
               {form.times.length < 4 && <Button type="button" variant="ghost" size="sm" onClick={addTime} className="gap-1 text-primary"><Plus className="w-3.5 h-3.5" /> Another time</Button>}
             </div>
           </div>
+          )}
 
           <div>
             <Label>Who gets reminded</Label>
@@ -168,7 +213,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             {editing && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>}
             <div className="flex-1" />
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={save} disabled={!form.medication_name.trim() || (form.how === 'days' && !form.days_of_week.length) || (once && !times.length) || saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
+            <Button onClick={save} disabled={!form.medication_name.trim() || (form.how === 'days' && !form.days_of_week.length) || (oneTime && !times.length) || saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
           </div>
         </div>
       </DialogContent>

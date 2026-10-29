@@ -134,7 +134,7 @@ export default function Tasks() {
   const byPerson = useMemo(() => {
     const groups = new Map();
     // "Until it's done" reminders drop off the list once someone finishes them.
-    for (const m of reminders.filter((x) => x.is_active !== false)) {
+    for (const m of reminders.filter((x) => x.is_active !== false && !isFinishedOnce(x))) {
       const k = m.family_member_name || 'General';
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(m);

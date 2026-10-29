@@ -3,7 +3,20 @@ import { AlertCircle, Clock, Bell, BellOff, Lock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { adherence, fmtClock, todayStr, frequencyLabel, isPrivate } from '@/lib/reminders';
+import { adherence, fmtClock, todayStr, frequencyLabel, isPrivate, ONE_TIME, PRIORITIES } from '@/lib/reminders';
+
+const dayText = (d) => (d === todayStr() ? 'today' : format(parseISO(d), 'EEE, MMM d'));
+const prio = (p) => PRIORITIES.find(([v]) => v === p);
+
+// "One time · today at 12:00 PM", "Until it's done · Medium, 3 times a day · since Mon, Oct 26".
+function howText(item) {
+  if (item.frequency === ONE_TIME && item.once_date) return `One time · ${dayText(item.once_date)}${item.times?.[0] ? ` at ${fmtClock(item.times[0])}` : ''}`;
+  if (item.frequency === 'Once' && item.once_date) {
+    const p = prio(item.priority);
+    return ["Until it's done", p ? `${p[1]}, ${p[2]}` : '', item.once_date <= todayStr() ? `since ${dayText(item.once_date)}` : `starts ${format(parseISO(item.once_date), 'EEE, MMM d')}`].filter(Boolean).join(' · ');
+  }
+  return frequencyLabel(item.frequency);
+}
 
 // One repeating reminder (what, how often, at what times, how it's gone the
 // last 14 days). Tap to edit.
@@ -20,7 +33,7 @@ export default function ReminderCard({ item, logs, onOpen, inactive }) {
               {isPrivate(item) && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Lock className="w-3 h-3" /> Just you</span>}
               {runsOutSoon && !inactive && <Badge variant="destructive" className="text-xs gap-1"><AlertCircle className="w-3 h-3" /> {item.refill_date < todayStr() ? 'Ran out' : 'Runs out soon'}</Badge>}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">{[item.dosage, item.frequency === 'Once' && item.once_date ? `Until it's done · ${item.once_date <= todayStr() ? `since ${item.once_date === todayStr() ? 'today' : format(parseISO(item.once_date), 'EEE, MMM d')}` : `starts ${format(parseISO(item.once_date), 'EEE, MMM d')}`}` : frequencyLabel(item.frequency)].filter(Boolean).join(' · ')}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{[item.dosage, howText(item)].filter(Boolean).join(' · ')}</p>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
               {Array.isArray(item.times) && item.times.length ? (<><Clock className="w-3 h-3" />{item.times.map(fmtClock).join(', ')}</>) : <span>No set times</span>}
               {item.remind === false ? <BellOff className="w-3 h-3 ml-1" aria-label="Reminders off" /> : (item.times?.length ? <Bell className="w-3 h-3 ml-1" aria-label="Reminders on" /> : null)}

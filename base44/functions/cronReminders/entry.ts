@@ -169,12 +169,21 @@ const MISSED_AFTER_MS = 90 * 60_000;
           const isPrivate = m.visibility === 'private';
           const ownerId = m.owner_user_id || m.created_by_id || '';
           const audience = isPrivate ? users.filter((u: any) => u.id === ownerId) : users;
-          // "Until it's done" (frequency Once): every day from its start day; the
-          // app switches it off (is_active false) when someone marks it done.
-          const onToday = m.frequency === 'Once' ? !!m.once_date && m.once_date <= today : (!days.length || days.includes(dow));
-          const stillWaiting = m.frequency === 'Once' && !!m.once_date && m.once_date < today;
-          if (m.remind !== false && onToday) {
-            for (const t of times) {
+          // "Until it's done" (frequency Once): every day from its start day, at
+          // the times its priority set (low 1 a day, medium 3, high every 2
+          // hours); the app switches it off (is_active false) when someone marks
+          // it done, and a skip quiets it for the rest of the day.
+          // "One time": one push, at its time on its day, and that's all.
+          const until = m.frequency === 'Once';
+          const oneTime = m.frequency === 'One time';
+          const onToday = until ? !!m.once_date && m.once_date <= today
+            : oneTime ? m.once_date === today
+            : (!days.length || days.includes(dow));
+          const quietToday = until && logsToday.some((l: any) => l.medication_id === m.id && (l.status === 'taken' || l.status === 'skipped'));
+          if (m.remind !== false && onToday && !quietToday) {
+            for (const t of (oneTime ? times.slice(0, 1) : times)) {
+              // Not done after its first push: later ones say so.
+              const stillWaiting = until && !!m.once_date && (m.once_date < today || (!!m.anchor_time && t > m.anchor_time));
               const slotMs = localToMs(today, t, tz);
               if (!slotMs) continue;
               let log = logFor(m, t);
@@ -189,8 +198,9 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 }
                 continue;
               }
-              // Still 'due' well past its time: missed.
-              if (log && log.status === 'due' && !log.missed_pushed_at && now >= slotMs + MISSED_AFTER_MS) {
+              // Still 'due' well past its time: missed. Not for "until it's done"
+              // (its next push is the nudge) or "one time" (one push, that's all).
+              if (!until && !oneTime && log && log.status === 'due' && !log.missed_pushed_at && now >= slotMs + MISSED_AFTER_MS) {
                 await db.MedicationLog.update(log.id, { status: 'missed', missed_pushed_at: new Date(now).toISOString() });
                 log.status = 'missed';
                 for (const u of audience) {

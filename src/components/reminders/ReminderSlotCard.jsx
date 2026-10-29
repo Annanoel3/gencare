@@ -20,7 +20,11 @@ export default function ReminderSlotCard({ slot, members = [], onOpen }) {
   const [busy, setBusy] = useState(false);
   const s = slot;
   const done = s.status === 'taken' || s.status === 'skipped';
-  const late = !done && (s.status === 'missed' || s.time < format(new Date(), 'HH:mm'));
+  // An "until it's done" reminder that keeps reminding isn't late; it says
+  // when the next push comes instead.
+  const nags = Array.isArray(s.nags) ? s.nags : null;
+  const next = nags && !done ? nags.find((t) => t > format(new Date(), 'HH:mm')) : null;
+  const late = !done && !nags && (s.status === 'missed' || s.time < format(new Date(), 'HH:mm'));
   const color = s.med.family_member_id ? getMemberColorByMemberId(s.med.family_member_id, members) : null;
   const tint = s.med.family_member_id ? getMemberLightColorByMemberId(s.med.family_member_id, members) : 'bg-card';
 
@@ -44,7 +48,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen }) {
         <button type="button" onClick={() => onOpen?.(s.med)} className="flex-1 min-w-0 text-left">
           <p className={`font-medium text-sm leading-snug ${s.status === 'taken' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</p>
           <p className={`text-xs mt-1 ${late && !done ? 'text-destructive' : 'text-muted-foreground'}`}>
-            {[s.med.family_member_name, fmtClock(s.time), carried ? `waiting since ${format(parseISO(s.med.once_date), 'EEE, MMM d')}` : ''].filter(Boolean).join(' · ')}
+            {[s.med.family_member_name, nags ? "until it's done" : fmtClock(s.time), next ? `next reminder ${fmtClock(next)}` : '', carried ? `waiting since ${format(parseISO(s.med.once_date), 'EEE, MMM d')}` : ''].filter(Boolean).join(' · ')}
             {s.status === 'taken' && s.log?.taken_by_name ? ` · done by ${s.log.taken_by_name.split(' ')[0]}` : ''}
             {s.status === 'skipped' ? ' · skipped' : ''}
             {s.status === 'missed' ? ' · not done yet' : ''}
