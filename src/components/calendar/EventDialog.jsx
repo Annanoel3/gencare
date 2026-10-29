@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat, Copy } from 'lucide-react';
+import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat, Copy, CircleStop } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useFamily, orderMembers } from '@/lib/family';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -56,6 +57,11 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   const [form, setForm] = useState(blank(defaultDate, sharingDefault));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
+  // A repeat asks for its last day, or "I don't know" (Anna, Oct 29 2026:
+  // repeats used to go on forever). Not saved on its own: a repeat with no
+  // last day is the "I don't know" one.
+  const [noEnd, setNoEnd] = useState(false);
+  const [stopped, setStopped] = useState('');
   // Which of sharing / who it's for / category the person picked themselves.
   const touched = useRef(new Set());
   const lastSaved = useRef('');
@@ -73,6 +79,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     if (!open) return;
     setConfirmDelete(false);
     setShowRepeat(false);
+    setNoEnd(!!appt?.recurrence && !untilOf(appt.recurrence));
+    setStopped('');
     touched.current = new Set();
     setSaveState('');
     clearTimeout(timer.current);
@@ -106,6 +114,15 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const pick = (field, fn) => { touched.current.add(field); fn(); };
   const repeating = !!form.recurrence && form.recurrence !== '__none__';
+  const needsEnd = repeating && !form.until && !noEnd;
+  // "Stop repeating": the days up to today stay; nothing after. One that
+  // hasn't started yet just becomes a one-time event on its first day.
+  const stopRepeating = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    if (form.date >= today) { setForm((f) => ({ ...f, recurrence: '', until: '' })); setShowRepeat(false); setStopped('one'); }
+    else { set('until', today); setStopped('today'); }
+    setNoEnd(false);
+  };
 
   // The fields to save, from the form.
   function buildData(f) {
@@ -205,13 +222,36 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                 : repeating || showRepeat ? (
                   <div className="flex items-center gap-1">
                     <Repeat className="w-3.5 h-3.5 text-muted-foreground" />
-                    <Select value={form.recurrence || '__none__'} onValueChange={(v) => { set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); }}>
+                    <Select value={form.recurrence || '__none__'} onValueChange={(v) => { if (!repeating) { setNoEnd(false); set('until', ''); } set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); }}>
                       <SelectTrigger className="h-8 text-xs w-auto gap-1 border-none shadow-none px-1"><SelectValue placeholder="Doesn't repeat" /></SelectTrigger>
-                      <SelectContent>{EVENT_REPEATS.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {EVENT_REPEATS.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}
+                        {/* A repeat that isn't one of the choices ("every Wednesday") still shows. */}
+                        {repeating && !EVENT_REPEATS.some((r) => r.value === form.recurrence) && <SelectItem value={form.recurrence}>{repeatLabel(form.recurrence)}</SelectItem>}
+                      </SelectContent>
                     </Select>
                   </div>
                 ) : <button type="button" onClick={() => setShowRepeat(true)} className="text-xs text-primary flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeat</button>}
             </div>
+            {!fromPhone && repeating && (
+              <div className={`mt-2 rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
+                <Label className="text-xs">Last day it repeats</Label>
+                <div className="flex items-center gap-3 mt-1">
+                  <Input type="date" value={form.until || ''} min={form.date || undefined} disabled={noEnd}
+                    onChange={(e) => { set('until', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-0" aria-label="Last day it repeats" />
+                  <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+                    <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('until', ''); }} /> I don't know
+                  </label>
+                </div>
+                {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick I don't know. You can stop it any time.</p>}
+                {editing && !!appt?.recurrence && !stopped && (
+                  <Button type="button" variant="outline" size="sm" onClick={stopRepeating} className="mt-2.5 gap-1.5">
+                    <CircleStop className="w-4 h-4" /> Stop repeating
+                  </Button>
+                )}
+              </div>
+            )}
+            {stopped && <p className="text-xs text-primary mt-2">{stopped === 'one' ? "It won't repeat. It's now just the one day." : "It won't repeat after today. Earlier days stay on the calendar."}</p>}
           </div>
 
           <div>
@@ -282,7 +322,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             ) : (
               <div className="flex gap-2">
                 <Button variant="outline" onClick={onClose}>Cancel</Button>
-                <Button onClick={submit} disabled={!form.title.trim() || !form.date || saving}>
+                <Button onClick={submit} disabled={!form.title.trim() || !form.date || needsEnd || saving}>
                   {saving ? 'Saving…' : 'Add'}
                 </Button>
               </div>

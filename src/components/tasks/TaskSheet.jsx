@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/activity';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2, RotateCcw, Check, Repeat, Loader2 } from 'lucide-react';
+import { Trash2, RotateCcw, Check, Repeat, Loader2, CircleStop } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useFamily, orderMembers } from '@/lib/family';
 import { isPet } from '@/utils/memberColors';
@@ -36,6 +37,9 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const queryClient = useQueryClient();
   const isNew = !task;
   const [form, setForm] = useState(blank(kind));
+  // A repeat asks for its last day, or "I don't know" (no repeat_until).
+  const [noEnd, setNoEnd] = useState(false);
+  const [stopped, setStopped] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [stepBusy, setStepBusy] = useState(null);
   // An older task that's already for a pet keeps showing its pet.
@@ -46,6 +50,8 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
     if (!open) return;
     setForm(task ? fromTask(task) : blank(kind));
     setPendingSteps([]);
+    setNoEnd(!!task && task.recurrence && task.recurrence !== 'none' && !task.repeat_until);
+    setStopped(false);
   }, [open, task, kind]);
 
   const stepsQ = useQuery({
@@ -79,6 +85,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
         assigned_to: form.assigned_user_id === NONE ? '' : (account?.full_name || ''),
         recurrence: form.recurrence,
         recurrence_days: form.recurrence === 'weekly' && form.recurrence_days.length ? form.recurrence_days : undefined,
+        repeat_until: form.recurrence !== 'none' ? form.repeat_until : '',
       });
       if (isNew) {
         const created = await createTask(data);
@@ -87,7 +94,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
       }
       // On edit, cleared fields must reach the server as null.
       const patch = { ...data };
-      for (const k of ['due_date', 'due_time', 'family_member_id', 'family_member_name', 'assigned_user_id', 'assigned_to', 'description', 'notes', 'recurrence_days']) {
+      for (const k of ['due_date', 'due_time', 'family_member_id', 'family_member_name', 'assigned_user_id', 'assigned_to', 'description', 'notes', 'recurrence_days', 'repeat_until']) {
         if (!(k in patch)) patch[k] = null;
       }
       return updateTask(task.id, patch, { before: task });
@@ -117,6 +124,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const [showTime, setShowTime] = useState(false);
   useEffect(() => { if (open) setShowTime(false); }, [open, task]);
   const today = format(new Date(), 'yyyy-MM-dd');
+  const needsEnd = form.recurrence !== 'none' && !form.repeat_until && !noEnd;
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const [picking, setPicking] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
@@ -132,7 +140,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const repeatField = (
     <div>
       <Label className="flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeats</Label>
-      <Select value={form.recurrence} onValueChange={(v) => set('recurrence', v)}>
+      <Select value={form.recurrence} onValueChange={(v) => { if (form.recurrence === 'none') setNoEnd(false); set('recurrence', v); }}>
         <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
         <SelectContent>{REPEAT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
       </Select>
@@ -143,6 +151,25 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
           ))}
         </div>
       )}
+      {form.recurrence !== 'none' && (
+        <div className={`mt-2 rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
+          <Label className="text-xs">Last day it repeats</Label>
+          <div className="flex items-center gap-3 mt-1">
+            <Input type="date" value={form.repeat_until || ''} min={form.due_date || today} disabled={noEnd}
+              onChange={(e) => { set('repeat_until', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-0" aria-label="Last day it repeats" />
+            <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+              <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('repeat_until', ''); }} /> I don't know
+            </label>
+          </div>
+          {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick I don't know. You can stop it any time.</p>}
+        </div>
+      )}
+      {!isNew && task?.recurrence && task.recurrence !== 'none' && !stopped && (
+        <Button type="button" variant="outline" size="sm" onClick={() => { setForm((f) => ({ ...f, recurrence: 'none', repeat_until: '' })); setStopped(true); }} className="mt-2.5 gap-1.5">
+          <CircleStop className="w-4 h-4" /> Stop repeating
+        </Button>
+      )}
+      {stopped && <p className="text-xs text-primary mt-2">It won't come back after this one. Tap Save.</p>}
       {form.recurrence !== 'none' && !form.due_date && <p className="text-xs text-muted-foreground mt-1">Starts today; finishing it brings the next one.</p>}
       {!isNew && form.recurrence !== 'none' && <p className="text-xs text-muted-foreground mt-1">{nextCopyText({ ...task, ...form })}</p>}
     </div>
@@ -222,7 +249,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             )}
             <div className="flex-1" />
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={() => save.mutate()} disabled={!form.title.trim() || save.isPending}>{save.isPending ? 'Saving…' : isNew ? 'Add' : 'Save'}</Button>
+            <Button onClick={() => save.mutate()} disabled={!form.title.trim() || needsEnd || save.isPending}>{save.isPending ? 'Saving…' : isNew ? 'Add' : 'Save'}</Button>
           </div>
           {save.isError && <p className="text-xs text-destructive">Couldn't save: {save.error?.message || 'try again'}</p>}
         </div>
@@ -245,7 +272,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
 }
 
 function blank(kind) {
-  return { title: '', description: '', notes: '', kind, priority: 'medium', category: kind === 'checklist' ? 'Personal Care' : 'Other', due_date: '', due_time: '', family_member_id: NONE, assigned_user_id: NONE, recurrence: kind === 'checklist' ? 'daily' : 'none', recurrence_days: [] };
+  return { title: '', description: '', notes: '', kind, priority: 'medium', category: kind === 'checklist' ? 'Personal Care' : 'Other', due_date: '', due_time: '', family_member_id: NONE, assigned_user_id: NONE, recurrence: kind === 'checklist' ? 'daily' : 'none', recurrence_days: [], repeat_until: '' };
 }
 
 function fromTask(t) {
@@ -256,6 +283,7 @@ function fromTask(t) {
     family_member_id: t.family_member_id || NONE, assigned_user_id: t.assigned_user_id || NONE,
     recurrence: (t.is_recurring === false && t.kind !== 'checklist') ? 'none' : (t.recurrence || 'none'),
     recurrence_days: Array.isArray(t.recurrence_days) ? t.recurrence_days : [],
+    repeat_until: t.repeat_until || '',
   };
 }
 

@@ -15,7 +15,9 @@ function howText(item) {
     const p = prio(item.priority);
     return ["Until it's done", p ? `${p[1]}, ${p[2]}` : '', item.once_date <= todayStr() ? `since ${dayText(item.once_date)}` : `starts ${format(parseISO(item.once_date), 'EEE, MMM d')}`].filter(Boolean).join(' · ');
   }
-  return frequencyLabel(item.frequency);
+  const f = frequencyLabel(item.frequency);
+  if (item.end_date) return `${f} · ${item.end_date < todayStr() ? 'ended' : 'through'} ${format(parseISO(item.end_date), 'EEE, MMM d')}`;
+  return f;
 }
 
 // One repeating reminder (what, how often, at what times, how it's gone the

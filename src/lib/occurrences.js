@@ -47,9 +47,16 @@ export const EVENT_REPEATS = [
   { value: 'RRULE:FREQ=YEARLY', label: 'Every year' },
 ];
 
+// "Every week" / "Mon, Wed" plus its last day when it has one ("… until Dec 1").
 export function repeatLabel(rule) {
   const r = parseRRule(rule);
   if (!r) return '';
+  const words = repeatWords(r);
+  if (!r.until) return words;
+  const sameYear = r.until.getFullYear() === new Date().getFullYear();
+  return `${words} until ${format(r.until, sameYear ? 'MMM d' : 'MMM d, yyyy')}`;
+}
+function repeatWords(r) {
   const base = r.freq === 'DAILY' ? 'day' : r.freq === 'WEEKLY' ? 'week' : r.freq === 'MONTHLY' ? 'month' : 'year';
   if (r.freq === 'WEEKLY' && r.byday.length && r.interval === 1) {
     const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

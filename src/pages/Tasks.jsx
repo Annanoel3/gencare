@@ -14,7 +14,7 @@ import ReminderCard from '@/components/reminders/ReminderCard';
 import useReminderEditor from '@/components/reminders/useReminderEditor';
 import useEventEditor from '@/components/calendar/useEventEditor';
 import { SECTIONS, sectionOf, sortTasks, isOpen, isStep } from '@/lib/tasks';
-import { slotsForDay, todayStr, isFinishedOnce, defaultTimes } from '@/lib/reminders';
+import { slotsForDay, todayStr, isFinishedOnce, isEnded, defaultTimes } from '@/lib/reminders';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { startOfDay, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
@@ -129,12 +129,13 @@ export default function Tasks() {
 
   const openTask = (task) => setSheet({ open: true, task, kind: task.kind || 'task' });
   const newTask = (kind) => setSheet({ open: true, task: null, kind });
-  const paused = reminders.filter((m) => m.is_active === false && !isFinishedOnce(m));
+  // Paused, or repeating ones past their last day (Stop repeating).
+  const paused = reminders.filter((m) => (m.is_active === false || isEnded(m)) && !isFinishedOnce(m));
   // Active reminders by who they're for; ones for nobody in particular last.
   const byPerson = useMemo(() => {
     const groups = new Map();
     // "Until it's done" reminders drop off the list once someone finishes them.
-    for (const m of reminders.filter((x) => x.is_active !== false && !isFinishedOnce(x))) {
+    for (const m of reminders.filter((x) => x.is_active !== false && !isFinishedOnce(x) && !isEnded(x))) {
       const k = m.family_member_name || 'General';
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(m);

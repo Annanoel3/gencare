@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Trash2, Plus, X, Users, Lock } from 'lucide-react';
+import { Trash2, Plus, X, Users, Lock, CircleStop } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,10 @@ function frequencyFor(how, times) {
 export default function ReminderDialog({ open, onOpenChange, med, members = [], onSave, onDelete, saving, adherence }) {
   const [form, setForm] = useState(blank());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // A repeating reminder asks for its last day, or "I don't know" (saved as
+  // no end_date). Stop repeating ends it today.
+  const [noEnd, setNoEnd] = useState(false);
+  const [stopped, setStopped] = useState(false);
   const editing = !!med?.id;
   const { me } = useFamily();
   const people = orderMembers(members, me?.id); // people first, then pets
@@ -46,6 +51,8 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   useEffect(() => {
     if (!open) return;
     setConfirmDelete(false);
+    setStopped(false);
+    setNoEnd(!!med?.id && !med.end_date && med.frequency !== 'Once' && med.frequency !== ONE_TIME);
     if (med) {
       setForm({
         ...blank(), ...med,
@@ -56,6 +63,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
         remind: med.remind !== false,
         refill_reminder_days: typeof med.refill_reminder_days === 'number' ? med.refill_reminder_days : 3,
         refill_date: med.refill_date || '',
+        end_date: med.end_date || '',
         is_active: med.is_active !== false,
         once_date: med.once_date || todayStr(),
         visibility: med.visibility === 'private' ? 'private' : 'family',
@@ -71,6 +79,8 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const once = form.how === 'once';
   const justMe = form.visibility === 'private';
   const oneTime = form.how === 'one';
+  const repeatsDaily = form.how === 'daily' || form.how === 'days';
+  const needsEnd = repeatsDaily && !form.end_date && !noEnd;
   const setHow = (v) => setForm((f) => ({ ...f, how: v, times: (v === 'one' ? f.times.slice(0, 1) : f.times).length ? (v === 'one' ? f.times.slice(0, 1) : f.times) : defaultTimes(v === 'once' || v === 'one' ? 'Once' : 'Once daily') }));
   const setTime = (i, v) => set('times', form.times.map((t, j) => (j === i ? v : t)));
   const addTime = () => {
@@ -90,13 +100,15 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const startsLater = !editing && start.day > todayStr();
   const list = (ts) => (ts.length < 3 ? ts.map(fmtClock).join(' and ') : `${ts.slice(0, -1).map(fmtClock).join(', ')} and ${fmtClock(ts[ts.length - 1])}`);
   const dayText = (d) => (d === todayStr() ? 'today' : d === format(addDays(new Date(), 1), 'yyyy-MM-dd') ? 'tomorrow' : format(parseISO(d), 'EEE, MMM d'));
+  const untilText = form.end_date ? `, through ${dayText(form.end_date)}` : '';
   const summary = !form.remind ? "No pushes; it shows in To do on its days."
     : oneTime ? `${who} one push at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date || todayStr())}, and that's all.`
     : once ? `${who} a push at ${list(nags)} every day${startsLater ? ', starting tomorrow,' : ''} until ${justMe ? 'you mark' : 'someone marks'} it done.`
     : !times.length ? 'No pushes; it shows in To do on its days.'
-    : form.how === 'days' && form.days_of_week.length ? `${who} a push at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}.`
-    : `${who} a push at ${at} every day.`;
+    : form.how === 'days' && form.days_of_week.length ? `${who} a push at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}${untilText}.`
+    : `${who} a push at ${at} every day${untilText}.`;
 
+  const stopRepeating = () => { set('end_date', todayStr()); setNoEnd(false); setStopped(true); };
   const save = () => {
     const sorted = [...new Set(times)].sort();
     onSave({
@@ -156,6 +168,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
               </div>
             </div>
           ) : (
+          <>
           <div>
             <Label>Time</Label>
             <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -168,6 +181,22 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
               {form.times.length < 4 && <Button type="button" variant="ghost" size="sm" onClick={addTime} className="gap-1 text-primary"><Plus className="w-3.5 h-3.5" /> Another time</Button>}
             </div>
           </div>
+          <div className={`rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
+            <Label className="text-xs">Last day it reminds</Label>
+            <div className="flex items-center gap-3 mt-1">
+              <Input type="date" value={form.end_date || ''} min={editing ? undefined : todayStr()} disabled={noEnd}
+                onChange={(e) => { set('end_date', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-0" aria-label="Last day it reminds" />
+              <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+                <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('end_date', ''); }} /> I don't know
+              </label>
+            </div>
+            {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick I don't know. You can stop it any time.</p>}
+            {editing && !stopped && !(med?.end_date && med.end_date < todayStr()) && (
+              <Button type="button" variant="outline" size="sm" onClick={stopRepeating} className="mt-2.5 gap-1.5"><CircleStop className="w-4 h-4" /> Stop repeating</Button>
+            )}
+            {stopped && <p className="text-xs text-primary mt-2">It won't remind after today. Tap Save.</p>}
+          </div>
+          </>
           )}
 
           <div>
@@ -213,7 +242,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             {editing && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>}
             <div className="flex-1" />
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={save} disabled={!form.medication_name.trim() || (form.how === 'days' && !form.days_of_week.length) || (oneTime && !times.length) || saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
+            <Button onClick={save} disabled={!form.medication_name.trim() || (form.how === 'days' && !form.days_of_week.length) || (oneTime && !times.length) || needsEnd || saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
           </div>
         </div>
       </DialogContent>

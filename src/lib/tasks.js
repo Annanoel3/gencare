@@ -212,8 +212,10 @@ export async function completeTask(task, me, { notify = true } = {}) {
     if (task.next_occurrence_id) {
       try { next = await base44.entities.CareTask.get(task.next_occurrence_id); } catch (e) { next = null; }
     }
-    if (!next || next.family_id !== getFamilyId()) {
-      const nextDate = nextOccurrenceDate(task, now);
+    const nextDate = nextOccurrenceDate(task, now);
+    // Past its last day: this was the last one, no next copy.
+    const ended = !!task.repeat_until && fmtDate(nextDate) > task.repeat_until;
+    if (!ended && (!next || next.family_id !== getFamilyId())) {
       next = await base44.entities.CareTask.create(withFamily(clean({
         title: task.title,
         description: task.description,
@@ -230,6 +232,7 @@ export async function completeTask(task, me, { notify = true } = {}) {
         family_member_name: task.family_member_name,
         recurrence: task.recurrence,
         recurrence_days: Array.isArray(task.recurrence_days) && task.recurrence_days.length ? task.recurrence_days : undefined,
+        repeat_until: task.repeat_until || undefined,
         is_recurring: true,
       })));
       patch.next_occurrence_id = next.id;
@@ -287,5 +290,6 @@ export async function toggleStep(step, allSteps, parent, me) {
 export function nextCopyText(t) {
   if (!repeats(t)) return '';
   const d = nextOccurrenceDate(t);
+  if (t.repeat_until && fmtDate(d) > t.repeat_until) return "This is the last one; it doesn't come back.";
   return `Comes back ${isToday(addDays(d, -1)) ? 'tomorrow' : format(d, 'EEE, MMM d')}`;
 }

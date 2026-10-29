@@ -178,7 +178,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
           const oneTime = m.frequency === 'One time';
           const onToday = until ? !!m.once_date && m.once_date <= today
             : oneTime ? m.once_date === today
-            : (!days.length || days.includes(dow));
+            : (!days.length || days.includes(dow)) && !(m.end_date && today > m.end_date); // past its last day
           const quietToday = until && logsToday.some((l: any) => l.medication_id === m.id && (l.status === 'taken' || l.status === 'skipped'));
           if (m.remind !== false && onToday && !quietToday) {
             for (const t of (oneTime ? times.slice(0, 1) : times)) {
@@ -212,7 +212,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
             }
           }
           // Runs out: once a day, from N days before, in the morning.
-          if (m.refill_date && local.hour === DIGEST_HOUR + 1 && local.minute < 15 && m.refill_reminded_on !== today) {
+          if (m.refill_date && !(m.end_date && today > m.end_date) && local.hour === DIGEST_HOUR + 1 && local.minute < 15 && m.refill_reminded_on !== today) {
             const leadDays = typeof m.refill_reminder_days === 'number' ? m.refill_reminder_days : 3;
             const daysLeft = Math.round((Date.UTC(+m.refill_date.slice(0, 4), +m.refill_date.slice(5, 7) - 1, +m.refill_date.slice(8, 10)) - Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10))) / 86_400_000);
             if (daysLeft <= leadDays && daysLeft >= -30) {

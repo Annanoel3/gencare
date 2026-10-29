@@ -94,6 +94,7 @@ export function slotsForDay(meds, logs, day = todayStr()) {
     if (m.is_active === false) continue;
     // "Until it's done": every day from its start day until someone marks it done.
     if (m.frequency === ONE_TIME) { if (m.once_date !== day) continue; } else if (m.frequency === 'Once') { if (!m.once_date || m.once_date > day) continue; } else {
+      if (m.end_date && day > m.end_date) continue; // past its last day
       const days = Array.isArray(m.days_of_week) ? m.days_of_week : [];
       if (days.length && !days.includes(dow)) continue;
     }
@@ -173,6 +174,8 @@ export function cleanMed(form, members, me) {
     data.times = nagTimes(start.anchor, data.priority);
   }
   if (form.refill_date && !once && !oneTime) data.refill_date = form.refill_date; else data.refill_date = null;
+  // A repeating one's last day (empty = "I don't know").
+  data.end_date = !once && !oneTime && /^\d{4}-\d{2}-\d{2}$/.test(form.end_date || '') ? form.end_date : null;
   if (form.start_date) data.start_date = form.start_date; else data.start_date = null;
   return data;
 }
@@ -180,6 +183,8 @@ export function cleanMed(form, members, me) {
 /** An "until it's done" reminder that someone finished (kept for its history, not listed). */
 export const isFinishedOnce = (m) => (m?.frequency === 'Once' && m.is_active === false) || (m?.frequency === ONE_TIME && !!m.once_date && m.once_date < todayStr());
 export const isPrivate = (m) => m?.visibility === 'private';
+/** A repeating reminder past its last day (or stopped with Stop repeating). */
+export const isEnded = (m) => !!m?.end_date && m.frequency !== 'Once' && m.frequency !== ONE_TIME && m.end_date < todayStr();
 
 /** Done / total over the last `days` days for one reminder. */
 export function adherence(med, logs, days = 14) {
