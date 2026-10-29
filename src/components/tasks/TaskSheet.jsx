@@ -159,7 +159,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
         <div className="space-y-4 mt-1">
           <div>
             <Label>{isChecklist ? 'Checklist name' : 'What needs doing'} *</Label>
-            <Input value={form.title} onChange={(e) => set('title', e.target.value)} className="mt-1" autoFocus={isNew} placeholder={isChecklist ? 'Morning routine' : 'Pick up the dry cleaning'} />
+            <Input value={form.title} onChange={(e) => set('title', e.target.value)} className="mt-1" placeholder={isChecklist ? 'Morning routine' : 'Pick up the dry cleaning'} />
           </div>
 
           <div>
@@ -168,7 +168,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             {(when === 'pick' || (form.due_date && (form.due_time || showTime))) && (
               <div className="flex gap-3 mt-2">
                 {when === 'pick' && <Input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} aria-label="Day" className="flex-1" />}
-                {form.due_date && (form.due_time || showTime) && <Input type="time" value={form.due_time} onChange={(e) => set('due_time', e.target.value)} aria-label="Time" className="flex-1" autoFocus={showTime && !form.due_time} />}
+                {form.due_date && (form.due_time || showTime) && <Input type="time" value={form.due_time} onChange={(e) => set('due_time', e.target.value)} aria-label="Time" className="flex-1" />}
               </div>
             )}
             {form.due_date && !form.due_time && !showTime && <button type="button" onClick={() => setShowTime(true)} className="text-sm text-primary font-medium mt-2">+ Add a time (sends a push)</button>}

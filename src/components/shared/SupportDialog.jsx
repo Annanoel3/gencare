@@ -39,7 +39,7 @@ export default function SupportDialog({ open, onClose, kind = 'support' }) {
           <DialogTitle className="font-heading text-xl">{c.title}</DialogTitle>
           <DialogDescription>{c.desc}</DialogDescription>
         </DialogHeader>
-        <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder={c.placeholder} className="min-h-[120px]" autoFocus />
+        <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder={c.placeholder} className="min-h-[120px]" />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={send} disabled={!message.trim() || busy} className="gap-2">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send</Button>

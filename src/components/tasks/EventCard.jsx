@@ -20,7 +20,7 @@ function fmtTime(t) {
  * An event on the Tasks page, next to the day's tasks. Nothing to tick: tap
  * opens it on the calendar (where it can be shared or given a "For").
  */
-export default function EventCard({ appt, members = [], showDay = false }) {
+export default function EventCard({ appt, members = [], showDay = false, onOpen }) {
   const navigate = useNavigate();
   const canRecord = usePluginPresent('RecorderBridge');
   const id = rowIdOf(appt);
@@ -37,8 +37,8 @@ export default function EventCard({ appt, members = [], showDay = false }) {
     <div
       role="button"
       tabIndex={0}
-      onClick={() => navigate(`/calendar?date=${appt.date}&open=${id}`)}
-      onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/calendar?date=${appt.date}&open=${id}`); }}
+      onClick={() => (onOpen ? onOpen(appt) : navigate(`/calendar?date=${appt.date}&open=${id}`))}
+      onKeyDown={(e) => { if (e.key === 'Enter') { if (onOpen) onOpen(appt); else navigate(`/calendar?date=${appt.date}&open=${id}`); } }}
       className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 cursor-pointer`}
     >
       {color && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}

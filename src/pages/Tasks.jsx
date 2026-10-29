@@ -12,6 +12,7 @@ import EventCard from '@/components/tasks/EventCard';
 import ReminderSlotCard from '@/components/reminders/ReminderSlotCard';
 import ReminderCard from '@/components/reminders/ReminderCard';
 import useReminderEditor from '@/components/reminders/useReminderEditor';
+import useEventEditor from '@/components/calendar/useEventEditor';
 import { SECTIONS, sectionOf, sortTasks, isOpen, isStep } from '@/lib/tasks';
 import { slotsForDay, todayStr, isFinishedOnce } from '@/lib/reminders';
 import { aroundKey, listEventsAround } from '@/lib/events';
@@ -76,6 +77,9 @@ export default function Tasks() {
   const { data: eventRows = [] } = useQuery({ queryKey: aroundKey(), queryFn: listEventsAround });
   const events = useMemo(() => eventsBySection(eventRows), [eventRows]);
   const { reminders, logs, isFetched, editor, openReminder } = useReminderEditor(members);
+  // Tapping an event opens it right here, no trip to the Calendar.
+  const { openEvent, editor: eventEditor } = useEventEditor(members);
+  const openOccurrence = (occ) => openEvent(eventRows.find((r) => r.id === rowIdOf(occ)) || occ);
   const slots = useMemo(() => slotsForDay(reminders, logs, todayStr()), [reminders, logs]);
 
   // The + button's "Task" lands here with ?task=new.
@@ -177,7 +181,7 @@ export default function Tasks() {
               <h2 className="font-heading text-base font-semibold mb-2">{s.label} <span className="text-muted-foreground font-normal text-sm">({s.entries.length})</span></h2>
               <div className="space-y-2">
                 {s.entries.map((e) => (
-                  e.kind === 'event' ? <EventCard key={e.key} appt={e.ev} members={members} showDay={s.key === 'week'} />
+                  e.kind === 'event' ? <EventCard key={e.key} appt={e.ev} members={members} showDay={s.key === 'week'} onOpen={openOccurrence} />
                     : e.kind === 'slot' ? <ReminderSlotCard key={e.key} slot={e.slot} members={members} onOpen={openReminder} />
                     : <TaskCard key={e.key} task={e.task} members={members} onOpen={openTask} stepsPreloaded={stepsByParent[e.task.id] || []} />
                 ))}
@@ -216,6 +220,7 @@ export default function Tasks() {
 
       <TaskSheet open={sheet.open} onOpenChange={(o) => setSheet((s) => ({ ...s, open: o }))} task={sheet.task} kind={sheet.kind} members={members} />
       {editor}
+      {eventEditor}
     </div>
   );
 }

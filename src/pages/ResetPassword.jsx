@@ -73,7 +73,7 @@ export default function ResetPassword() {
               id="password"
               type="password"
               autoComplete="new-password"
-              autoFocus
+             
               placeholder="••••••••"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}

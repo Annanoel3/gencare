@@ -158,11 +158,11 @@ function ItemRow({ item, onOpen }) {
   );
 }
 
-function PasswordInput({ value, onChange, placeholder, autoFocus, autoComplete = 'current-password' }) {
+function PasswordInput({ value, onChange, placeholder, autoComplete = 'current-password' }) {
   const [show, setShow] = useState(false);
   return (
     <div className="relative mt-1">
-      <Input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoFocus={autoFocus} autoComplete={autoComplete} className="pr-10" />
+      <Input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoComplete={autoComplete} className="pr-10" />
       <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground" aria-label={show ? 'Hide password' : 'Show password'}>{show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
     </div>
   );
@@ -173,7 +173,7 @@ function NewPasswordFields({ pw, setPw, again, setAgain }) {
   const differs = again.length > 0 && again !== pw;
   return (
     <>
-      <div><Label>Password</Label><PasswordInput value={pw} onChange={setPw} autoFocus autoComplete="new-password" placeholder={`At least ${MIN_PASSWORD} characters`} /></div>
+      <div><Label>Password</Label><PasswordInput value={pw} onChange={setPw} autoComplete="new-password" placeholder={`At least ${MIN_PASSWORD} characters`} /></div>
       <div><Label>Type it again</Label><PasswordInput value={again} onChange={setAgain} autoComplete="new-password" /></div>
       {(short || differs) && <p className="text-xs text-destructive">{short ? `Use at least ${MIN_PASSWORD} characters.` : "Those don't match."}</p>}
     </>
@@ -262,10 +262,10 @@ function UnlockDialog({ open, onOpenChange, vault, onDone }) {
         </DialogHeader>
         <form onSubmit={go} className="space-y-4 mt-1">
           {mode === 'password' ? (
-            <div><Label>Password</Label><PasswordInput value={pw} onChange={setPw} autoFocus /></div>
+            <div><Label>Password</Label><PasswordInput value={pw} onChange={setPw} /></div>
           ) : (
             <>
-              <div><Label>Recovery code</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" autoFocus autoCapitalize="characters" autoComplete="off" className="mt-1 font-mono" /></div>
+              <div><Label>Recovery code</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" autoCapitalize="characters" autoComplete="off" className="mt-1 font-mono" /></div>
               <p className="text-xs text-muted-foreground">Then pick a new password.</p>
               <NewPasswordFields pw={pw} setPw={setPw} again={again} setAgain={setAgain} />
             </>
@@ -309,7 +309,7 @@ function ChangeDialog({ open, onOpenChange, vault, onDone }) {
           <DialogDescription className="sr-only">Change the folder password</DialogDescription>
         </DialogHeader>
         <form onSubmit={go} className="space-y-4 mt-1">
-          <div><Label>Current password</Label><PasswordInput value={current} onChange={setCurrent} autoFocus /></div>
+          <div><Label>Current password</Label><PasswordInput value={current} onChange={setCurrent} /></div>
           <NewPasswordFields pw={pw} setPw={setPw} again={again} setAgain={setAgain} />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full rounded-xl" disabled={busy || !current || !goodNew(pw, again)}>{busy ? 'Changing…' : 'Change it'}</Button>
@@ -357,7 +357,7 @@ function ItemDialog({ open, onOpenChange, vault, item, people, onSaved }) {
         </DialogHeader>
         <div className="space-y-4 mt-1">
           <Choices value={form.kind} onChange={(v) => set('kind', v)} options={KINDS.map(([v, label]) => [v, label])} />
-          <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={PLACEHOLDER[form.kind] || ''} className="mt-1" autoFocus={!editing} /></div>
+          <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={PLACEHOLDER[form.kind] || ''} className="mt-1" /></div>
           <div><Label>Details</Label><Textarea value={form.details} onChange={(e) => set('details', e.target.value)} rows={3} placeholder="Policy or account numbers, who to call, where the paper copy is" className="mt-1" /></div>
           <MoreOptions defaultOpen={editing && !!(form.amount !== '' || form.date || form.link)} hint="Amount, date, link, who it's for">
             <div className="grid grid-cols-2 gap-3">

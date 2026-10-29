@@ -27,11 +27,14 @@ const DrawerOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
-const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) => (
+// Opening never jumps into the first text box, so the phone's keyboard only
+// comes up when someone taps a box (Anna, Oct 29 2026).
+const DrawerContent = React.forwardRef(({ className, children, onOpenAutoFocus, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
       ref={ref}
+      onOpenAutoFocus={(e) => { e.preventDefault(); onOpenAutoFocus?.(e); }}
       className={cn(
         "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
         className

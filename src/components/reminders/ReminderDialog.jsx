@@ -98,7 +98,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           <DialogDescription className="sr-only">What to remind about, and when</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 mt-1">
-          <div><Label>What *</Label><Input value={form.medication_name} onChange={(e) => set('medication_name', e.target.value)} placeholder="Order Thanksgiving food" className="mt-1" autoFocus={!editing} /></div>
+          <div><Label>What *</Label><Input value={form.medication_name} onChange={(e) => set('medication_name', e.target.value)} placeholder="Order Thanksgiving food" className="mt-1" /></div>
 
           <div>
             <Label>How often</Label>
