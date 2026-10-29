@@ -1,6 +1,6 @@
 import { externalClick } from '@/lib/phone';
 import { Link } from 'react-router-dom';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, subDays, isValid } from 'date-fns';
 import { Heart, Flower2, Lock, Bell, Phone, ExternalLink, Trash2 } from 'lucide-react';
@@ -12,22 +12,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
+import WellnessHistory from '@/components/wellness/WellnessHistory';
+import DaySheet from '@/components/wellness/DaySheet';
+import { MOODS, STRESS, SELF_CARE, isHard } from '@/lib/wellness';
 
 // Caregiver wellness: a private daily check-in (mood, stress, sleep, what you
-// did for yourself), a two-week picture, a burnout nudge when the picture
-// looks rough, and an optional daily reminder push. Nothing here is shared
-// with the family.
+// did for yourself, notes), a month you can page back through where tapping a
+// day shows everything from it, a burnout nudge when the last week looks
+// rough, and an optional daily reminder push. Nothing here is shared with the
+// family.
 
-const MOODS = [
-  { value: 'great', emoji: '😄', label: 'Great', color: 'bg-emerald-500/10 border-emerald-500/40 text-emerald-700' },
-  { value: 'good', emoji: '🙂', label: 'Good', color: 'bg-blue-500/10 border-blue-500/40 text-blue-700' },
-  { value: 'okay', emoji: '😐', label: 'Okay', color: 'bg-amber-500/10 border-amber-500/40 text-amber-700' },
-  { value: 'poor', emoji: '😟', label: 'Struggling', color: 'bg-orange-500/10 border-orange-500/40 text-orange-700' },
-  { value: 'bad', emoji: '😢', label: 'Overwhelmed', color: 'bg-red-500/10 border-red-500/40 text-red-700' },
-];
-const MOOD_SCORE = { great: 5, good: 4, okay: 3, poor: 2, bad: 1 };
-const STRESS = ['Calm', 'Fine', 'Tense', 'Stretched', 'Maxed out'];
-const SELF_CARE = ['Slept enough', 'Ate a real meal', 'Got outside', 'Moved my body', 'Talked to a friend', 'Took a break', 'Asked for help', 'Did something fun'];
 const TIPS = [
   'Take 5 slow breaths right now.',
   'Step outside for 5 minutes of fresh air.',
@@ -48,6 +42,8 @@ export default function Wellness() {
   const today = todayStr();
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
   const [form, setForm] = useState({ mood: '', stress: 0, sleep_hours: '', self_care: [], note: '' });
+  const [openDay, setOpenDay] = useState(null);
+  const checkinRef = useRef(null);
 
   const since = format(subDays(new Date(), 30), 'yyyy-MM-dd');
   const { data: checkins = [] } = useQuery({
@@ -91,9 +87,8 @@ export default function Wellness() {
     return { day: d, c: checkins.find((x) => x.day === d) || null };
   }), [checkins]);
   const lastWeek = days.slice(7).map((d) => d.c).filter(Boolean);
-  const roughDays = lastWeek.filter((c) => MOOD_SCORE[c.mood] <= 2 || (c.stress || 0) >= 4).length;
+  const roughDays = lastWeek.filter(isHard).length;
   const streak = (() => { let n = 0; for (let i = days.length - 1; i >= 0 && days[i].c; i--) n++; return n; })();
-  const avgSleep = lastWeek.filter((c) => typeof c.sleep_hours === 'number').reduce((a, c, _, arr) => a + c.sleep_hours / arr.length, 0);
 
   const toggleCare = (s) => setForm((f) => ({ ...f, self_care: f.self_care.includes(s) ? f.self_care.filter((x) => x !== s) : [...f.self_care, s] }));
 
@@ -129,7 +124,7 @@ export default function Wellness() {
         </CardContent>
       </Card>
 
-      <Card className="mb-6 border-border/50">
+      <Card ref={checkinRef} className="mb-6 border-border/50 scroll-mt-20">
         <CardHeader className="pb-3"><CardTitle className="font-heading text-lg">{todays ? "Today's check-in" : 'How are you today?'}</CardTitle></CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -185,29 +180,7 @@ export default function Wellness() {
         </CardContent>
       </Card>
 
-      <Card className="mb-6 border-border/50">
-        <CardHeader className="pb-3"><CardTitle className="font-heading text-lg">Last two weeks</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-14 gap-1" style={{ gridTemplateColumns: 'repeat(14, minmax(0, 1fr))' }}>
-            {days.map(({ day, c }) => {
-              const m = c ? MOODS.find((x) => x.value === c.mood) : null;
-              return (
-                <div key={day} className="flex flex-col items-center gap-1" title={c ? `${format(parseISO(day), 'EEE MMM d')}: ${m?.label || 'Note'}${c.stress ? `, stress ${c.stress}/5` : ''}${typeof c.sleep_hours === 'number' ? `, ${c.sleep_hours}h sleep` : ''}${c.note ? ` — ${c.note}` : ''}` : format(parseISO(day), 'EEE MMM d')}>
-                  <span className={`h-9 w-full rounded-md flex items-center justify-center text-base ${c ? '' : 'bg-muted/60'}`}>{m?.emoji || (c ? '📝' : '')}</span>
-                  <span className={`h-1.5 w-full rounded-full ${c?.stress ? ['bg-emerald-400', 'bg-emerald-300', 'bg-amber-300', 'bg-orange-400', 'bg-red-500'][c.stress - 1] : 'bg-transparent'}`} />
-                  <span className="text-[10px] text-muted-foreground">{format(parseISO(day), 'd')}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs text-muted-foreground">
-            <span>Check-in streak: <b className="text-foreground">{streak} day{streak === 1 ? '' : 's'}</b></span>
-            {lastWeek.length > 0 && <span>Hard days this week: <b className="text-foreground">{roughDays}</b></span>}
-            {avgSleep > 0 && <span>Avg sleep: <b className="text-foreground">{avgSleep.toFixed(1)} h</b></span>}
-            <span className="w-full">The bar under each day is stress (green calm → red maxed out).</span>
-          </div>
-        </CardContent>
-      </Card>
+      <WellnessHistory userId={me?.id} onPick={setOpenDay} footer={streak > 1 ? <span>Streak: <b className="text-foreground">{streak} days</b></span> : null} />
 
       <Card className="border-border/50">
         <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-3">
@@ -233,15 +206,17 @@ export default function Wellness() {
               const m = MOODS.find((x) => x.value === c.mood);
               const d = parseISO(c.day);
               return (
-                <div key={c.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                <button key={c.id} type="button" onClick={() => setOpenDay({ day: c.day, c })} className="w-full text-left flex items-start gap-3 p-3 rounded-xl bg-muted/50 active:bg-muted">
                   <span className="text-xl mt-0.5">{m?.emoji || '📝'}</span>
-                  <div className="flex-1"><p className="text-sm whitespace-pre-wrap">{c.note}</p><p className="text-xs text-muted-foreground mt-1">{isValid(d) ? format(d, 'EEE, MMM d') : c.day}</p></div>
-                </div>
+                  <div className="flex-1 min-w-0"><p className="text-sm whitespace-pre-wrap line-clamp-3">{c.note}</p><p className="text-xs text-muted-foreground mt-1">{isValid(d) ? format(d, 'EEE, MMM d') : c.day}</p></div>
+                </button>
               );
             })}
           </CardContent>
         </Card>
       )}
+
+      <DaySheet value={openDay} onClose={() => setOpenDay(null)} onEditToday={() => checkinRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
     </div>
   );
 }
