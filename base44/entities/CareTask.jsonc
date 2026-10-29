@@ -19,8 +19,7 @@
         "Transportation",
         "Financial",
         "Personal Care",
-        "Other",
-        "Medical"
+        "Other"
       ],
       "type": "string"
     },
