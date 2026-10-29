@@ -17,6 +17,11 @@
       "description": "Details, shown next to the name (1 scoop)",
       "type": "string"
     },
+    "end_date": {
+      "description": "For a repeating reminder (every day / certain days): the last day it reminds. Empty = no end picked (\"I don't know\"); Stop repeating sets it to that day",
+      "format": "date",
+      "type": "string"
+    },
     "family_id": {
       "type": "string"
     },
