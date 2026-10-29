@@ -169,7 +169,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
-      <DialogContent className="sm:max-w-lg max-h-[92vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
         <DialogHeader><DialogTitle className="font-heading text-xl">{editing ? 'Event' : 'New event'}</DialogTitle></DialogHeader>
         <div className="space-y-4 mt-2">
           {fromPhone && (

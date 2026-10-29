@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { MESSAGES_KEY, listMessages } from '@/lib/messages';
 import { expandAppointments } from '@/lib/occurrences';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import { REMINDERS_KEY, listReminders, slotsForDay, todayStr } from '@/lib/reminders';
 import WelcomeHeader from '@/components/dashboard/WelcomeHeader';
 import StatCards from '@/components/dashboard/StatCards';
-import FamilyOverview from '@/components/dashboard/FamilyOverview';
-import RecentActivity from '@/components/dashboard/RecentActivity';
+import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import CareFeed from '@/components/dashboard/CareFeed';
 import TodoCard from '@/components/dashboard/TodoCard';
 import ClaimProfilePrompt from '@/components/family/ClaimProfilePrompt';
@@ -37,8 +35,6 @@ export default function Dashboard() {
     queryFn: () => base44.entities.CareTask.list('-created_date', 200),
   });
 
-  const { data: allMessages = [] } = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages });
-  const messages = allMessages.filter((m) => !m.parent_id).slice(0, 10);
 
 
   const todayAppts = expandAppointments(appointments, new Date(), new Date());
@@ -64,10 +60,8 @@ export default function Dashboard() {
         <CareFeed members={members} scope="today" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FamilyOverview members={members} />
-        <RecentActivity messages={messages} journalEntries={[]} />
-      </div>
+      {/* Family members live on the Family page (Anna: "there's already a whole page for that"). */}
+      <ActivityFeed members={members} />
 
       {/* Joined without their profile's own invite? Let them say which is theirs. */}
       <ClaimProfilePrompt />

@@ -84,7 +84,7 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl">{editing ? `${def.icon} ${def.label}` : `Log for ${member?.name?.split(' ')[0] || ''}`}</DialogTitle>
           <DialogDescription className="sr-only">Care log entry</DialogDescription>

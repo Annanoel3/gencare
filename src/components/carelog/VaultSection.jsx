@@ -350,7 +350,7 @@ function ItemDialog({ open, onOpenChange, vault, item, people, onSaved }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2"><Lock className="w-4 h-4 text-primary" /> {editing ? 'Legal & financial' : 'Add to the locked folder'}</DialogTitle>
           <DialogDescription className="sr-only">Legal and financial entry</DialogDescription>

@@ -152,7 +152,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-lg max-h-[92vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2"><Smartphone className="w-5 h-5" /> Phone calendar</DialogTitle>
           <DialogDescription>Bring your phone's calendars into GenCare, and put the family's events on your phone — only the ones you want.</DialogDescription>

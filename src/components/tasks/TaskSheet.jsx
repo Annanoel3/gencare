@@ -150,7 +150,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[92vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl">{isNew ? (isChecklist ? 'New checklist' : 'New task') : (isChecklist ? 'Checklist' : 'Task')}</DialogTitle>
           <DialogDescription className="sr-only">Edit the task</DialogDescription>
