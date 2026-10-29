@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2 } from 'lucide-react';
-import { useFamily } from '@/lib/family';
+import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat } from 'lucide-react';
+import { useFamily, orderMembers } from '@/lib/family';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -13,18 +13,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { isRecordable, categoryOf, CATEGORIES } from './EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import { EVENT_REPEATS, repeatLabel, parseRRule } from '@/lib/occurrences';
-import MoreOptions from '@/components/shared/MoreOptions';
+import AddressField from '@/components/shared/AddressField';
 
 export { CATEGORIES };
-const REMINDERS = [
-  { v: -1, label: 'No reminder' },
-  { v: 0, label: 'At the time' },
-  { v: 15, label: '15 minutes before' },
-  { v: 30, label: '30 minutes before' },
-  { v: 60, label: '1 hour before' },
-  { v: 120, label: '2 hours before' },
-  { v: 1440, label: 'The day before' },
-];
 
 const NONE = '__none__';
 
@@ -57,6 +48,7 @@ const saveKey = (d) => JSON.stringify({ ...d, last_changed_at: undefined });
 export default function EventDialog({ open, onClose, appt, defaultDate, members, onSave, onAutoSave, onDelete, saving, sharingDefault = '' }) {
   const [form, setForm] = useState(blank(defaultDate, sharingDefault));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showRepeat, setShowRepeat] = useState(false);
   // Which of sharing / who it's for / category the person picked themselves.
   const touched = useRef(new Set());
   const lastSaved = useRef('');
@@ -71,6 +63,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   useEffect(() => {
     if (!open) return;
     setConfirmDelete(false);
+    setShowRepeat(false);
     touched.current = new Set();
     setSaveState('');
     clearTimeout(timer.current);
@@ -98,8 +91,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const pick = (field, fn) => { touched.current.add(field); fn(); };
-  // The folded "More options" line says where the event will go.
-  const shareSummary = form.visibility === 'auto' ? 'GenCare decides who sees it' : form.visibility === 'private' ? 'Only you' : form.visibility === 'some' ? 'Some of the family' : 'Whole family';
+  const repeating = !!form.recurrence && form.recurrence !== '__none__';
 
   // The fields to save, from the form.
   function buildData(f) {
@@ -108,7 +100,9 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
       title: f.title.trim(),
       date: f.date,
       time: f.all_day ? '' : f.time,
-      end_time: f.all_day ? '' : f.end_time,
+      // No end-time field any more (Anna: nobody uses it); one from the phone
+      // stays while it's still after the start.
+      end_time: f.all_day || !f.end_time || (f.time && f.end_time <= f.time) ? '' : f.end_time,
       all_day: !!f.all_day,
       category: f.category,
       family_member_id: member ? member.id : '',
@@ -177,22 +171,40 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
         <div className="space-y-4 mt-2">
           {fromPhone && (
             <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">
-              This came from {appt.created_by_name ? `${appt.created_by_name}'s` : 'a'} phone calendar. Who it's for, the category and sharing are kept here; the title and time follow the phone.
+              From {appt.created_by_name ? `${appt.created_by_name.split(' ')[0]}'s` : 'a'} phone calendar. Changes made on the phone show up here; who it's for, who sees it, and a place or notes added here stay.
             </p>
           )}
           <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Mom's speech therapy" className="mt-1" autoFocus={!editing} /></div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label>Day</Label><Input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} className="mt-1" /></div>
-            {!form.all_day ? (
-              <div><Label>Time</Label><Input type="time" value={form.time} onChange={(e) => set('time', e.target.value)} className="mt-1" /></div>
-            ) : <span />}
+          <div>
+            <Label>When</Label>
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <Input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} aria-label="Day" />
+              {!form.all_day ? <Input type="time" value={form.time} onChange={(e) => set('time', e.target.value)} aria-label="Time" /> : <span />}
+            </div>
+            <div className="flex items-center justify-between gap-3 mt-2">
+              <label className="flex items-center gap-2 text-sm"><Switch checked={!!form.all_day} onCheckedChange={(v) => set('all_day', v)} /> All day</label>
+              {fromPhone ? (appt.recurrence ? <span className="text-xs text-muted-foreground flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> {repeatLabel(appt.recurrence)}</span> : null)
+                : repeating || showRepeat ? (
+                  <div className="flex items-center gap-1">
+                    <Repeat className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Select value={form.recurrence || '__none__'} onValueChange={(v) => { set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); }}>
+                      <SelectTrigger className="h-8 text-xs w-auto gap-1 border-none shadow-none px-1"><SelectValue placeholder="Doesn't repeat" /></SelectTrigger>
+                      <SelectContent>{EVENT_REPEATS.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                ) : <button type="button" onClick={() => setShowRepeat(true)} className="text-xs text-primary flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeat</button>}
+            </div>
           </div>
-          <label className="flex items-center gap-2 text-sm -mt-1"><Switch checked={!!form.all_day} onCheckedChange={(v) => set('all_day', v)} /> All day</label>
 
-          <MoreOptions defaultOpen={editing} hint={`${shareSummary} · who it's for, end time, repeats, reminder, place, notes`}>
-          <div className="space-y-2">
-            <p className="text-sm font-medium flex items-center gap-2"><Users className="w-4 h-4" /> Share with</p>
+          <div>
+            <Label>Who</Label>
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              {orderMembers(members, me?.id).map((m) => (
+                <Chip key={m.id} on={form.family_member_id === m.id} onClick={() => pick('member', () => set('family_member_id', form.family_member_id === m.id ? NONE : m.id))}>{(m.name || '').split(' ')[0]}</Chip>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 mb-1.5 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> Who sees it</p>
             <div className="flex flex-wrap gap-2">
               {!editing && sharingDefault === 'auto' && (
                 <Chip on={form.visibility === 'auto'} onClick={() => set('visibility', 'auto')}><Sparkles className="w-3 h-3" /> GenCare decides</Chip>
@@ -207,71 +219,14 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                     const cur = form.visibility === 'some' ? (form.shared_with || []) : [];
                     const next = cur.includes(u.id) ? cur.filter((x) => x !== u.id) : [...cur, u.id];
                     setForm((f) => ({ ...f, visibility: next.length ? 'some' : 'private', shared_with: next }));
-                  }}>{(u.full_name || u.email || '?').split(' ')[0]}</Chip>
+                  }}>{(u.display_name || u.full_name || u.email || '?').split(' ')[0]}</Chip>
                 );
               })}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {form.visibility === 'auto' ? 'When you add it, GenCare shares appointments and family plans with everyone and keeps anything personal to you.'
-                : form.visibility === 'private' ? 'Nobody else sees it.'
-                : form.visibility === 'some' ? 'Only the people ticked see it, get told about it, and can have it on their phone calendar.'
-                : 'Everyone in the family sees it, gets told about it, and can have it on their phone calendar.'}
-            </p>
           </div>
 
-            {!form.all_day && (
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label>Ends</Label><Input type="time" value={form.end_time} onChange={(e) => set('end_time', e.target.value)} className="mt-1" /></div>
-                <div>
-                  <Label>Reminder</Label>
-                  <Select value={String(form.reminder_minutes)} onValueChange={(v) => set('reminder_minutes', Number(v))}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>{REMINDERS.map((r) => <SelectItem key={r.v} value={String(r.v)}>{r.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Who it's for</Label>
-                <Select value={form.family_member_id} onValueChange={(v) => pick('member', () => set('family_member_id', v))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Nobody in particular</SelectItem>
-                    {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select value={form.category} onValueChange={(v) => pick('category', () => set('category', v))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Repeats</Label>
-                {fromPhone ? (
-                  <p className="mt-2 text-sm text-muted-foreground">{repeatLabel(appt.recurrence) || 'No'}{appt.recurrence ? ' (set on the phone)' : ''}</p>
-                ) : (
-                  <Select value={form.recurrence} onValueChange={(v) => set('recurrence', v)}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Does not repeat" /></SelectTrigger>
-                    <SelectContent>{EVENT_REPEATS.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                )}
-              </div>
-              {!fromPhone && form.recurrence && form.recurrence !== '__none__' ? (
-                <div><Label>Until <span className="text-muted-foreground font-normal">(optional)</span></Label><Input type="date" value={form.until} min={form.date} onChange={(e) => set('until', e.target.value)} className="mt-1" /></div>
-              ) : (
-                <div><Label>Last day <span className="text-muted-foreground font-normal">(trips)</span></Label><Input type="date" value={form.end_date} min={form.date} onChange={(e) => set('end_date', e.target.value)} className="mt-1" /></div>
-              )}
-            </div>
-            <div><Label>Where</Label><Input value={form.location} onChange={(e) => set('location', e.target.value)} className="mt-1" /></div>
-            <div><Label>With</Label><Input value={form.doctor_name} onChange={(e) => set('doctor_name', e.target.value)} placeholder="Who it's with (optional)" className="mt-1" /></div>
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" /></div>
-          </MoreOptions>
+          <div><Label>Where</Label><AddressField value={form.location} onChange={(v) => set('location', v)} className="mt-1" /></div>
+          <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={form.notes && form.notes.length > 120 ? 5 : 2} /></div>
 
           {editing && canRecord && isRecordable(form) && (
             <Link to={`/notes?appointment=${appt.id}`} className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/30 dark:border-red-800 p-3 text-sm font-medium text-red-700 dark:text-red-200">

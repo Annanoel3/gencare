@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import AddressLink from '@/components/shared/AddressLink';
 import { Lock, Smartphone, Mic, Repeat, Users } from 'lucide-react';
 import { getMemberColorByMemberId, getEventColorClass } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
@@ -69,7 +70,7 @@ export default function EventRow({ appt, members, onClick }) {
             </span>
           ) : null}
           {appt.category && categoryOf(appt) !== 'Other' && <span className="text-xs text-muted-foreground">{categoryOf(appt)}</span>}
-          {appt.location && <span className="text-xs text-muted-foreground">📍 {appt.location}</span>}
+          {appt.location && <AddressLink address={appt.location} className="inline-flex items-center gap-1 text-xs text-primary max-w-full min-w-0" />}
           {canRecord && isRecordable(appt) && (
             <Link
               to={`/notes?appointment=${appt.occurrence_of || appt.id}`}

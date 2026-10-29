@@ -4,12 +4,12 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
-import { exportSoon } from '@/lib/calendarSync';
+import { exportSoon, syncNow, syncOnOpen } from '@/lib/calendarSync';
 import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isValid, startOfMonth, endOfMonth, min as minDate, max as maxDate } from 'date-fns';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/events';
 import SharingChoiceDialog from '@/components/calendar/SharingChoice';
-import { CalendarDays, Plus, Smartphone, Sparkles, Loader2 } from 'lucide-react';
+import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import MonthView from '@/components/calendar/MonthView';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
@@ -205,6 +205,19 @@ export default function CalendarPage() {
 
   const onSave = (data, left) => { if (!editing?.id) createMutation.mutate({ data, left }); };
 
+  // Sync: on its own when the page opens (if it's been a few minutes), and now with the button.
+  const [syncing, setSyncing] = useState(false);
+  useEffect(() => { if (me) syncOnOpen(me).catch(() => {}); }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sync = async () => {
+    setSyncing(true);
+    try {
+      await syncNow(me);
+      toast({ title: 'Calendar is up to date' });
+    } catch (e) {
+      toast({ title: e?.code === 'calendar_permission' ? 'GenCare needs calendar access to sync' : "Couldn't sync right now", description: e?.code === 'calendar_permission' ? 'Turn it back on under Phone calendar.' : e?.message, variant: 'destructive' });
+    } finally { setSyncing(false); }
+  };
+
   return (
     <div className="pb-24 lg:pb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -222,6 +235,7 @@ export default function CalendarPage() {
             </Button>
           )}
           <Button variant="outline" onClick={() => setPhoneOpen(true)} className="rounded-xl gap-2"><Smartphone className="w-4 h-4" /> Phone calendar</Button>
+          <Button variant="outline" onClick={sync} disabled={syncing} className="rounded-xl gap-2" aria-label="Sync with your phone calendar"><RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> Sync</Button>
           <Button onClick={openNew} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Event</Button>
         </div>
       </div>

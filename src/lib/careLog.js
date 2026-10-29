@@ -198,8 +198,11 @@ export async function deleteLog(id) { return base44.entities.CareLog.delete(id);
 export function summarize(e) {
   const def = typeDef(e.band, e.entry_type);
   const bits = [];
-  if (e.sub_type) bits.push(pretty(e.sub_type));
-  if (e.title) bits.push(e.title);
+  // "Lunch", "Walk", "Took her to the post office" read better as the line
+  // itself than as "Care log · Meal · Lunch".
+  const titled = !!e.title && ['care_log', 'activity', 'pet_feeding', 'pet_walk', 'pet_grooming', 'pet_vet'].includes(e.entry_type);
+  if (e.sub_type && !(titled && ['meal', 'hygiene'].includes(e.sub_type))) bits.push(pretty(e.sub_type));
+  if (e.title && !titled) bits.push(e.title);
   if (e.mood) bits.push(`${moodEmoji(e.mood)} ${pretty(e.mood)}`);
   if (typeof e.amount === 'number') bits.push(e.unit === '$' ? `$${e.amount.toFixed(2)}` : `${e.amount}${e.unit ? ` ${e.unit}` : ''}`);
   if (typeof e.minutes === 'number') bits.push(`${e.minutes} min`);
@@ -213,7 +216,8 @@ export function summarize(e) {
   if (e.status && e.status !== 'pending') bits.push(pretty(e.status));
   if (e.due_date) bits.push(`due ${format(parseISO(e.due_date), 'MMM d')}`);
   else if (e.date) bits.push(format(parseISO(e.date), 'MMM d'));
-  return { icon: def.icon, label: def.label, detail: bits.join(' · ') };
+  const q = quickFor(e);
+  return { icon: q?.icon || def.icon, label: titled ? e.title : def.label, detail: bits.join(' · ') };
 }
 
 /** Today's numbers for one person, by band. */
@@ -372,4 +376,13 @@ export function quickRow(q, member, me) {
     logged_by_name: me?.display_name || me?.full_name || '',
     ...q.row,
   };
+}
+
+/** The one-tap button an entry came from (or matches), for its icon. */
+function quickFor(e) {
+  for (const list of [QUICK[e?.band] || [], ...Object.values(QUICK)]) {
+    const q = list.find((x) => !x.mood && x.key !== 'note' && matchesQuick(x, e));
+    if (q) return q;
+  }
+  return null;
 }

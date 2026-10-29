@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import AddressLink from '@/components/shared/AddressLink';
 import { format, parseISO, isValid } from 'date-fns';
 import { CalendarDays, Lock, Users, Repeat, Mic } from 'lucide-react';
 import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass } from '@/utils/memberColors';
@@ -59,7 +60,7 @@ export default function EventCard({ appt, members = [], showDay = false }) {
             {appt.recurrence && <span className="inline-flex items-center gap-0.5"><Repeat className="w-3 h-3" />{repeatLabel(appt.recurrence)}</span>}
             {appt.visibility === 'private' && <span className="inline-flex items-center gap-0.5"><Lock className="w-3 h-3" />Only you</span>}
             {appt.visibility === 'some' && <span className="inline-flex items-center gap-0.5"><Users className="w-3 h-3" />Shared</span>}
-            {appt.location && <span className="truncate max-w-[12rem]">📍 {appt.location}</span>}
+            {appt.location && <AddressLink address={appt.location} className="inline-flex items-center gap-1 text-primary max-w-[14rem] min-w-0" />}
           </div>
         </div>
         {canRecord && isRecordable(appt) && (

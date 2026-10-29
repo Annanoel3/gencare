@@ -18,7 +18,7 @@ import { queryClientInstance } from '@/lib/query-client';
 
 const IMPORT_GATE_KEY = 'gencare_phone_import_at';
 const EXPORT_GATE_KEY = 'gencare_phone_export_at';
-const IMPORT_GATE_MS = 10 * 60000;
+const IMPORT_GATE_MS = 3 * 60000; // on open/return; the Sync button skips the wait
 const EXPORT_GATE_MS = 2 * 60000;
 const DEVICE_DAYS = 365;
 
@@ -239,4 +239,19 @@ export async function syncOnOpen(user) {
 export function exportSoon() {
   if (!hasPhoneCalendars()) return;
   setTimeout(() => { runExport({ force: true }).catch(() => null); }, 1500);
+}
+
+// The Calendar page's Sync button: read the phone calendars and send the
+// family's events to the phone right now, then show what changed.
+export async function syncNow(user) {
+  let imported = null;
+  if (hasPhoneCalendars() && user) {
+    handPhoneSettings(user);
+    const ids = Array.isArray(user.device_calendar_ids) ? user.device_calendar_ids : [];
+    if (ids.length) imported = await runImport(ids, { force: true });
+    if (user.export_enabled && user.export_calendar_id) await runExport({ force: true }).catch(() => null);
+  }
+  refreshEvents();
+  track('action', 'calendar:sync button', imported ? 'phone read' : 'refresh only');
+  return imported;
 }
