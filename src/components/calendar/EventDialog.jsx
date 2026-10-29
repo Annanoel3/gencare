@@ -87,7 +87,10 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     } else {
       setForm(blank(defaultDate, sharingDefault));
     }
-  }, [open, appt, defaultDate]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Keyed on the event's id and the day, not the objects: the page behind
+    // re-renders after every autosave, and resetting the form then wiped what
+    // was being typed (Anna, Oct 29 2026: the place field cleared itself).
+  }, [open, appt?.id, defaultDate ? format(defaultDate, 'yyyy-MM-dd') : '']); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const pick = (field, fn) => { touched.current.add(field); fn(); };

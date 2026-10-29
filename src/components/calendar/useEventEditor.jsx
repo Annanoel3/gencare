@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
@@ -21,6 +21,7 @@ export default function useEventEditor(members = []) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const session = useRef(null);
+  const today = useMemo(() => new Date(), []);
 
   const notify = (action, id) => base44.functions.invoke('notifyFamily', { kind: 'appointment', action, appointment_id: id }).catch(() => {});
   const afterChange = () => { qc.invalidateQueries({ queryKey: ['appointments'] }); exportSoon(); };
@@ -68,7 +69,7 @@ export default function useEventEditor(members = []) {
       open={open}
       onClose={close}
       appt={editing}
-      defaultDate={new Date()}
+      defaultDate={today}
       members={members}
       onSave={() => {}}
       onAutoSave={autoSave}

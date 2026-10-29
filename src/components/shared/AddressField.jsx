@@ -7,6 +7,8 @@ import AddressLink from '@/components/shared/AddressLink';
 import { track } from '@/lib/activity';
 
 // Answers already fetched this session, so going back over a word is instant.
+// A suggestion is taken on touch-down (and the box keeps the keyboard), so
+// the keyboard closing can't shift the list out from under the tap.
 const cache = new Map();
 let warm = null; // { zip, own } once the first box was tapped
 
@@ -113,7 +115,7 @@ export default function AddressField({ value, onChange, className = '' }) {
           {busy && items.length === 0 && <li className="px-3 py-2.5 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Searching…</li>}
           {items.map((s) => (
             <li key={s}>
-              <button type="button" onClick={() => pick(s)} className="w-full text-left px-3 py-2.5 text-sm flex items-start gap-2 hover:bg-muted">
+              <button type="button" onPointerDown={(e) => { e.preventDefault(); pick(s); }} onClick={() => pick(s)} className="w-full text-left px-3 py-2.5 text-sm flex items-start gap-2 hover:bg-muted">
                 <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" /><span>{s}</span>
               </button>
             </li>
