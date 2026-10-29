@@ -17,7 +17,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 
 type Center = { lat: number; lng: number; state: string };
 const centers = new Map<string, Center | null>(); // ZIP -> center and state, kept while this copy runs
-const familyZip = new Map<string, { zip: string; at: number }>();
+const familyZip = new Map<string, { zip: string; from: string; at: number }>();
 
 async function centerOf(zip: string, key: string) {
   if (centers.has(zip)) return centers.get(zip);
@@ -38,19 +38,29 @@ async function centerOf(zip: string, key: string) {
 }
 
 const isZip = (z: unknown) => /^\d{5}$/.test(String(z || ''));
+// How far from home counts as near: about 50 miles, so the next town over
+// (a hospital, a parent's house) still comes up as local.
+const NEAR_METERS = 80000;
 
 async function homeZip(base44: any, user: any) {
-  if (isZip(user.help_zip)) return { zip: String(user.help_zip), own: true };
-  if (!user.family_id) return { zip: '', own: false };
+  if (isZip(user.help_zip)) return { zip: String(user.help_zip), own: true, from: '' };
+  if (!user.family_id) return { zip: '', own: false, from: '' };
   const hit = familyZip.get(user.family_id);
-  if (hit && Date.now() - hit.at < 30 * 60000) return { zip: hit.zip, own: false };
+  if (hit && Date.now() - hit.at < 30 * 60000) return { zip: hit.zip, own: false, from: hit.from };
   let zip = '';
+  let from = '';
   try {
     const mates = (await base44.asServiceRole.entities.User.filter({ family_id: user.family_id })) || [];
-    zip = String(mates.find((m: any) => isZip(m.help_zip))?.help_zip || '');
+    const mate = mates.find((m: any) => m.id !== user.id && isZip(m.help_zip));
+    zip = String(mate?.help_zip || '');
+    // Whose it is (first name), so the welcome chat can offer "same as Sam's".
+    // (An email sign-up's full_name is just the start of the email, so only a
+    // shown name, or a full name with a space in it, counts.)
+    const shown = String(mate?.display_name || '').trim() || (/\s/.test(String(mate?.full_name || '').trim()) ? String(mate.full_name).trim() : '');
+    from = shown.split(/\s+/)[0] || '';
   } catch (_e) { zip = ''; }
-  familyZip.set(user.family_id, { zip, at: Date.now() });
-  return { zip, own: false };
+  familyZip.set(user.family_id, { zip, from, at: Date.now() });
+  return { zip, own: false, from };
 }
 
 export default async function (req: Request) {
@@ -66,7 +76,7 @@ export default async function (req: Request) {
 
     if (payload?.warm) {
       const c = home.zip && apiKey ? await centerOf(home.zip, apiKey) : null;
-      return Response.json({ ok: true, zip: home.zip, own: home.own, state: c?.state || '' });
+      return Response.json({ ok: true, zip: home.zip, own: home.own, from: home.from || '', state: c?.state || '' });
     }
 
     const q = String(payload?.input || '').trim().slice(0, 200);
@@ -76,23 +86,40 @@ export default async function (req: Request) {
       return Response.json({ suggestions: [], reason: 'no_key', zip: home.zip });
     }
 
-    const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
-    url.searchParams.set('input', q);
-    url.searchParams.set('key', apiKey);
-    url.searchParams.set('components', 'country:us');
     const center = home.zip ? await centerOf(home.zip, apiKey) : null;
-    if (center) {
-      url.searchParams.set('location', `${center.lat},${center.lng}`);
-      url.searchParams.set('radius', '40000'); // about 25 miles; nearer places rank first, farther ones still show
-    }
+    const search = async (near: boolean) => {
+      const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
+      url.searchParams.set('input', q);
+      url.searchParams.set('key', apiKey);
+      url.searchParams.set('components', 'country:us');
+      if (center) {
+        url.searchParams.set('location', `${center.lat},${center.lng}`);
+        url.searchParams.set('radius', String(NEAR_METERS));
+        // Only places inside the circle. Without this Google treats home as a
+        // hint and still mixes in other states (Anna, Oct 29 2026).
+        if (near) url.searchParams.set('strictbounds', 'true');
+      }
+      const data = await (await fetch(url.toString())).json();
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        console.error('[PLACES] autocomplete error:', data.status, data.error_message);
+        throw new Error(data.error_message || data.status);
+      }
+      return (data.predictions || []).map((p: any) => p.description).filter(Boolean) as string[];
+    };
 
-    const data = await (await fetch(url.toString())).json();
-    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      console.error('[PLACES] autocomplete error:', data.status, data.error_message);
-      return Response.json({ suggestions: [], error: data.error_message || data.status, zip: home.zip });
+    // Near home first. Only when that finds almost nothing (a trip, an
+    // address out of town) does the wider search fill in, after the near ones.
+    let suggestions: string[] = [];
+    try {
+      suggestions = await search(!!center);
+      if (center && suggestions.length < 2) {
+        const wide = await search(false);
+        suggestions = [...suggestions, ...wide.filter((s) => !suggestions.includes(s))];
+      }
+    } catch (e) {
+      return Response.json({ suggestions, error: (e as Error).message, zip: home.zip });
     }
-    const suggestions = (data.predictions || []).map((p: any) => p.description).filter(Boolean).slice(0, 5);
-    return Response.json({ suggestions, zip: home.zip });
+    return Response.json({ suggestions: suggestions.slice(0, 5), zip: home.zip });
   } catch (error) {
     return Response.json({ suggestions: [], error: (error as Error).message }, { status: 500 });
   }

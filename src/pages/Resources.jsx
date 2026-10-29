@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { base44 } from '@/api/base44Client';
 import { stateName } from '@/lib/usStates';
+import { homeArea, onHomeZip } from '@/lib/homeArea';
 import { LifeBuoy, Phone, ExternalLink, ChevronDown } from 'lucide-react';
 import { RESOURCE_GROUPS, RESOURCES_CHECKED } from '@/lib/resources';
 import SupportDialog from '@/components/shared/SupportDialog';
@@ -19,16 +19,16 @@ const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, '')}`;
 
 // The home ZIP GenCare already has (the person's, or someone else's in the
 // family) and its state, so a resource that would say "pick your state" or
-// "enter your ZIP" opens on theirs instead (Anna, Oct 29 2026). Asked once
-// per app session.
-let homeCache = null;
+// "enter your ZIP" opens on theirs instead (Anna, Oct 29 2026). Checked once
+// per app session, and again when they save a new ZIP (lib/homeArea).
 function useHome() {
-  const [home, setHome] = useState(homeCache);
+  const [home, setHome] = useState(null);
   useEffect(() => {
-    if (homeCache) return;
-    base44.functions.invoke('placesAutocomplete', { warm: true })
-      .then((r) => { const d = r?.data || r; homeCache = { zip: d?.zip || '', state: d?.state || '' }; setHome(homeCache); })
-      .catch(() => {});
+    let live = true;
+    const load = () => homeArea().then((h) => { if (live && h) setHome(h); });
+    load();
+    const off = onHomeZip(load);
+    return () => { live = false; off(); };
   }, []);
   return home;
 }

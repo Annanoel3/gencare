@@ -5,12 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import AddressLink from '@/components/shared/AddressLink';
 import { track } from '@/lib/activity';
+import { homeArea, saveHomeZip, onHomeZip } from '@/lib/homeArea';
 
 // Answers already fetched this session, so going back over a word is instant.
 // A suggestion is taken on touch-down (and the box keeps the keyboard), so
 // the keyboard closing can't shift the list out from under the tap.
 const cache = new Map();
-let warm = null; // { zip, own } once the first box was tapped
 
 const ask = (body) => base44.functions.invoke('placesAutocomplete', body).then((r) => r?.data || r);
 
@@ -18,7 +18,8 @@ const ask = (body) => base44.functions.invoke('placesAutocomplete', body).then((
  * "Where" with place search (functions/placesAutocomplete, like ADHDone):
  * type "HEB Slaughter" and pick the full address, or keep what you typed.
  * Results lean toward the person's home ZIP (the same one Resources uses);
- * with no ZIP in the family yet, it asks once, right here. Once there's an
+ * with no ZIP in the family yet, it asks right here (the welcome chat asks
+ * first; lib/homeArea). Once there's an
  * address, the button beside it opens it in maps.
  */
 export default function AddressField({ value, onChange, className = '' }) {
@@ -26,7 +27,8 @@ export default function AddressField({ value, onChange, className = '' }) {
   const [typing, setTyping] = useState(false);
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [home, setHome] = useState(warm);
+  const [home, setHome] = useState(null);
+  const [askZip, setAskZip] = useState(false);
   const [zip, setZip] = useState('');
   const [savingZip, setSavingZip] = useState(false);
   const box = useRef(null);
@@ -36,8 +38,11 @@ export default function AddressField({ value, onChange, className = '' }) {
   // so the first suggestions come back without the start-up wait.
   const onFocus = () => {
     setFocused(true); setTyping(true);
-    if (!warm) ask({ warm: true }).then((d) => { warm = { zip: d?.zip || '', own: !!d?.own }; setHome(warm); }).catch(() => {});
+    homeArea().then((h) => { if (h) setHome(h); });
   };
+
+  // A ZIP saved anywhere else (the welcome chat) re-sorts results here too.
+  useEffect(() => onHomeZip(() => { cache.clear(); homeArea().then((h) => { if (h) setHome(h); }); }), []);
 
   useEffect(() => {
     if (!typing || q.length < 2) { setItems([]); setBusy(false); return undefined; }
@@ -72,8 +77,8 @@ export default function AddressField({ value, onChange, className = '' }) {
     if (z.length !== 5) return;
     setSavingZip(true);
     try {
-      await base44.auth.updateMe({ help_zip: z });
-      warm = { zip: z, own: true }; setHome(warm); cache.clear();
+      await saveHomeZip(z);
+      setAskZip(false); setZip('');
       track('action', 'home ZIP added from event');
       if (q.length >= 2) { setTyping(false); setTimeout(() => setTyping(true), 0); }
     } catch (_e) { /* try again later */ }
@@ -81,7 +86,7 @@ export default function AddressField({ value, onChange, className = '' }) {
   };
 
   const showList = typing && q.length >= 2 && (busy || items.length > 0);
-  const needZip = focused && home && !home.zip && !showList;
+  const needZip = focused && home && (!home.zip || askZip) && !showList;
 
   return (
     <div ref={box} className={`relative ${className}`}>
@@ -120,9 +125,9 @@ export default function AddressField({ value, onChange, className = '' }) {
               </button>
             </li>
           ))}
-          {home && !home.zip && items.length > 0 && (
+          {home && !home.own && items.length > 0 && (
             <li className="border-t border-border">
-              <button type="button" onClick={() => setTyping(false)} className="w-full text-left px-3 py-2.5 text-xs text-primary flex items-center gap-2">
+              <button type="button" onClick={() => { setTyping(false); setAskZip(true); }} className="w-full text-left px-3 py-2.5 text-xs text-primary flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5" /> Not near you? Add your home ZIP
               </button>
             </li>
