@@ -40,10 +40,6 @@ export default function Dashboard() {
   const { data: allMessages = [] } = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages });
   const messages = allMessages.filter((m) => !m.parent_id).slice(0, 10);
 
-  const { data: journalEntries = [] } = useQuery({
-    queryKey: ['careJournal'],
-    queryFn: () => base44.entities.CareJournal.list('-created_date', 10),
-  });
 
   const todayAppts = expandAppointments(appointments, new Date(), new Date());
   const remindersToday = slotsForDay(reminders, [], todayStr()).length;
@@ -70,7 +66,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <FamilyOverview members={members} />
-        <RecentActivity messages={messages} journalEntries={journalEntries} />
+        <RecentActivity messages={messages} journalEntries={[]} />
       </div>
 
       {/* Joined without their profile's own invite? Let them say which is theirs. */}

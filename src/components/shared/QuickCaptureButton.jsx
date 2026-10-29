@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, FileText, Calendar, BellRing, MessageSquare } from 'lucide-react';
+import { Plus, X, Calendar, BellRing, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const captureOptions = [
-  { icon: FileText, label: 'Quick Note', type: 'note', color: 'bg-blue-500' },
   { icon: Calendar, label: 'Appointment', type: 'appointment', color: 'bg-purple-500' },
   { icon: BellRing, label: 'Reminder', type: 'reminder', color: 'bg-emerald-500' },
   { icon: MessageSquare, label: 'Task', type: 'task', color: 'bg-orange-500' },

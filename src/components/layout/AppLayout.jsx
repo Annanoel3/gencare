@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, BellRing, CalendarDays,
-  ClipboardList, BookOpen, MessageCircle, Menu, X,
+  ClipboardList, MessageCircle, Menu, X,
   Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,6 @@ function buildNavStructure(members, canRecord, unread = 0) {
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [
       { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
-      { path: '/journal', icon: BookOpen, label: 'Journal' },
       { path: '/notes', icon: Mic, label: canRecord ? 'Record Notes' : 'Notes' },
     ]},
     { type: 'link', path: '/wellness', icon: Heart, label: 'Wellness' },

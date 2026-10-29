@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { withFamily, useFamily, relationshipLabel } from '@/lib/family';
 import { Link } from 'react-router-dom';
-import { Users, Plus, Phone, School, QrCode, StickyNote, PawPrint } from 'lucide-react';
+import { Users, Plus, School, QrCode, StickyNote, PawPrint } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -120,12 +120,6 @@ export default function Family() {
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
-                  {member.emergency_contact_name && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="w-4 h-4" />
-                      <span className="truncate">{member.emergency_contact_name}</span>
-                    </div>
-                  )}
                   {member.school_name && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <School className="w-4 h-4" />

@@ -19,7 +19,6 @@ import FamilyMemberDetail from '@/pages/FamilyMemberDetail';
 import Reminders from '@/pages/Reminders';
 import CalendarPage from '@/pages/CalendarPage';
 import Tasks from '@/pages/Tasks';
-import Journal from '@/pages/Journal';
 import CareLogPage from '@/pages/CareLogPage';
 import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
@@ -80,7 +79,8 @@ const AuthenticatedApp = () => {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/checklists" element={<Navigate to="/tasks" replace />} />
-          <Route path="/journal" element={<Journal />} />
+          {/* Journal hidden Oct 29 2026 (page code kept in pages/Journal.jsx). */}
+          <Route path="/journal" element={<Navigate to="/" replace />} />
           <Route path="/care-log" element={<CareLogPage />} />
           {/* The six age pages became one per-person Care Log. */}
           {['/baby-care', '/toddler-care', '/school-age-care', '/preteen-care', '/teen-management', '/senior-care'].map((p) => (

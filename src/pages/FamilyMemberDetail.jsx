@@ -3,7 +3,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { ArrowLeft, BellRing, Phone, School, FileText, Edit, Save, X, LayoutDashboard, StickyNote } from 'lucide-react';
+import { ArrowLeft, BellRing, School, Edit, Save, X, LayoutDashboard, StickyNote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,7 @@ import { frequencyLabel, fmtClock } from '@/lib/reminders';
 import InviteModal from '@/components/family/InviteModal';
 import { useFamily, relationshipLabel } from '@/lib/family';
 
-const TAB_LABELS = { overview: 'Overview', info: 'Info', contacts: 'Contacts', school: 'School', reminders: 'Reminders', journal: 'Journal' };
+const TAB_LABELS = { overview: 'Overview', info: 'Info', school: 'School', reminders: 'Reminders' };
 
 export default function FamilyMemberDetail() {
   const { id } = useParams();
@@ -42,10 +42,6 @@ export default function FamilyMemberDetail() {
     queryFn: () => base44.entities.Medication.filter({ family_member_id: id }),
   });
 
-  const { data: journal = [] } = useQuery({
-    queryKey: ['memberJournal', id],
-    queryFn: () => base44.entities.CareJournal.filter({ family_member_id: id }, '-created_date', 20),
-  });
 
   const { data: members = [] } = useQuery({
     queryKey: ['familyMembers'],
@@ -95,7 +91,9 @@ export default function FamilyMemberDetail() {
   const years = member.birthdate ? (Date.now() - Date.parse(member.birthdate)) / (365.25 * 86400e3) : null;
   const showSchool = !pet && (!!(member.school_name || member.school_phone || member.school_grade || member.school_teacher)
     || (years !== null && !Number.isNaN(years) ? years < 23 : /^(son|daughter|foster child|grandchild)$/i.test(String(member.relationship || ''))));
-  const tabs = ['overview', 'info', 'contacts', showSchool && 'school', 'reminders', 'journal'].filter(Boolean);
+  // Contacts and Journal were hidden Oct 29 2026 (family members are the
+  // contacts; Care Log notes and Wellness cover the journal).
+  const tabs = ['overview', 'info', showSchool && 'school', 'reminders'].filter(Boolean);
 
   return (
     <div className="pb-24 lg:pb-8">
@@ -148,7 +146,7 @@ export default function FamilyMemberDetail() {
       <Tabs defaultValue="overview" className="space-y-4">
         {/* Two rows of three on a phone, so every tab gets room and its whole
             word sits inside the highlight. */}
-        <TabsList className="bg-muted rounded-xl w-full h-auto grid grid-cols-3 sm:grid-cols-6 gap-1 p-1">
+        <TabsList className={`bg-muted rounded-xl w-full h-auto grid ${tabs.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'} gap-1 p-1`}>
           {tabs.map((t) => (
             <TabsTrigger key={t} value={t} className="rounded-lg text-sm py-1.5 px-2 w-full">{TAB_LABELS[t]}</TabsTrigger>
           ))}
@@ -181,28 +179,6 @@ export default function FamilyMemberDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="contacts">
-          <Card className="border-border/50">
-            <CardHeader><CardTitle className="font-heading flex items-center gap-2"><Phone className="w-5 h-5 text-blue-500" /> Contacts</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {editing ? (
-                <>
-                  <div><Label>Emergency Contact</Label><Input value={form.emergency_contact_name} onChange={e => setForm({...form, emergency_contact_name: e.target.value})} className="mt-1" /></div>
-                  <div><Label>Emergency Phone</Label><Input value={form.emergency_contact_phone} onChange={e => setForm({...form, emergency_contact_phone: e.target.value})} className="mt-1" /></div>
-                  <div><Label>Another Contact</Label><Input value={form.other_contact_name} onChange={e => setForm({...form, other_contact_name: e.target.value})} placeholder="e.g. neighbor, coach, babysitter" className="mt-1" /></div>
-                  <div><Label>Their Phone</Label><Input value={form.other_contact_phone} onChange={e => setForm({...form, other_contact_phone: e.target.value})} className="mt-1" /></div>
-                </>
-              ) : (
-                <>
-                  <InfoRow label="Emergency Contact" value={member.emergency_contact_name || 'Not set'} />
-                  <InfoRow label="Emergency Phone" value={member.emergency_contact_phone || 'Not set'} action={<PhoneActions number={member.emergency_contact_phone} name={member.emergency_contact_name} />} />
-                  <InfoRow label="Another Contact" value={member.other_contact_name || 'Not set'} />
-                  <InfoRow label="Their Phone" value={member.other_contact_phone || 'Not set'} action={<PhoneActions number={member.other_contact_phone} name={member.other_contact_name} />} />
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {showSchool && <TabsContent value="school">
           <Card className="border-border/50">
@@ -252,33 +228,6 @@ export default function FamilyMemberDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="journal">
-          <Card className="border-border/50">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="font-heading flex items-center gap-2"><FileText className="w-5 h-5 text-amber-500" /> Care Journal</CardTitle>
-                <div className="flex items-center gap-3">
-                  <Link to={`/journal?for=${id}&new=1`} className="text-sm text-primary hover:underline">Add entry</Link>
-                  <Link to={`/journal?for=${id}`} className="text-sm text-primary hover:underline">View all</Link>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {journal.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-4 text-center">No journal entries for {member.name}.</p>
-              ) : (
-                <div className="space-y-3">
-                  {journal.map(entry => (
-                    <div key={entry.id} className="p-3 rounded-xl bg-muted/50">
-                      <p className="text-sm">{entry.content}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{entry.category} · {new Date((entry.entry_date ? entry.entry_date + 'T12:00:00' : entry.created_date)).toLocaleDateString()}{entry.author_name ? ` · ${entry.author_name.split(' ')[0]}` : ''}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
