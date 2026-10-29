@@ -20,7 +20,7 @@ export default function ReminderCard({ item, logs, onOpen, inactive }) {
               {isPrivate(item) && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Lock className="w-3 h-3" /> Just you</span>}
               {runsOutSoon && !inactive && <Badge variant="destructive" className="text-xs gap-1"><AlertCircle className="w-3 h-3" /> {item.refill_date < todayStr() ? 'Ran out' : 'Runs out soon'}</Badge>}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">{[item.dosage, item.frequency === 'Once' && item.once_date ? (item.once_date === todayStr() ? 'Today' : format(parseISO(item.once_date), 'EEE, MMM d')) : frequencyLabel(item.frequency)].filter(Boolean).join(' · ')}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{[item.dosage, item.frequency === 'Once' && item.once_date ? `Until it's done · ${item.once_date <= todayStr() ? `since ${item.once_date === todayStr() ? 'today' : format(parseISO(item.once_date), 'EEE, MMM d')}` : `starts ${format(parseISO(item.once_date), 'EEE, MMM d')}`}` : frequencyLabel(item.frequency)].filter(Boolean).join(' · ')}</p>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
               {Array.isArray(item.times) && item.times.length ? (<><Clock className="w-3 h-3" />{item.times.map(fmtClock).join(', ')}</>) : <span>No set times</span>}
               {item.remind === false ? <BellOff className="w-3 h-3 ml-1" aria-label="Reminders off" /> : (item.times?.length ? <Bell className="w-3 h-3 ml-1" aria-label="Reminders on" /> : null)}

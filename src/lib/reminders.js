@@ -18,7 +18,7 @@ export const listReminders = () => base44.entities.Medication.list('-created_dat
 
 export const FREQUENCIES = ['Once', 'Once daily', 'Twice daily', 'Three times daily', 'Four times daily', 'Weekly', 'Bi-weekly', 'Monthly', 'As needed'];
 export const FREQUENCY_LABELS = {
-  Once: 'Just once', 'Once daily': 'Once a day', 'Twice daily': 'Twice a day', 'Three times daily': '3 times a day', 'Four times daily': '4 times a day',
+  Once: "Until it's done", 'Once daily': 'Once a day', 'Twice daily': 'Twice a day', 'Three times daily': '3 times a day', 'Four times daily': '4 times a day',
   Weekly: 'Weekly', 'Bi-weekly': 'Every 2 weeks', Monthly: 'Monthly', 'As needed': 'No set time',
 };
 export const frequencyLabel = (f) => FREQUENCY_LABELS[f] || f || '';
@@ -51,7 +51,8 @@ export function slotsForDay(meds, logs, day = todayStr()) {
   const out = [];
   for (const m of meds) {
     if (m.is_active === false) continue;
-    if (m.frequency === 'Once') { if (m.once_date !== day) continue; } else {
+    // "Until it's done": every day from its start day until someone marks it done.
+    if (m.frequency === 'Once') { if (!m.once_date || m.once_date > day) continue; } else {
       const days = Array.isArray(m.days_of_week) ? m.days_of_week : [];
       if (days.length && !days.includes(dow)) continue;
     }
@@ -76,8 +77,16 @@ export async function markSlot(slot, status, me) {
   const patch = status === 'taken' || status === 'skipped'
     ? { status, taken_at: new Date().toISOString(), taken_by_user_id: me?.id, taken_by_name: me?.display_name || me?.full_name }
     : { status: 'due', taken_at: null, taken_by_user_id: null, taken_by_name: null };
-  if (slot.log?.id) return base44.entities.MedicationLog.update(slot.log.id, patch);
-  return base44.entities.MedicationLog.create(withFamily({ ...base, ...patch }));
+  const saved = slot.log?.id
+    ? await base44.entities.MedicationLog.update(slot.log.id, patch)
+    : await base44.entities.MedicationLog.create(withFamily({ ...base, ...patch }));
+  // An "until it's done" reminder ends when someone marks it done (Undo brings
+  // it back). Skip only skips today; it comes back tomorrow.
+  if (slot.med.frequency === 'Once' && (status === 'taken' || status === 'due')) {
+    const active = status !== 'taken';
+    if ((slot.med.is_active !== false) !== active) await base44.entities.Medication.update(slot.med.id, { is_active: active });
+  }
+  return saved;
 }
 
 export function cleanMed(form, members, me) {
@@ -107,8 +116,8 @@ export function cleanMed(form, members, me) {
   return data;
 }
 
-/** A one-time reminder whose day has gone by (kept for its history, not listed). */
-export const isPastOnce = (m, today = todayStr()) => m?.frequency === 'Once' && !!m.once_date && m.once_date < today;
+/** An "until it's done" reminder that someone finished (kept for its history, not listed). */
+export const isFinishedOnce = (m) => m?.frequency === 'Once' && m.is_active === false;
 export const isPrivate = (m) => m?.visibility === 'private';
 
 /** Done / total over the last `days` days for one reminder. */

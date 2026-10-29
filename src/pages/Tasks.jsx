@@ -13,7 +13,7 @@ import ReminderSlotCard from '@/components/reminders/ReminderSlotCard';
 import ReminderCard from '@/components/reminders/ReminderCard';
 import useReminderEditor from '@/components/reminders/useReminderEditor';
 import { SECTIONS, sectionOf, sortTasks, isOpen, isStep } from '@/lib/tasks';
-import { slotsForDay, todayStr, isPastOnce } from '@/lib/reminders';
+import { slotsForDay, todayStr, isFinishedOnce } from '@/lib/reminders';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { startOfDay, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
@@ -117,12 +117,12 @@ export default function Tasks() {
 
   const openTask = (task) => setSheet({ open: true, task, kind: task.kind || 'task' });
   const newTask = (kind) => setSheet({ open: true, task: null, kind });
-  const paused = reminders.filter((m) => m.is_active === false && !isPastOnce(m));
+  const paused = reminders.filter((m) => m.is_active === false && !isFinishedOnce(m));
   // Active reminders by who they're for, "Everyone" last.
   const byPerson = useMemo(() => {
     const groups = new Map();
-    // One-time reminders drop off the list once their day has gone by.
-    for (const m of reminders.filter((x) => x.is_active !== false && !isPastOnce(x))) {
+    // "Until it's done" reminders drop off the list once someone finishes them.
+    for (const m of reminders.filter((x) => x.is_active !== false)) {
       const k = m.family_member_name || 'Everyone';
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(m);
@@ -190,7 +190,7 @@ export default function Tasks() {
         </TabsContent>
 
         <TabsContent value="reminders" className="space-y-3">
-          <p className="text-sm text-muted-foreground">Things that happen at set times, like pills at 8 or feeding the dog at 7, or just once, like picking up a prescription today. They show up in To do on their day. Each one goes to everyone or just you.</p>
+          <p className="text-sm text-muted-foreground">Things that happen at set times, like pills at 8 or feeding the dog at 7, or one-off jobs like ordering Thanksgiving food that keep reminding until someone marks them done. They show up in To do on their day. Each one goes to everyone or just you.</p>
           <Button onClick={() => openReminder(null)} className="rounded-xl gap-2 w-full"><BellRing className="w-4 h-4" /> New reminder</Button>
           {byPerson.map(([who, list]) => (
             <section key={who} className="space-y-2 pt-1">

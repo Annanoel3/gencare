@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { BellRing, Check, X, Loader2, Lock } from 'lucide-react';
 import { useFamily } from '@/lib/family';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
-import { markSlot, fmtClock } from '@/lib/reminders';
+import { markSlot, fmtClock, REMINDERS_KEY } from '@/lib/reminders';
 
 /**
  * One of today's reminders on the To-do page, between the day's events and
@@ -28,7 +28,10 @@ export default function ReminderSlotCard({ slot, members = [], onOpen }) {
     try { await markSlot(s, status, me); } catch (e) { toast({ title: "Couldn't save", description: e?.message, variant: 'destructive' }); }
     finally { setBusy(false); }
     queryClient.invalidateQueries({ queryKey: ['reminderLogs'] });
+    if (s.med.frequency === 'Once') queryClient.invalidateQueries({ queryKey: REMINDERS_KEY });
   };
+  // An "until it's done" reminder still waiting from an earlier day.
+  const carried = s.med.frequency === 'Once' && s.med.once_date && s.med.once_date < s.day;
 
   return (
     <div className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 ${done ? 'opacity-60' : ''}`}>
@@ -40,7 +43,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen }) {
         <button type="button" onClick={() => onOpen?.(s.med)} className="flex-1 min-w-0 text-left">
           <p className={`font-medium text-sm leading-snug ${s.status === 'taken' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</p>
           <p className={`text-xs mt-1 ${late && !done ? 'text-destructive' : 'text-muted-foreground'}`}>
-            {[s.med.family_member_name, fmtClock(s.time)].filter(Boolean).join(' · ')}
+            {[s.med.family_member_name, fmtClock(s.time), carried ? `waiting since ${format(parseISO(s.med.once_date), 'EEE, MMM d')}` : ''].filter(Boolean).join(' · ')}
             {s.status === 'taken' && s.log?.taken_by_name ? ` · done by ${s.log.taken_by_name.split(' ')[0]}` : ''}
             {s.status === 'skipped' ? ' · skipped' : ''}
             {s.status === 'missed' ? ' · not done yet' : ''}

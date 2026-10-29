@@ -16,7 +16,7 @@ import { expandAppointments } from '../../shared/recurrence.ts';
 //      today or overdue, one push per person, once a day.
 //   4. Reminders (stored in the Medication / MedicationLog tables): a push at
 //      each set time (to the whole family, or only its owner for a "Just me"
-//      one; a "Just once" reminder only on its day) (and a log row marked 'due' so the Done button has
+//      one; an "until it's done" reminder every day until someone marks it done) (and a log row marked 'due' so the Done button has
 //      something to flip), a "not done yet?" push and 'missed' status 90
 //      minutes later if nobody marked it, and a "runs out" push once a day
 //      from refill_reminder_days before the runs-out date (refill_date).
@@ -159,8 +159,10 @@ const MISSED_AFTER_MS = 90 * 60_000;
           const isPrivate = m.visibility === 'private';
           const ownerId = m.owner_user_id || m.created_by_id || '';
           const audience = isPrivate ? users.filter((u: any) => u.id === ownerId) : users;
-          // A one-time reminder happens on its day only.
-          const onToday = m.frequency === 'Once' ? m.once_date === today : (!days.length || days.includes(dow));
+          // "Until it's done" (frequency Once): every day from its start day; the
+          // app switches it off (is_active false) when someone marks it done.
+          const onToday = m.frequency === 'Once' ? !!m.once_date && m.once_date <= today : (!days.length || days.includes(dow));
+          const stillWaiting = m.frequency === 'Once' && !!m.once_date && m.once_date < today;
           if (m.remind !== false && onToday) {
             for (const t of times) {
               const slotMs = localToMs(today, t, tz);
@@ -172,7 +174,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 logsToday.push(log);
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: label, message: m.notes ? String(m.notes).split('\n')[0].slice(0, 120) : 'Tap to mark it done', data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: stillWaiting ? `Still to do: ${label}` : label, message: m.notes ? String(m.notes).split('\n')[0].slice(0, 120) : 'Tap to mark it done', data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.reminder_pushes++;
                 }
                 continue;

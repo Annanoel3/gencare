@@ -89,7 +89,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
                 <SelectContent>{FREQUENCIES.map((f) => <SelectItem key={f} value={f}>{frequencyLabel(f)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            {once && <div><Label>Day</Label><Input type="date" value={form.once_date} min={editing ? undefined : todayStr()} onChange={(e) => set('once_date', e.target.value)} className="mt-1" /></div>}
+            {once && <div><Label>Starting</Label><Input type="date" value={form.once_date} min={editing ? undefined : todayStr()} onChange={(e) => set('once_date', e.target.value)} className="mt-1" /></div>}
           </div>
 
           <div className="rounded-xl border border-border/60 p-3 space-y-3">
@@ -118,7 +118,9 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
                 ))}
               </div>
             </div>}
-            <p className="text-xs text-muted-foreground">{justMe ? 'You get a push at each time, and a "not done yet?" push 90 minutes later if you haven\'t marked it done.' : 'Everyone in the family gets a push at each time, and a "not done yet?" push 90 minutes later if nobody marks it done.'}</p>
+            <p className="text-xs text-muted-foreground">{once
+              ? `${justMe ? 'You get' : 'Everyone in the family gets'} a push at each time, every day, until ${justMe ? 'you mark' : 'someone marks'} it done, plus a "not done yet?" push 90 minutes later. Add a second time for two reminders a day.`
+              : justMe ? 'You get a push at each time, and a "not done yet?" push 90 minutes later if you haven\'t marked it done.' : 'Everyone in the family gets a push at each time, and a "not done yet?" push 90 minutes later if nobody marks it done.'}</p>
           </div>
 
           <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={2} placeholder="Anything the person doing it should know" /></div>
@@ -136,7 +138,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           </div>
           <p className="text-xs text-muted-foreground -mt-2">Optional, for things you have to restock, like dog food or printer ink.</p></>}
 
-          {editing && (
+          {editing && !once && (
             <div className="flex items-center justify-between rounded-xl bg-muted/60 p-3">
               <div>
                 <p className="text-sm font-medium">{form.is_active ? 'On' : 'Paused'}</p>
