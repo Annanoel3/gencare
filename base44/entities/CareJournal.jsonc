@@ -11,13 +11,14 @@
     "category": {
       "default": "General",
       "enum": [
-        "Symptom",
+        "Observation",
+        "Appointment",
         "Behavior",
         "Mood",
-        "Doctor Note",
-        "Observation",
         "Milestone",
-        "General"
+        "General",
+        "Symptom",
+        "Doctor Note"
       ],
       "type": "string"
     },
@@ -66,6 +67,7 @@
   "required": [
     "content"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -79,6 +81,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
