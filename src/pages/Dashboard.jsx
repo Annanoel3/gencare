@@ -11,6 +11,7 @@ import FamilyOverview from '@/components/dashboard/FamilyOverview';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import CareFeed from '@/components/dashboard/CareFeed';
 import TodoCard from '@/components/dashboard/TodoCard';
+import ClaimProfilePrompt from '@/components/family/ClaimProfilePrompt';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -71,6 +72,9 @@ export default function Dashboard() {
         <FamilyOverview members={members} />
         <RecentActivity messages={messages} journalEntries={journalEntries} />
       </div>
+
+      {/* Joined without their profile's own invite? Let them say which is theirs. */}
+      <ClaimProfilePrompt />
     </div>
   );
 }

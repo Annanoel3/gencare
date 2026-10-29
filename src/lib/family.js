@@ -98,6 +98,14 @@ export async function joinFamily(code) {
   return data;
 }
 
+// "This profile is me" (for someone who joined without their profile's invite).
+export async function claimProfile(memberId) {
+  const res = await base44.functions.invoke('family', { mode: 'claim_profile', member_id: memberId });
+  const data = res?.data || res;
+  if (!data?.ok) throw new Error(data?.error || 'Could not make that profile yours');
+  return data;
+}
+
 export async function lookupInvite(code) {
   const res = await base44.functions.invoke('family', { mode: 'lookup', code });
   return res?.data || res;

@@ -247,6 +247,18 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, invite });
     }
 
+    // "This one is me": someone who joined without their profile's own invite
+    // (a general family code, a name that didn't match) picks the profile the
+    // family made for them. Only a profile nobody uses yet.
+    if (mode === 'claim_profile') {
+      const member = (await db.FamilyMember.filter({ id: String(body.member_id || '') }))?.[0] || null;
+      if (!member || member.family_id !== family.id) return Response.json({ ok: false, error: 'That profile is not in your family' }, { status: 400 });
+      if (member.linked_user_id && member.linked_user_id !== me.id) return Response.json({ ok: false, error: `${member.name} is already someone's profile` }, { status: 400 });
+      const linked = await linkProfile(db, me, { family_member_id: member.id }, family.id);
+      if (!linked) return Response.json({ ok: false, error: 'Could not make that profile yours' }, { status: 400 });
+      return Response.json({ ok: true, member_id: linked, member_name: member.name });
+    }
+
     if (mode === 'members') {
       return Response.json({ ok: true, members: await membersOf(db, family.id), access: accessOf(family, me) });
     }
