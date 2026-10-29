@@ -1,17 +1,8 @@
 {
   "name": "FamilyMember",
   "properties": {
-    "allergies": {
-      "items": {
-        "type": "string"
-      },
-      "type": "array"
-    },
     "birthdate": {
       "format": "date",
-      "type": "string"
-    },
-    "blood_type": {
       "type": "string"
     },
     "care_notes": {
@@ -31,12 +22,6 @@
     "family_id": {
       "type": "string"
     },
-    "insurance_policy_number": {
-      "type": "string"
-    },
-    "insurance_provider": {
-      "type": "string"
-    },
     "is_active": {
       "default": true,
       "type": "boolean"
@@ -44,12 +29,6 @@
     "linked_user_id": {
       "description": "The GenCare account this family member is, if they use the app themselves",
       "type": "string"
-    },
-    "medical_conditions": {
-      "items": {
-        "type": "string"
-      },
-      "type": "array"
     },
     "name": {
       "description": "Full name",
@@ -65,15 +44,6 @@
     },
     "photo_url": {
       "description": "Profile photo URL",
-      "type": "string"
-    },
-    "preferred_pharmacy": {
-      "type": "string"
-    },
-    "primary_doctor": {
-      "type": "string"
-    },
-    "primary_doctor_phone": {
       "type": "string"
     },
     "relationship": {
