@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
 import { exportSoon } from '@/lib/calendarSync';
-import { sharingDefaultOf } from '@/lib/events';
+import { sharingDefaultOf, sortNewEvent } from '@/lib/events';
+import { withFamily } from '@/lib/family';
 import { track } from '@/lib/activity';
 import { toast } from '@/components/ui/use-toast';
 import EventDialog from '@/components/calendar/EventDialog';
@@ -20,6 +21,7 @@ export default function useEventEditor(members = []) {
   const { me } = useFamily();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [prefill, setPrefill] = useState(null); // a copy being made ("Copy to another day")
   const session = useRef(null);
   const today = useMemo(() => new Date(), []);
 
@@ -30,6 +32,7 @@ export default function useEventEditor(members = []) {
     if (!row?.id) return;
     const v = row.visibility || 'family';
     session.current = { id: row.id, startVisibility: v, visibility: v, changed: false };
+    setPrefill(null);
     setEditing(row);
     setOpen(true);
     track('screen', 'event (opened in place)');
@@ -55,6 +58,24 @@ export default function useEventEditor(members = []) {
     afterChange();
   };
 
+  // "Copy to another day": close this one (saving it), open a new one with its details.
+  const duplicate = (data) => {
+    close();
+    setTimeout(() => { setEditing(null); setPrefill(data); setOpen(true); }, 200);
+  };
+  const create = useMutation({
+    mutationFn: ({ data }) => base44.entities.Appointment.create(withFamily(data)),
+    onSuccess: (made, { left }) => {
+      track('action', 'add:event (copy)');
+      if (made?.id && made.visibility !== 'private') notify('added', made.id);
+      setOpen(false); setPrefill(null);
+      afterChange();
+      toast({ title: 'Copied', description: 'The new event is on the calendar.' });
+      sortNewEvent(made, left, sharingDefaultOf(me)).then((r) => { if (r) afterChange(); }).catch(() => {});
+    },
+    onError: (e) => toast({ title: 'Could not save the event', description: e?.message || 'Try again', variant: 'destructive' }),
+  });
+
   const remove = useMutation({
     mutationFn: async (appt) => {
       if (appt.visibility !== 'private') await notify('removed', appt.id);
@@ -67,14 +88,16 @@ export default function useEventEditor(members = []) {
   const editor = (
     <EventDialog
       open={open}
-      onClose={close}
-      appt={editing}
+      onClose={() => { if (prefill) { setOpen(false); setPrefill(null); } else close(); }}
+      appt={prefill ? null : editing}
+      prefill={prefill}
+      onDuplicate={duplicate}
       defaultDate={today}
       members={members}
-      onSave={() => {}}
+      onSave={(data, left) => create.mutate({ data, left })}
       onAutoSave={autoSave}
       onDelete={(appt) => remove.mutate(appt)}
-      saving={remove.isPending}
+      saving={remove.isPending || create.isPending}
       sharingDefault={sharingDefaultOf(me)}
     />
   );

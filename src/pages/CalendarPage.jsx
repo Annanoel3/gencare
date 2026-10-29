@@ -40,6 +40,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [prefill, setPrefill] = useState(null); // "Copy to another day"
   const [phoneOpen, setPhoneOpen] = useState(false);
   const queryClient = useQueryClient();
   const { me, members: accounts, refresh: refreshFamily } = useFamily();
@@ -92,7 +93,7 @@ export default function CalendarPage() {
   // The + button's "Event" lands here with ?new=1.
   useEffect(() => {
     if (!params.get('new')) return;
-    setEditing(null); setDialogOpen(true);
+    setPrefill(null); setEditing(null); setDialogOpen(true);
     const next = new URLSearchParams(params); next.delete('new'); setParams(next, { replace: true });
   }, [params.get('new')]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -111,6 +112,7 @@ export default function CalendarPage() {
       afterChange();
       setDialogOpen(false);
       setEditing(null);
+      setPrefill(null);
       // GenCare fills in what was left to it (who it's for, category, and
       // with "GenCare decides", sharing) a moment later.
       sortNewEvent(created, left, sharingDefault).then((r) => {
@@ -199,7 +201,8 @@ export default function CalendarPage() {
     .filter(a => a.date && isSameDay(parseISO(a.date), selectedDate))
     .sort((a, b) => (a.all_day ? '' : a.time || '').localeCompare(b.all_day ? '' : b.time || ''));
 
-  const openNew = () => { setEditing(null); setDialogOpen(true); };
+  const openNew = () => { setPrefill(null); setEditing(null); setDialogOpen(true); };
+  const duplicate = (data) => { closeDialog(); setTimeout(() => { setPrefill(data); setEditing(null); setDialogOpen(true); }, 200); };
   // An occurrence of a series opens the series itself.
   const openEdit = (occ) => { setEditing(appointments.find((a) => a.id === rowIdOf(occ)) || occ); setDialogOpen(true); };
 
@@ -327,8 +330,10 @@ export default function CalendarPage() {
 
       <EventDialog
         open={dialogOpen}
-        onClose={closeDialog}
+        onClose={() => { setPrefill(null); closeDialog(); }}
         appt={editing}
+        prefill={prefill}
+        onDuplicate={duplicate}
         defaultDate={selectedDate}
         members={members}
         onSave={onSave}

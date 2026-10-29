@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat } from 'lucide-react';
+import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat, Copy } from 'lucide-react';
 import { useFamily, orderMembers } from '@/lib/family';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -52,7 +52,7 @@ const saveKey = (d) => JSON.stringify({ ...d, last_changed_at: undefined });
 // One dialog for adding and editing. `appt` null = new event. Editing saves
 // on its own (onAutoSave) a moment after each change; a new event is added
 // with the button (onSave), since half-typed events shouldn't reach anyone.
-export default function EventDialog({ open, onClose, appt, defaultDate, members, onSave, onAutoSave, onDelete, saving, sharingDefault = '' }) {
+export default function EventDialog({ open, onClose, appt, defaultDate, members, onSave, onAutoSave, onDelete, saving, sharingDefault = '', prefill = null, onDuplicate }) {
   const [form, setForm] = useState(blank(defaultDate, sharingDefault));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
@@ -92,12 +92,14 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
       setForm(loaded);
       lastSaved.current = saveKey(buildData(loaded));
     } else {
-      setForm(blank(defaultDate, sharingDefault));
+      // A copy of another event starts with its details; just pick the day.
+      const { copyOf: _c, ...copied } = prefill || {};
+      setForm({ ...blank(defaultDate, sharingDefault), ...copied });
     }
     // Keyed on the event's id and the day, not the objects: the page behind
     // re-renders after every autosave, and resetting the form then wiped what
     // was being typed (Anna, Oct 29 2026: the place field cleared itself).
-  }, [open, appt?.id, defaultDate ? format(defaultDate, 'yyyy-MM-dd') : '']); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, appt?.id, defaultDate ? format(defaultDate, 'yyyy-MM-dd') : '', prefill]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const pick = (field, fn) => { touched.current.add(field); fn(); };
@@ -177,8 +179,11 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) close(); }}>
       <DialogContent className="sm:max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
-        <DialogHeader><DialogTitle className="font-heading text-xl">{editing ? 'Event' : 'New event'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-heading text-xl">{editing ? 'Event' : prefill?.copyOf ? 'Copy event' : 'New event'}</DialogTitle></DialogHeader>
         <div className="space-y-4 mt-2">
+          {!editing && prefill?.copyOf && (
+            <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">A copy of “{prefill.copyOf}”. Change the day (and anything else), then tap Add.</p>
+          )}
           {fromPhone && (
             <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">
               From {appt.created_by_name ? `${appt.created_by_name.split(' ')[0]}'s` : 'a'} phone calendar. Changes made on the phone show up here; who it's for, who sees it, and a place or notes added here stay.
@@ -244,6 +249,12 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             </Link>
           )}
 
+          {editing && onDuplicate && (
+            <Button type="button" variant="outline" className="w-full gap-2 rounded-xl" onClick={async () => { await saveNow(); onDuplicate(copyOf(form)); }}>
+              <Copy className="w-4 h-4" /> Copy to another day
+            </Button>
+          )}
+
           <div className="flex items-center justify-between gap-3 pt-2">
             {editing ? (
               confirmDelete ? (
@@ -297,4 +308,17 @@ function withUntil(rule, until) {
   if (!rule || rule === '__none__') return '';
   const base = String(rule).replace(/;UNTIL=[^;]*/i, '');
   return until ? `${base};UNTIL=${until.replace(/-/g, '')}` : base;
+}
+
+// "Copy to another day" (Anna, Oct 29 2026): the same event's details, as a
+// new one-time event; the person picks the new day.
+function copyOf(f) {
+  return {
+    copyOf: f.title,
+    title: f.title, date: f.date, time: f.time, end_time: f.end_time, all_day: !!f.all_day,
+    family_member_id: f.family_member_id, location: f.location || '', notes: f.notes || '', doctor_name: f.doctor_name || '',
+    category: f.category, reminder_minutes: f.reminder_minutes,
+    visibility: f.visibility === 'auto' ? 'family' : f.visibility, shared_with: Array.isArray(f.shared_with) ? f.shared_with : [],
+    recurrence: '', until: '', end_date: '',
+  };
 }
