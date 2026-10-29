@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { stateName } from '@/lib/usStates';
 import { LifeBuoy, Phone, ExternalLink, ChevronDown } from 'lucide-react';
 import { RESOURCE_GROUPS, RESOURCES_CHECKED } from '@/lib/resources';
 import SupportDialog from '@/components/shared/SupportDialog';
@@ -14,6 +16,31 @@ import NearbyHelp from '@/components/resources/NearbyHelp';
 // the owner's inbox). "Find help near you" also looks up places for a ZIP
 // code (components/resources/NearbyHelp).
 const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, '')}`;
+
+// The home ZIP GenCare already has (the person's, or someone else's in the
+// family) and its state, so a resource that would say "pick your state" or
+// "enter your ZIP" opens on theirs instead (Anna, Oct 29 2026). Asked once
+// per app session.
+let homeCache = null;
+function useHome() {
+  const [home, setHome] = useState(homeCache);
+  useEffect(() => {
+    if (homeCache) return;
+    base44.functions.invoke('placesAutocomplete', { warm: true })
+      .then((r) => { const d = r?.data || r; homeCache = { zip: d?.zip || '', state: d?.state || '' }; setHome(homeCache); })
+      .catch(() => {});
+  }, []);
+  return home;
+}
+
+// A resource as it reads for this family: its state's page, or its search
+// already on their ZIP, when the resource has one (lib/resources.js).
+function forHome(r, home) {
+  const st = home?.state ? { code: home.state, name: stateName(home.state) } : null;
+  if (r.forState && st?.name) { const x = r.forState(st); if (x) return { ...r, ...x }; }
+  if (r.forZip && home?.zip) { const x = r.forZip(home.zip); if (x) return { ...r, ...x }; }
+  return r;
+}
 
 function Entry({ r }) {
   return (
@@ -38,6 +65,7 @@ function Entry({ r }) {
 }
 
 export default function Resources() {
+  const home = useHome();
   const [open, setOpen] = useState(() => new Set());
   const [suggest, setSuggest] = useState(false);
   const toggle = (k) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
@@ -66,7 +94,7 @@ export default function Resources() {
               {isOpen && (
                 <div className="px-4 pb-4 space-y-2.5">
                   {g.key === 'local' && <NearbyHelp Entry={Entry} />}
-                  {g.items.map((r) => <Entry key={r.name} r={r} />)}
+                  {g.items.map((r) => <Entry key={r.name} r={forHome(r, home)} />)}
                 </div>
               )}
             </section>

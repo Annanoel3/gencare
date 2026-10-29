@@ -29,13 +29,18 @@ export default function NearbyHelp({ Entry }) {
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
 
-  // Opening the page: the saved list for this person's ZIP, if there is one.
+  // Opening the page: the saved list for this person's ZIP (or the family's).
+  // A ZIP GenCare already has but hasn't looked up yet is looked up now, so
+  // nobody is asked for a ZIP they already gave (Anna, Oct 29 2026).
   useEffect(() => {
     let live = true;
-    call({ peek: true }).then((d) => {
+    call({ peek: true }).then(async (d) => {
       if (!live || !d?.zip) return;
       setZip(d.zip);
-      if (d.places?.length) setResult(d);
+      if (d.places?.length || d.saved) { setResult(d); return; }
+      setBusy(true);
+      try { const r = await call({ zip: d.zip }); if (live) setResult(r); } catch (_e) { /* the box stays, with the ZIP in it */ }
+      finally { if (live) setBusy(false); }
     }).catch(() => {});
     return () => { live = false; };
   }, []);

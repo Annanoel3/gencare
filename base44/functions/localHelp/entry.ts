@@ -169,7 +169,14 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await req.json().catch(() => ({}));
-    const zip = String(body?.zip ?? user.help_zip ?? '').replace(/\D/g, '').slice(0, 5);
+    // Their own ZIP, else one someone else in the family gave (same as event place search).
+    let zip = String(body?.zip ?? user.help_zip ?? '').replace(/\D/g, '').slice(0, 5);
+    if (!zip && body?.peek && user.family_id) {
+      try {
+        const mates = (await base44.asServiceRole.entities.User.filter({ family_id: user.family_id })) || [];
+        zip = String(mates.find((m: any) => /^\d{5}$/.test(String(m.help_zip || '')))?.help_zip || '');
+      } catch (_e) { zip = ''; }
+    }
     // peek: the page opening; show saved results for the person's ZIP, never search.
     if (body?.peek && !/^\d{5}$/.test(zip)) return Response.json({ zip: '', area: '', places: [], searched_at: null, saved: false });
     if (!/^\d{5}$/.test(zip)) return Response.json({ error: 'Enter a 5-digit ZIP code' }, { status: 400 });

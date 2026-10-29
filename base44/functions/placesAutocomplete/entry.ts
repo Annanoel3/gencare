@@ -11,22 +11,27 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 // without one of their own, someone else's in the family is used. It's only
 // a ZIP they typed: GenCare never asks for or tracks the phone's location.
 //
-// { warm: true } just answers whether there's a ZIP (and gets this function
-// started), so the first real search comes back quickly. No Places charge.
+// { warm: true } just answers whether there's a ZIP and which state it's in
+// (and gets this function started), so the first real search comes back
+// quickly and Resources can open each state's own page. No Places charge.
 
-const centers = new Map<string, { lat: number; lng: number } | null>(); // ZIP -> center, kept while this copy runs
+type Center = { lat: number; lng: number; state: string };
+const centers = new Map<string, Center | null>(); // ZIP -> center and state, kept while this copy runs
 const familyZip = new Map<string, { zip: string; at: number }>();
 
 async function centerOf(zip: string, key: string) {
   if (centers.has(zip)) return centers.get(zip);
-  let c: { lat: number; lng: number } | null = null;
+  let c: Center | null = null;
   try {
     const u = new URL('https://maps.googleapis.com/maps/api/geocode/json');
     u.searchParams.set('components', `postal_code:${zip}|country:US`);
     u.searchParams.set('key', key);
     const d = await (await fetch(u.toString())).json();
-    const loc = d?.results?.[0]?.geometry?.location;
-    if (Number.isFinite(loc?.lat) && Number.isFinite(loc?.lng)) c = { lat: loc.lat, lng: loc.lng };
+    const r0 = d?.results?.[0];
+    const loc = r0?.geometry?.location;
+    // Two-letter state (or DC / PR) from the same answer, no extra charge.
+    const st = (r0?.address_components || []).find((x: any) => (x.types || []).includes('administrative_area_level_1'))?.short_name || '';
+    if (Number.isFinite(loc?.lat) && Number.isFinite(loc?.lng)) c = { lat: loc.lat, lng: loc.lng, state: /^[A-Z]{2}$/.test(st) ? st : '' };
   } catch (_e) { c = null; }
   centers.set(zip, c);
   return c;
@@ -60,8 +65,8 @@ export default async function (req: Request) {
     const home = await homeZip(base44, user);
 
     if (payload?.warm) {
-      if (home.zip && apiKey) await centerOf(home.zip, apiKey);
-      return Response.json({ ok: true, zip: home.zip, own: home.own });
+      const c = home.zip && apiKey ? await centerOf(home.zip, apiKey) : null;
+      return Response.json({ ok: true, zip: home.zip, own: home.own, state: c?.state || '' });
     }
 
     const q = String(payload?.input || '').trim().slice(0, 200);
