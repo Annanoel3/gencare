@@ -184,7 +184,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               From {appt.created_by_name ? `${appt.created_by_name.split(' ')[0]}'s` : 'a'} phone calendar. Changes made on the phone show up here; who it's for, who sees it, and a place or notes added here stay.
             </p>
           )}
-          <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Mom's speech therapy" className="mt-1" /></div>
+          <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Dentist appointment" className="mt-1" /></div>
 
           <div>
             <Label>When</Label>
