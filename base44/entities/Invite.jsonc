@@ -8,11 +8,23 @@
     "created_by_name": {
       "type": "string"
     },
+    "created_by_user_id": {
+      "description": "Account that made the invite (never linked to the profile by its own link)",
+      "type": "string"
+    },
     "expires_at": {
       "format": "date-time",
       "type": "string"
     },
     "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "description": "The profile (FamilyMember) this invite is for; whoever joins with it becomes that profile (linked_user_id)",
+      "type": "string"
+    },
+    "family_member_name": {
+      "description": "That profile's name, shown on the join page",
       "type": "string"
     },
     "family_name": {
@@ -31,6 +43,7 @@
   "required": [
     "code"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -44,6 +57,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
