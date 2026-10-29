@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { BellRing, Plus, AlertCircle, Check, Clock, X, Bell, BellOff, Loader2 } from 'lucide-react';
+import { BellRing, Plus, AlertCircle, Clock, Bell, BellOff } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { withFamily, useFamily } from '@/lib/family';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import { Card } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId } from '@/utils/memberColors';
 import ReminderDialog from '@/components/reminders/ReminderDialog';
-import { REMINDERS_KEY, listReminders, slotsForDay, markSlot, cleanMed, adherence, fmtClock, todayStr, frequencyLabel } from '@/lib/reminders';
+import TodaySlots from '@/components/reminders/TodaySlots';
+import { REMINDERS_KEY, listReminders, cleanMed, adherence, fmtClock, todayStr, frequencyLabel } from '@/lib/reminders';
 
 /**
  * Reminders: today's reminders to tick off at the top, then every reminder
@@ -21,7 +22,6 @@ import { REMINDERS_KEY, listReminders, slotsForDay, markSlot, cleanMed, adherenc
 export default function Reminders() {
   const [params, setParams] = useSearchParams();
   const [dialog, setDialog] = useState({ open: false, med: null });
-  const [busyKey, setBusyKey] = useState(null);
   const queryClient = useQueryClient();
   const { me } = useFamily();
   const today = todayStr();
@@ -66,18 +66,9 @@ export default function Reminders() {
     onSuccess: () => { refresh(); setDialog({ open: false, med: null }); },
   });
 
-  const slots = useMemo(() => slotsForDay(reminders, logs, today), [reminders, logs, today]);
-  const mark = async (slot, status) => {
-    setBusyKey(slot.key);
-    try { await markSlot(slot, status, me); } catch (e) { toast({ title: "Couldn't save", description: e?.message, variant: 'destructive' }); }
-    finally { setBusyKey(null); }
-    queryClient.invalidateQueries({ queryKey: ['reminderLogs'] });
-  };
-
   const active = reminders.filter((m) => m.is_active !== false);
   const paused = reminders.filter((m) => m.is_active === false);
   const byMember = groupBy(active, (m) => m.family_member_name || 'Everyone');
-  const nowClock = format(new Date(), 'HH:mm');
 
   return (
     <div className="pb-24 lg:pb-8">
@@ -89,41 +80,7 @@ export default function Reminders() {
         <Button onClick={() => setDialog({ open: true, med: null })} className="rounded-xl gap-2"><Plus className="w-4 h-4" /><span className="hidden sm:inline">Add reminder</span></Button>
       </div>
 
-      {slots.length > 0 && (
-        <section className="mb-8">
-          <h2 className="font-heading text-base font-semibold mb-2">Today</h2>
-          <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/50">
-            {slots.map((s) => {
-              const color = getMemberColorByMemberId(s.med.family_member_id, members);
-              const done = s.status === 'taken' || s.status === 'skipped';
-              const late = s.status === 'missed' || (s.status === 'due' && s.time < nowClock);
-              const busy = busyKey === s.key;
-              return (
-                <div key={s.key} className={`flex items-center gap-3 p-3 ${done ? 'opacity-60' : ''}`}>
-                  <span className={`w-1.5 self-stretch rounded-full ${color}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium ${s.status === 'taken' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {s.med.family_member_name} · {fmtClock(s.time)}
-                      {s.status === 'taken' && s.log?.taken_by_name ? ` · done by ${s.log.taken_by_name.split(' ')[0]}` : ''}
-                      {s.status === 'skipped' ? ' · skipped' : ''}
-                      {s.status === 'missed' ? ' · not done yet' : ''}
-                    </p>
-                  </div>
-                  {done ? (
-                    <Button variant="ghost" size="sm" onClick={() => mark(s, 'due')} disabled={busy} className="text-xs">Undo</Button>
-                  ) : (
-                    <>
-                      <Button variant="ghost" size="icon" onClick={() => mark(s, 'skipped')} disabled={busy} aria-label="Skip" className="rounded-full text-muted-foreground"><X className="w-4 h-4" /></Button>
-                      <Button size="sm" onClick={() => mark(s, 'taken')} disabled={busy} className={`rounded-xl gap-1 ${late ? '' : 'bg-primary/90'}`}>{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Done</Button>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      <TodaySlots members={members} className="mb-8" />
 
       {reminders.length === 0 ? (
         <div className="text-center py-16">

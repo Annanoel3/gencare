@@ -79,6 +79,7 @@ const AuthenticatedApp = () => {
           <Route path="/medications" element={<Navigate to="/reminders" replace />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/todo" element={<Navigate to="/tasks" replace />} />
           <Route path="/checklists" element={<Navigate to="/tasks" replace />} />
           {/* Journal hidden Oct 29 2026 (page code kept in pages/Journal.jsx). */}
           <Route path="/journal" element={<Navigate to="/" replace />} />

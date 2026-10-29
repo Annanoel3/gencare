@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList, Plus, ListChecks, Check } from 'lucide-react';
+import { ClipboardList, Plus, ListChecks, Check, BellRing } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import TodaySlots from '@/components/reminders/TodaySlots';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -92,11 +94,12 @@ export default function Tasks() {
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3">
             <ClipboardList className="w-7 h-7 text-primary" />
-            Tasks
+            To-do
           </h1>
-          <p className="text-muted-foreground mt-1">Who's doing what, what's coming up, and the routines everyone ticks off.</p>
+          <p className="text-muted-foreground mt-1">Events, reminders and things to do. Anyone in the family can tick them off.</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" asChild className="rounded-xl gap-2"><Link to="/reminders" aria-label="Reminders"><BellRing className="w-4 h-4" /><span className="hidden sm:inline">Reminders</span></Link></Button>
           <Button variant="outline" onClick={() => newTask('checklist')} className="rounded-xl gap-2"><ListChecks className="w-4 h-4" /><span className="hidden sm:inline">New checklist</span></Button>
           <Button variant="outline" onClick={() => newTask('task')} className="rounded-xl gap-2"><Plus className="w-4 h-4" /><span className="hidden sm:inline">Details</span></Button>
         </div>
@@ -119,6 +122,9 @@ export default function Tasks() {
               </div>
             </section>
           )}
+
+          {/* Today's set-time reminders (from Reminders): Done / Skip, anyone can. */}
+          <TodaySlots title="Today's reminders" members={members} />
 
           {!isLoading && open.length === 0 && checklists.length === 0 && eventCount === 0 && (
             <div className="text-center py-16">

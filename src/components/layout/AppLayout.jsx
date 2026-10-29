@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  LayoutDashboard, Users, BellRing, CalendarDays,
+  LayoutDashboard, Users, CalendarDays,
   ClipboardList, MessageCircle, Menu, X,
   Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic, LifeBuoy,
 } from 'lucide-react';
@@ -27,11 +27,10 @@ function buildNavStructure(members, canRecord, unread = 0) {
       { path: '/family', icon: Users, label: 'Family Members' },
       { path: '/messages', icon: MessageCircle, label: 'Messages', badge: unread },
       { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-      { path: '/reminders', icon: BellRing, label: 'Reminders' },
       { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [
-      { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
+      { path: '/tasks', icon: ClipboardList, label: 'To-do' },
       { path: '/notes', icon: Mic, label: canRecord ? 'Record Notes' : 'Notes' },
     ]},
     { type: 'link', path: '/wellness', icon: Heart, label: 'Wellness' },
@@ -43,7 +42,7 @@ function buildNavStructure(members, canRecord, unread = 0) {
 const mobileBottomNav = [
   { path: '/', icon: LayoutDashboard, label: 'Home' },
   { path: '/family', icon: Users, label: 'Family' },
-  { path: '/tasks', icon: ClipboardList, label: 'Tasks' },
+  { path: '/tasks', icon: ClipboardList, label: 'To-do' },
   { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { path: '/wellness', icon: Heart, label: 'Wellness' },
 ];
