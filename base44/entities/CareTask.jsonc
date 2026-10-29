@@ -12,14 +12,15 @@
     "category": {
       "default": "Other",
       "enum": [
-        "Medical",
+        "Appointments",
         "School",
         "Grocery",
         "Household",
         "Transportation",
         "Financial",
         "Personal Care",
-        "Other"
+        "Other",
+        "Medical"
       ],
       "type": "string"
     },
@@ -65,7 +66,7 @@
     },
     "kind": {
       "default": "task",
-      "description": "checklist = a routine made of steps anyone in the family ticks off (feed the fish, morning meds); it comes back on its own rhythm",
+      "description": "checklist = a routine made of steps anyone in the family ticks off (feed the fish, bedtime routine); it comes back on its own rhythm",
       "enum": [
         "task",
         "checklist"
@@ -141,6 +142,7 @@
   "required": [
     "title"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -154,6 +156,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
