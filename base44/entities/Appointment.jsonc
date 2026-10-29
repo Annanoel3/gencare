@@ -10,6 +10,10 @@
       "description": "GenCare's sharing pick for this event (used when the person's choice is 'GenCare decides')",
       "type": "boolean"
     },
+    "ai_trip": {
+      "description": "GenCare's read: part of the person's own trip away from home (flights, stays, events while away). Their trips show the family one '<name> traveling' event instead",
+      "type": "boolean"
+    },
     "all_day": {
       "default": false,
       "type": "boolean"
@@ -20,6 +24,10 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "away_of": {
+      "description": "Set on a '<name> traveling' event GenCare made from that user's trips (their user id); kept in step with their trips",
+      "type": "string"
     },
     "category": {
       "default": "Appointment",
