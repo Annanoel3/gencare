@@ -5,7 +5,7 @@ import { ClipboardList, Plus, ListChecks, Check, BellRing } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import QuickAddTask from '@/components/shared/QuickAddTask';
+import { Input } from '@/components/ui/input';
 import TaskCard from '@/components/tasks/TaskCard';
 import TaskSheet from '@/components/tasks/TaskSheet';
 import EventCard from '@/components/tasks/EventCard';
@@ -14,7 +14,7 @@ import ReminderCard from '@/components/reminders/ReminderCard';
 import useReminderEditor from '@/components/reminders/useReminderEditor';
 import useEventEditor from '@/components/calendar/useEventEditor';
 import { SECTIONS, sectionOf, sortTasks, isOpen, isStep } from '@/lib/tasks';
-import { slotsForDay, todayStr, isFinishedOnce } from '@/lib/reminders';
+import { slotsForDay, todayStr, isFinishedOnce, defaultTimes } from '@/lib/reminders';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { startOfDay, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
@@ -64,6 +64,7 @@ function orderDay(entries) {
 export default function Tasks() {
   const [params, setParams] = useSearchParams();
   const [sheet, setSheet] = useState({ open: false, task: null, kind: 'task' });
+  const [quick, setQuick] = useState('');
   const [tab, setTab] = useState(() => (params.get('tab') === 'reminders' ? 'reminders' : 'open'));
 
   const { data: rows = [], isLoading } = useQuery({
@@ -154,11 +155,15 @@ export default function Tasks() {
         <div className="flex gap-2 flex-shrink-0">
           <Button variant="outline" size="icon" onClick={() => openReminder(null)} className="rounded-xl" aria-label="New reminder"><BellRing className="w-4 h-4" /></Button>
           <Button variant="outline" size="icon" onClick={() => newTask('checklist')} className="rounded-xl" aria-label="New checklist"><ListChecks className="w-4 h-4" /></Button>
-          <Button variant="outline" size="icon" onClick={() => newTask('task')} className="rounded-xl" aria-label="New task with details"><Plus className="w-4 h-4" /></Button>
         </div>
       </div>
 
-      <QuickAddTask className="mb-6" />
+      {/* One way to add things: a reminder (Anna, Oct 29 2026: "get rid of the add task... people can
+          just use reminders for things that would be tasks too"). Typing here opens it with the words in. */}
+      <form onSubmit={(e) => { e.preventDefault(); const t = quick.trim(); if (!t) return; openReminder({ medication_name: t, frequency: 'Once', times: defaultTimes('Once') }); setQuick(''); }} className="flex items-center gap-2 mb-6">
+        <Input value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="Add a reminder…" enterKeyHint="next" aria-label="New reminder" className="h-11 rounded-xl text-base" />
+        <Button type="submit" size="icon" disabled={!quick.trim()} className="h-11 w-11 rounded-xl shrink-0" aria-label="Add reminder"><Plus className="w-5 h-5" /></Button>
+      </form>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-muted rounded-xl mb-5 w-full grid grid-cols-3 h-auto p-1">
@@ -172,7 +177,7 @@ export default function Tasks() {
             <div className="text-center py-16">
               <Check className="w-14 h-14 mx-auto mb-3 text-emerald-500/30" />
               <h2 className="font-heading text-xl font-semibold mb-1">All caught up</h2>
-              <p className="text-muted-foreground text-sm">Type something above, like "take the trash out", and anyone in the family can check it off.</p>
+              <p className="text-muted-foreground text-sm">Type something above, like "pick up groceries", pick a time, and everyone gets reminded until someone marks it done.</p>
             </div>
           )}
 
@@ -201,7 +206,7 @@ export default function Tasks() {
         </TabsContent>
 
         <TabsContent value="reminders" className="space-y-3">
-          <p className="text-sm text-muted-foreground">Things that happen at set times, like pills at 8 or feeding the dog at 7, or one-off jobs like ordering Thanksgiving food that keep reminding until someone marks them done. They show up in To do on their day. Each one goes to everyone or just you.</p>
+          <p className="text-sm text-muted-foreground">Things that happen at set times, like a walk every morning at 8, or one-off jobs that keep reminding until someone marks them done. They show up in To do on their day. Each one goes to everyone or just you.</p>
           <Button onClick={() => openReminder(null)} className="rounded-xl gap-2 w-full"><BellRing className="w-4 h-4" /> New reminder</Button>
           {byPerson.map(([who, list]) => (
             <section key={who} className="space-y-2 pt-1">

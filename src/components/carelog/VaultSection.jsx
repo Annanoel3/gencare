@@ -320,7 +320,7 @@ function ChangeDialog({ open, onOpenChange, vault, onDone }) {
   );
 }
 
-const PLACEHOLDER = { poa: 'e.g. Power of attorney for Mom', will: 'e.g. Will, signed 2024', insurance: 'e.g. Medicare card', benefit: 'e.g. Social Security', bank: 'e.g. Checking at Chase', bill: 'e.g. Electric bill', tax: 'e.g. 2025 tax return', time_off_work: 'e.g. FMLA paperwork', other: 'What is it?' };
+const PLACEHOLDER = { poa: 'e.g. Power of attorney', will: 'e.g. Will, signed 2024', insurance: 'e.g. Medicare card', benefit: 'e.g. Social Security', bank: 'e.g. Checking at Chase', bill: 'e.g. Electric bill', tax: 'e.g. 2025 tax return', time_off_work: 'e.g. FMLA paperwork', other: 'What is it?' };
 
 function ItemDialog({ open, onOpenChange, vault, item, people, onSaved }) {
   const editing = !!item.id;

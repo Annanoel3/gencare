@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Calendar, BellRing, ClipboardList } from 'lucide-react';
+import { Plus, X, Calendar, BellRing } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 const captureOptions = [
   { icon: Calendar, label: 'Event', to: '/calendar?new=1', color: 'bg-purple-500' },
   { icon: BellRing, label: 'Reminder', to: '/tasks?reminder=new', color: 'bg-emerald-500' },
-  { icon: ClipboardList, label: 'Task', to: '/tasks?task=new', color: 'bg-orange-500' },
 ];
 
 export default function QuickCaptureButton() {

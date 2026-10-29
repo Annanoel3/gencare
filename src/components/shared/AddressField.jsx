@@ -89,7 +89,7 @@ export default function AddressField({ value, onChange, className = '' }) {
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input value={value || ''} onChange={(e) => { onChange(e.target.value); setTyping(true); }} onFocus={onFocus}
-            placeholder="Search a place, like HEB Slaughter" autoComplete="off" className="pl-9 pr-8" />
+            placeholder="Search a place or an address" autoComplete="off" className="pl-9 pr-8" />
           {q && <button type="button" onClick={() => pick('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground" aria-label="Clear the place"><X className="w-3.5 h-3.5" /></button>}
         </div>
         {q && (

@@ -79,7 +79,7 @@ export default function ActivityFeed({ members = [] }) {
     <section className="rounded-2xl border border-border/50 bg-card p-4 shadow-sm">
       <h2 className="font-heading text-lg font-semibold flex items-center gap-2 mb-2"><Activity className="w-5 h-5 text-primary" /> Who did what</h2>
       {loading && !items.length ? <p className="text-sm text-muted-foreground py-4">Loading…</p>
-        : !items.length ? <p className="text-sm text-muted-foreground py-3">Nothing in the last {DAYS} days yet. When someone checks off a task, logs Mom's lunch or adds an event, it shows up here.</p>
+        : !items.length ? <p className="text-sm text-muted-foreground py-3">Nothing in the last {DAYS} days yet. When someone checks off a task, logs a meal or adds an event, it shows up here.</p>
         : (
           <ul className="divide-y divide-border/40">
             {shown.map((it) => (

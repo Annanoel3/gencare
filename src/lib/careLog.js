@@ -123,13 +123,13 @@ export const CATALOG = {
     NOTE,
   ],
   adult: [
-    { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'errand', 'hygiene', 'mobility', 'visit', 'hand_off', 'other']), TITLE('Details', 'e.g. lunch, walked to mailbox'), { key: 'given_by', kind: 'text', label: 'Helped by', placeholder: 'e.g. Dad, Maria' }, NOTES] },
+    { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'errand', 'hygiene', 'mobility', 'visit', 'hand_off', 'other']), TITLE('Details', 'e.g. lunch, walked to mailbox'), { key: 'given_by', kind: 'text', label: 'Helped by', placeholder: 'e.g. a neighbor' }, NOTES] },
     { type: 'activity', label: 'Activity', icon: '🏃', fields: [TITLE('Activity', 'e.g. walk around the block'), MIN(), { key: 'level', kind: 'level', label: 'How it went (1–5)' }, NOTES] },
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
     NOTE,
   ],
   senior: [
-    { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'errand', 'hygiene', 'mobility', 'fall', 'visit', 'hand_off', 'other']), TITLE('Details', 'e.g. breakfast, walked to the mailbox'), { key: 'given_by', kind: 'text', label: 'Helped by', placeholder: 'e.g. Maria, Dad' }, NOTES] },
+    { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'errand', 'hygiene', 'mobility', 'fall', 'visit', 'hand_off', 'other']), TITLE('Details', 'e.g. breakfast, walked to the mailbox'), { key: 'given_by', kind: 'text', label: 'Helped by', placeholder: 'e.g. a neighbor' }, NOTES] },
     { type: 'activity', label: 'Activity', icon: '🏃', fields: [TITLE('Activity', 'e.g. walk around the block'), MIN(), { key: 'level', kind: 'level', label: 'How it went (1–5)' }, NOTES] },
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
     NOTE,
