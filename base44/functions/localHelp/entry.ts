@@ -42,7 +42,7 @@ Rules:
 - Copy phone numbers exactly as the page shows them. If the page shows none, leave phone empty.
 - Prefer nonprofits and government programs. Leave out for-profit home care agencies, senior living sales pages, lead-generation sites and ads.
 - Only places that serve this ZIP code (its city or county). If you can't tell, leave it out.
-- At most 12 places, the most useful first. One plain sentence each (under 25 words) saying what they do for a family.
+- At most 12 places, the most useful first. One plain sentence each (under 25 words) saying what they do for a family, with no links or citations in it (the url field carries the link).
 - area: the city and county the ZIP code is in, like "Austin, Travis County, TX".`;
 
 const SCHEMA = {
@@ -71,6 +71,16 @@ const SCHEMA = {
 };
 
 const clip = (s: unknown, n: number) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+// The search writes its citations into the text ("([site.org](https://...))");
+// the link already has its own button, so those come out of the words.
+const plain = (s: unknown, n: number) => clip(String(s ?? '')
+  .replace(/\(\s*\[[^\]]*\]\([^)]*\)\s*\)/g, '')
+  .replace(/\[([^\]]*)\]\([^)]*\)/g, (_m: string, label: string) => (/^[\w.-]+\.[a-z]{2,}$/i.test(label.trim()) ? '' : label))
+  .replace(/\(?https?:\/\/\S+\)?/g, '')
+  .replace(/\s+([.,;:])/g, '$1'), n);
+// Drop OpenAI's tracking tag from links.
+const cleanUrl = (u: string) => { try { const x = new URL(u); x.searchParams.delete('utm_source'); return x.toString(); } catch { return u; } };
+const cleanPlaces = (list: any[]) => (Array.isArray(list) ? list : []).map((p) => ({ ...p, name: plain(p?.name, 120), description: plain(p?.description, 240), url: cleanUrl(String(p?.url || '')) }));
 const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; } };
 const daysOld = (iso: string) => (Date.now() - new Date(iso).getTime()) / 86400000;
 
@@ -129,16 +139,16 @@ async function search(zip: string) {
         const host = hostOf(url);
         // The link has to be a page (or at least a site) the search really opened.
         if (!/^https?:\/\//i.test(url) || !host || !(seen.has(url) || seenHosts.has(host))) continue;
-        const name = clip(p?.name, 120);
+        const name = plain(p?.name, 120);
         if (!name || names.has(name.toLowerCase())) continue;
         names.add(name.toLowerCase());
         const phone = clip(p?.phone, 40);
         places.push({
           name,
           category: CATEGORIES.includes(p?.category) ? p.category : 'other',
-          description: clip(p?.description, 240),
+          description: plain(p?.description, 240),
           phone: /\d{3}.*\d{4}/.test(phone) || /^\d{3}$/.test(phone) ? phone : '',
-          url,
+          url: cleanUrl(url),
           city: clip(p?.city, 60),
         });
       }
@@ -168,7 +178,7 @@ Deno.serve(async (req) => {
 
     const saved = (await db.LocalHelpCache.filter({ zip }, '-searched_at', 1).catch(() => []))?.[0];
     const fresh = saved && daysOld(saved.searched_at) < ((saved.places || []).length ? KEEP_DAYS : KEEP_EMPTY_DAYS);
-    if (fresh) return Response.json({ zip, area: saved.area || '', places: saved.places || [], searched_at: saved.searched_at, saved: true });
+    if (fresh) return Response.json({ zip, area: saved.area || '', places: cleanPlaces(saved.places), searched_at: saved.searched_at, saved: true });
     if (body?.peek) return Response.json({ zip, area: '', places: [], searched_at: null, saved: false });
 
     // A new search costs money: a few per family per day.
@@ -176,7 +186,7 @@ Deno.serve(async (req) => {
     const since = new Date(Date.now() - 86400000).toISOString();
     const recent = await db.LocalHelpCache.filter({ family_id: familyId, searched_at: { $gte: since } }, '-searched_at', 10).catch(() => []);
     if ((recent || []).length >= SEARCHES_PER_FAMILY_PER_DAY) {
-      if (saved) return Response.json({ zip, area: saved.area || '', places: saved.places || [], searched_at: saved.searched_at, saved: true });
+      if (saved) return Response.json({ zip, area: saved.area || '', places: cleanPlaces(saved.places), searched_at: saved.searched_at, saved: true });
       return Response.json({ error: "You've searched a few ZIP codes today. Try again tomorrow." }, { status: 429 });
     }
 
