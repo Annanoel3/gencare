@@ -6,6 +6,10 @@
       "format": "date-time",
       "type": "string"
     },
+    "ai_cover": {
+      "description": "GenCare's read: a private event of the person's own the family should still know about, shown to them only as this plain label (e.g. 'doctor', 'appointment')",
+      "type": "string"
+    },
     "ai_share": {
       "description": "GenCare's sharing pick for this event (used when the person's choice is 'GenCare decides')",
       "type": "boolean"
@@ -39,6 +43,10 @@
         "Social",
         "Other"
       ],
+      "type": "string"
+    },
+    "cover_of": {
+      "description": "Set on a '<name>: doctor' style event GenCare made so the family sees that a private event is happening without its details; the private event's id",
       "type": "string"
     },
     "created_by_name": {
