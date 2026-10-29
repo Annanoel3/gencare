@@ -117,7 +117,8 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
     return {
       id: m.id,
       name: String(m.name || ""),
-      relationship: String(m.relationship || ""),
+      // "Self" = the profile of the GenCare user it's linked to.
+      relationship: /^self$/i.test(String(m.relationship || "")) ? "" : String(m.relationship || ""),
       added_by: nameOf(addedBy || m.created_by || ""),
       added_by_id: addedBy,
       is_poster: !!posterId && m.linked_user_id === posterId,

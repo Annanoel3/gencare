@@ -1,12 +1,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Plus } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 import { getMemberColorClass } from '@/utils/memberColors';
+import { useFamily, relationshipLabel } from '@/lib/family';
 
 export default function FamilyOverview({ members }) {
+  const { me } = useFamily();
   return (
     <Card className="border-border/50 shadow-sm">
       <CardHeader className="pb-3">
@@ -41,7 +43,7 @@ export default function FamilyOverview({ members }) {
                 </Avatar>
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.relationship}</p>
+                  <p className="text-xs text-muted-foreground">{relationshipLabel(member, me?.id)}</p>
                 </div>
               </Link>
             ))}

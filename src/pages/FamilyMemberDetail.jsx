@@ -13,10 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CareFeed from '@/components/dashboard/CareFeed';
 import PhoneActions from '@/components/shared/PhoneActions';
 import MemberColorPicker from '@/components/family/MemberColorPicker';
-import { getMemberColorClass, isPet } from '@/utils/memberColors';
+import { getMemberColorClass, isPet, takenColors } from '@/utils/memberColors';
 import { frequencyLabel, fmtClock } from '@/lib/reminders';
 import InviteModal from '@/components/family/InviteModal';
-import { useFamily } from '@/lib/family';
+import { useFamily, relationshipLabel } from '@/lib/family';
 
 export default function FamilyMemberDetail() {
   const { id } = useParams();
@@ -103,7 +103,7 @@ export default function FamilyMemberDetail() {
         </Avatar>
         <div className="flex-1">
           <h1 className="font-heading text-2xl font-bold">{member.name}</h1>
-          <p className="text-muted-foreground">{member.relationship}{member.birthdate ? ` · Born ${member.birthdate}` : ''}</p>
+          <p className="text-muted-foreground">{[relationshipLabel(member, me?.id), member.birthdate ? `Born ${member.birthdate}` : ''].filter(Boolean).join(' · ')}</p>
           {pet ? null : member.linked_user_id ? (
             <p className="text-xs text-primary font-medium mt-1">{member.linked_user_id === me?.id ? 'This is you' : 'Uses GenCare'}</p>
           ) : (
@@ -112,6 +112,7 @@ export default function FamilyMemberDetail() {
           {/* Every pet shares the pet color. */}
           {!pet && <MemberColorPicker
             value={getMemberColorClass(member, members)}
+            taken={takenColors(members, member.id)}
             onChange={async (color) => {
               await base44.entities.FamilyMember.update(id, { color });
               queryClient.invalidateQueries({ queryKey: ['familyMember', id] });

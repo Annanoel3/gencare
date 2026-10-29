@@ -5,7 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
-import { useFamily, claimProfile } from '@/lib/family';
+import { useFamily, claimProfile, makeMyProfile } from '@/lib/family';
 import { isNativeApp } from '@/lib/phone';
 import { wasAsked, onPermissionAnswered } from '@/lib/notifyPermission';
 
@@ -69,6 +69,8 @@ export default function ClaimProfilePrompt() {
       localStorage.setItem(declinedKey(me.id), JSON.stringify([...d]));
     } catch (e) { /* asked again next time */ }
     setClosed(true);
+    // Then they get a profile of their own.
+    makeMyProfile().then(() => queryClient.invalidateQueries({ queryKey: ['familyMembers'] })).catch(() => {});
   };
 
   const open = !closed && permissionDone && candidates.length > 0;

@@ -129,6 +129,30 @@ async function linkProfile(db: any, user: any, invite: any, familyId: string) {
   return target.id;
 }
 
+// Everyone on GenCare has a profile of their own in the family (relationship
+// "Self"), so their events can be about them and their color is theirs. Made
+// on open, unless the family already made profiles they might be (made by
+// someone else, not linked, not a pet): then the app first asks "Is one of
+// these you?", and "None of these" makes their own (force).
+async function ensureOwnProfile(db: any, user: any, familyId: string, force = false) {
+  if (!user?.id || !familyId) return null;
+  const members = ((await db.FamilyMember.filter({ family_id: familyId })) || []).filter((m: any) => m.is_active !== false);
+  const mine = members.find((m: any) => m.linked_user_id === user.id);
+  if (mine) return mine.id;
+  if (!force) {
+    const maybe = members.filter((m: any) => !m.linked_user_id && !/^pet$/i.test(String(m.relationship || ''))
+      && (m.created_by_user_id || m.created_by_id) && (m.created_by_user_id || m.created_by_id) !== user.id);
+    if (maybe.length) return null;
+  }
+  const name = String(user.display_name || user.full_name || String(user.email || '').split('@')[0] || 'Me').trim();
+  const made = await db.FamilyMember.create({ family_id: familyId, name, relationship: 'Self', linked_user_id: user.id, is_active: true });
+  // Two opens at once can each make one: keep the oldest.
+  const now = ((await db.FamilyMember.filter({ family_id: familyId, linked_user_id: user.id })) || [])
+    .sort((a: any, b: any) => String(a.created_date || '').localeCompare(String(b.created_date || '')) || String(a.id).localeCompare(String(b.id)));
+  for (const extra of now.slice(1)) { try { await db.FamilyMember.delete(extra.id); } catch (_) { /* the other open got it */ } }
+  return now[0]?.id || made?.id || null;
+}
+
 // Someone leaving (or removed from) a family: their profile there goes back to
 // being a plain profile the family keeps.
 async function unlinkProfiles(db: any, userId: string, familyId: string) {
@@ -199,6 +223,7 @@ Deno.serve(async (req) => {
       }
       if (!family) family = await createFamilyFor(db, me);
       const after = (await db.User.filter({ id: me.id }))?.[0] || me;
+      try { await ensureOwnProfile(db, after, family.id); } catch (e) { console.warn('[family] own profile:', (e as Error).message); }
       if (body.timezone && typeof body.timezone === 'string' && body.timezone !== after.timezone) {
         try { await db.User.update(me.id, { timezone: body.timezone }); after.timezone = body.timezone; } catch (_) { /* fine */ }
       }
@@ -257,6 +282,12 @@ Deno.serve(async (req) => {
       const linked = await linkProfile(db, me, { family_member_id: member.id }, family.id);
       if (!linked) return Response.json({ ok: false, error: 'Could not make that profile yours' }, { status: 400 });
       return Response.json({ ok: true, member_id: linked, member_name: member.name });
+    }
+
+    // "None of these are me": their own profile.
+    if (mode === 'make_my_profile') {
+      const id = await ensureOwnProfile(db, me, family.id, true);
+      return Response.json({ ok: !!id, member_id: id });
     }
 
     if (mode === 'members') {

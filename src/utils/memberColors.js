@@ -10,8 +10,9 @@ export const MEMBER_COLOR_PALETTE = [
 const FALLBACK_COLOR = 'bg-gray-400';
 // Events only their owner can see.
 export const PRIVATE_COLOR = FALLBACK_COLOR;
-// Every pet shares one color, never one of the people's.
-export const PET_COLOR = 'bg-lime-500';
+// Every pet shares one color: brown, which isn't in the people's palette
+// (so it can't be picked for a person or look like one of their greens).
+export const PET_COLOR = 'bg-amber-800';
 export const isPet = (m) => /^pet$/i.test(String(m?.relationship || ''));
 const people = (members = []) => members.filter((m) => !isPet(m));
 
@@ -19,12 +20,23 @@ function stableOrder(list = []) {
   return [...list].sort((a, b) => String(a.created_date || '').localeCompare(String(b.created_date || '')) || String(a.id).localeCompare(String(b.id)));
 }
 
+const picked = (m) => typeof m?.color === 'string' && m.color.startsWith('bg-');
+
+// The palette minus colors someone picked for a person, so an automatic color
+// never matches a picked one (until the palette runs out).
+function freeColors(members = []) {
+  const taken = new Set(people(members).filter(picked).map((m) => m.color));
+  const free = MEMBER_COLOR_PALETTE.filter((c) => !taken.has(c));
+  return free.length ? free : MEMBER_COLOR_PALETTE;
+}
+
 export function getMemberColorClass(member, members = []) {
   if (!member) return FALLBACK_COLOR;
   if (isPet(member)) return PET_COLOR;
-  if (member.color && typeof member.color === 'string' && member.color.startsWith('bg-')) return member.color;
-  const idx = stableOrder(people(members)).findIndex(m => m.id === member.id);
-  return idx >= 0 ? MEMBER_COLOR_PALETTE[idx % MEMBER_COLOR_PALETTE.length] : FALLBACK_COLOR;
+  if (picked(member)) return member.color;
+  const free = freeColors(members);
+  const idx = stableOrder(people(members).filter((m) => !picked(m))).findIndex(m => m.id === member.id);
+  return idx >= 0 ? free[idx % free.length] : FALLBACK_COLOR;
 }
 
 /**
@@ -37,7 +49,9 @@ export function getUserColorClass(userId, members = [], accounts = []) {
   if (profile) return getMemberColorClass(profile, members);
   const unlinked = stableOrder(accounts.filter(u => u?.id && !members.some(m => m.linked_user_id === u.id)));
   const i = unlinked.findIndex(u => u.id === userId);
-  return i >= 0 ? MEMBER_COLOR_PALETTE[(people(members).length + i) % MEMBER_COLOR_PALETTE.length] : FALLBACK_COLOR;
+  const free = freeColors(members);
+  const autos = people(members).filter((m) => !picked(m)).length;
+  return i >= 0 ? free[(autos + i) % free.length] : FALLBACK_COLOR;
 }
 
 /**
@@ -58,11 +72,18 @@ const LIGHT = {
   'bg-blue-500': 'bg-blue-500/15', 'bg-emerald-500': 'bg-emerald-500/15', 'bg-purple-500': 'bg-purple-500/15',
   'bg-orange-500': 'bg-orange-500/15', 'bg-pink-500': 'bg-pink-500/15', 'bg-teal-500': 'bg-teal-500/15',
   'bg-indigo-500': 'bg-indigo-500/15', 'bg-amber-500': 'bg-amber-500/15', 'bg-gray-400': 'bg-gray-400/15',
-  'bg-lime-500': 'bg-lime-500/15',
+  'bg-amber-800': 'bg-amber-800/15',
 };
 
 export function getEventLightColorClass(appt, members = [], accounts = []) {
   return LIGHT[getEventColorClass(appt, members, accounts)] || 'bg-muted/40';
+}
+
+/** Colors other people (and the pets) already show, so nobody picks a duplicate. */
+export function takenColors(members = [], exceptId = '') {
+  const taken = new Set([PET_COLOR]);
+  for (const m of people(members)) if (m.id !== exceptId) taken.add(getMemberColorClass(m, members));
+  return taken;
 }
 
 export function getMemberLightColorByMemberId(memberId, members = []) {

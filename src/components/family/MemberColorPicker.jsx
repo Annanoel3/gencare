@@ -2,11 +2,14 @@ import React from 'react';
 import { Check } from 'lucide-react';
 import { MEMBER_COLOR_PALETTE } from '@/utils/memberColors';
 
-export default function MemberColorPicker({ value, onChange }) {
+// Colors someone else already has (and the pets' brown) can't be picked, so
+// no two people ever share a color.
+export default function MemberColorPicker({ value, onChange, taken = new Set() }) {
+  const choices = MEMBER_COLOR_PALETTE.filter((c) => c === value || !taken.has(c));
   return (
     <div className="flex flex-wrap items-center gap-2 mt-2">
       <span className="text-xs text-muted-foreground">Color:</span>
-      {MEMBER_COLOR_PALETTE.map(c => (
+      {choices.map(c => (
         <button
           key={c}
           type="button"

@@ -98,6 +98,19 @@ export async function joinFamily(code) {
   return data;
 }
 
+// A profile's relationship as shown to `meId`: a person's own profile
+// ("Self") reads "You" to them and nothing to everyone else.
+export function relationshipLabel(member, meId) {
+  if (/^self$/i.test(String(member?.relationship || ''))) return member?.linked_user_id && member.linked_user_id === meId ? 'You' : '';
+  return member?.relationship || '';
+}
+
+// "None of these are me": the person's own profile.
+export async function makeMyProfile() {
+  const res = await base44.functions.invoke('family', { mode: 'make_my_profile' });
+  return res?.data || res;
+}
+
 // "This profile is me" (for someone who joined without their profile's invite).
 export async function claimProfile(memberId) {
   const res = await base44.functions.invoke('family', { mode: 'claim_profile', member_id: memberId });
