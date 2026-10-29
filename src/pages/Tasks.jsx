@@ -154,7 +154,7 @@ export default function Tasks() {
         </div>
       </div>
 
-      <QuickAddTask autoFocus className="mb-6" />
+      <QuickAddTask className="mb-6" />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-muted rounded-xl mb-5 w-full grid grid-cols-3 h-auto p-1">

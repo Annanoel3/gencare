@@ -22,6 +22,15 @@ import {
 
 const MIN_PASSWORD = 8;
 
+// Anna, Oct 29 2026: warn people plainly that a lost password and code means lost data.
+function LoseWarning() {
+  return (
+    <p className="text-sm rounded-xl border border-amber-300 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100 dark:border-amber-800 p-3">
+      <strong>Don't lose them.</strong> If the password and the recovery code are both lost, everything in this folder is gone for good. Nobody can get it back, not even GenCare.
+    </p>
+  );
+}
+
 /**
  * The person's Legal & financial entries, behind the family's folder
  * password (lib/vault.js). Locked, it shows only that the folder exists;
@@ -203,12 +212,14 @@ function SetupDialog({ open, onOpenChange, me, onDone }) {
         {!made ? (
           <div className="space-y-4 mt-1">
             <p className="text-sm text-muted-foreground">One password for the family's folder. Tell it to whoever should see it. It never leaves the phone, so GenCare can't read the folder or reset the password.</p>
+            <LoseWarning />
             <NewPasswordFields pw={pw} setPw={setPw} again={again} setAgain={setAgain} />
             <Button onClick={make} disabled={!goodNew(pw, again) || busy} className="w-full rounded-xl gap-2">{busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Locking…</> : 'Set password'}</Button>
           </div>
         ) : (
           <div className="space-y-4 mt-1">
-            <p className="text-sm text-muted-foreground">If everyone forgets the password, this code is the only way back in. Write it down or keep it somewhere safe. It won't be shown again.</p>
+            <p className="text-sm text-muted-foreground">If the password is forgotten, this code is the only way back in. Write it down or keep it somewhere safe. It won't be shown again.</p>
+            <LoseWarning />
             <div className="rounded-xl bg-muted p-4 text-center font-mono text-lg tracking-wider break-all select-all">{made.code}</div>
             <Button variant="outline" onClick={copy} className="w-full rounded-xl gap-2">{copied ? <><Check className="w-4 h-4" /> Copied</> : <><Copy className="w-4 h-4" /> Copy the code</>}</Button>
             <Button onClick={finish} className="w-full rounded-xl">I saved it</Button>
