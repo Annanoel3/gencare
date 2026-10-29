@@ -62,6 +62,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>GenCare uses the camera only when you choose to take a photo to add to a message, a note or the care log.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>GenCare opens your photos only when you choose one to add to a message, a note or the care log.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>GenCare records appointments and meetings so it can write notes for you. Audio stays on your phone until it is sent for transcription.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

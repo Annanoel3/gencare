@@ -27,7 +27,10 @@ let package = Package(
                 .product(name: "OneSignalFramework", package: "OneSignal-XCFramework"),
                 .product(name: "RevenueCat", package: "purchases-ios-spm")
             ],
-            path: "Sources/GenCareNative"
+            path: "Sources/GenCareNative",
+            // Apple's privacy manifest: the recorder reads the clock since boot
+            // (to time a recording) and a recording file's size.
+            resources: [.copy("PrivacyInfo.xcprivacy")]
         )
     ]
 )

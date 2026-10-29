@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Heart, Check, Loader2, Users, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
@@ -144,11 +145,16 @@ export default function Subscribe({ gate = false }) {
                 </button>
               )}
               {!plans.monthly && !plans.annual && (
-                <p className="text-sm text-muted-foreground">Plans aren’t set up in Google Play yet ({PRICE_MONTHLY_TEXT} or {PRICE_YEARLY_TEXT}).</p>
+                <p className="text-sm text-muted-foreground">Plans aren’t set up in {isAndroidApp() ? 'Google Play' : 'the App Store'} yet ({PRICE_MONTHLY_TEXT} or {PRICE_YEARLY_TEXT}).</p>
               )}
               <button type="button" onClick={restore} disabled={!!busy} className="w-full text-xs text-muted-foreground underline py-1">
                 {busy === 'restore' ? 'Restoring…' : 'Already subscribed? Restore purchase'}
               </button>
+              {/* What Apple (3.1.2) and Google ask a subscription screen to say. */}
+              <p className="text-[11px] leading-snug text-muted-foreground text-center">
+                The Family plan renews automatically at the price shown (monthly or yearly) until you cancel. Payment is charged to your {isAndroidApp() ? 'Google Play account' : 'Apple Account'}. Cancel any time in {isAndroidApp() ? 'Google Play' : 'your App Store'} subscriptions, at least 24 hours before it renews.{' '}
+                <Link to="/terms" className="underline">Terms of Use</Link> · <Link to="/privacy-policy" className="underline">Privacy Policy</Link>
+              </p>
             </div>
           )}
         </div>
