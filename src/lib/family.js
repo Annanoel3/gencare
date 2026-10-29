@@ -105,6 +105,16 @@ export function relationshipLabel(member, meId) {
   return member?.relationship || '';
 }
 
+// Profiles in the order people expect: you, then the rest of the people
+// (oldest profile first), then the pets.
+export function orderMembers(members = [], meId) {
+  const pet = (m) => /^pet$/i.test(String(m?.relationship || ''));
+  const rank = (m) => (m.linked_user_id && m.linked_user_id === meId ? 0 : pet(m) ? 2 : 1);
+  return [...members].sort((a, b) => rank(a) - rank(b)
+    || String(a.created_date || '').localeCompare(String(b.created_date || ''))
+    || String(a.id).localeCompare(String(b.id)));
+}
+
 // "None of these are me": the person's own profile.
 export async function makeMyProfile() {
   const res = await base44.functions.invoke('family', { mode: 'make_my_profile' });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { withFamily, useFamily, relationshipLabel } from '@/lib/family';
+import { withFamily, useFamily, relationshipLabel, orderMembers } from '@/lib/family';
 import { Link } from 'react-router-dom';
 import { Users, Plus, School, QrCode, StickyNote, PawPrint } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
@@ -35,8 +35,8 @@ export default function Family() {
     queryFn: () => base44.entities.FamilyMember.list('-created_date'),
   });
   const { me } = useFamily();
-  // Your own profile first, then everyone else newest first.
-  const shown = [...members].sort((a, b) => Number(b.linked_user_id === me?.id) - Number(a.linked_user_id === me?.id));
+  // You, then the other people, then the pets (same order as Home).
+  const shown = orderMembers(members, me?.id);
   const peopleShown = shown.filter((m) => !isPet(m));
   const petsShown = shown.filter(isPet);
 

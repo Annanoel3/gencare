@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 import { getMemberColorClass } from '@/utils/memberColors';
-import { useFamily, relationshipLabel } from '@/lib/family';
+import { useFamily, relationshipLabel, orderMembers } from '@/lib/family';
 
 export default function FamilyOverview({ members }) {
   const { me } = useFamily();
@@ -29,7 +29,7 @@ export default function FamilyOverview({ members }) {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {members.map((member, i) => (
+            {orderMembers(members, me?.id).map((member) => (
               <Link
                 key={member.id}
                 to={`/family/${member.id}`}
@@ -42,7 +42,7 @@ export default function FamilyOverview({ members }) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{member.name}</p>
+                  <p className="font-medium text-sm break-words leading-snug">{member.name}</p>
                   <p className="text-xs text-muted-foreground">{relationshipLabel(member, me?.id)}</p>
                 </div>
               </Link>
