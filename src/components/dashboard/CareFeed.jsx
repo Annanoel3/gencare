@@ -38,7 +38,8 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
   const isLoading = [logQ, apptQ, taskQ].some(q => q.isLoading);
 
   let items = [];
-  (logQ.data || []).forEach(e => items.push(normalizeLog(e)));
+  // Legal & financial lives in the locked folder; old plain entries never show here.
+  (logQ.data || []).filter(e => e.entry_type !== 'legal').forEach(e => items.push(normalizeLog(e)));
   // Repeating / multi-day events count on each day they land on: today, or for
   // 'recent' the last 30 days through today (what happened, not a weekly
   // class repeated through next month).

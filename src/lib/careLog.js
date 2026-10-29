@@ -126,14 +126,12 @@ export const CATALOG = {
     { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'errand', 'hygiene', 'mobility', 'visit', 'hand_off', 'other']), TITLE('Details', 'e.g. lunch, walked to mailbox'), { key: 'given_by', kind: 'text', label: 'Helped by', placeholder: 'e.g. Dad, Maria' }, NOTES] },
     { type: 'activity', label: 'Activity', icon: '🏃', fields: [TITLE('Activity', 'e.g. walk around the block'), MIN(), { key: 'level', kind: 'level', label: 'How it went (1–5)' }, NOTES] },
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
-    { type: 'legal', label: 'Legal & financial', icon: '🗂️', fields: [SUB('Kind', ['poa', 'will', 'insurance', 'benefit', 'time_off_work', 'bill', 'tax', 'other']), TITLE('What', 'e.g. renewed car insurance'), AMOUNT('Amount', '$'), DATE('Date'), DOC, NOTES] },
     NOTE,
   ],
   senior: [
     { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'errand', 'hygiene', 'mobility', 'fall', 'visit', 'hand_off', 'other']), TITLE('Details', 'e.g. breakfast, walked to the mailbox'), { key: 'given_by', kind: 'text', label: 'Helped by', placeholder: 'e.g. Maria, Dad' }, NOTES] },
     { type: 'activity', label: 'Activity', icon: '🏃', fields: [TITLE('Activity', 'e.g. walk around the block'), MIN(), { key: 'level', kind: 'level', label: 'How it went (1–5)' }, NOTES] },
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
-    { type: 'legal', label: 'Legal & financial', icon: '🗂️', fields: [SUB('Kind', ['poa', 'will', 'insurance', 'benefit', 'bill', 'tax', 'other']), TITLE('What', 'e.g. updated POA, signed 3/12'), AMOUNT('Amount', '$'), DATE('Date'), DOC, NOTES] },
     NOTE,
   ],
   pet: [
@@ -149,6 +147,10 @@ export const CATALOG = {
     NOTE,
   ],
 };
+
+// Legal & financial moved into the locked folder (lib/vault.js). Entries
+// saved before that stay out of lists and move in once the folder is opened.
+export const isLocked = (e) => e?.entry_type === 'legal';
 
 /** Find a type definition; falls back across bands so old entries still render. */
 export function typeDef(band, type) {
@@ -249,4 +251,125 @@ export function upcoming(logs) {
   return logs
     .filter((l) => (l.due_date && l.due_date >= today && !l.completed) || (l.date && l.date >= today && l.status !== 'done' && !['puberty', 'financial', 'legal'].includes(l.entry_type)))
     .sort((a, b) => (a.due_date || a.date).localeCompare(b.due_date || b.date));
+}
+
+// ---- One-tap logging ----
+// The Care Log's buttons: a tap logs it right now, as you, for the person
+// picked, and everyone in the family sees it (Undo and "Add details" follow).
+// `ask` opens the form instead, for things that need a detail (how much, how
+// long, what happened). `daily` things (meals, a shower) that were already
+// logged today open that entry instead of logging a second one. `last` puts
+// it in "Last time" (when did Mom last shower, when did the baby last eat).
+const Q = (key, label, icon, row, opts = {}) => ({ key, label, icon, row, ...opts });
+const meal = (key, label, icon, type = 'care_log') => Q(key, label, icon, type === 'food' ? { entry_type: 'food', sub_type: key, title: label } : { entry_type: 'care_log', sub_type: 'meal', title: label }, { daily: true });
+const GOOD = Q('good', 'Good day', '😊', { entry_type: 'mood', mood: 'happy' }, { mood: ['happy', 'calm'] });
+const HARD = Q('hard', 'Hard day', '😔', { entry_type: 'mood', mood: 'upset' }, { mood: ['anxious', 'irritable', 'upset'] });
+const NOTE_Q = Q('note', 'Note', '📝', { entry_type: 'note' }, { ask: true });
+
+export const QUICK = {
+  senior: [
+    meal('breakfast', 'Breakfast', '🍳'), meal('lunch', 'Lunch', '🥪'), meal('dinner', 'Dinner', '🍽️'),
+    Q('walk', 'Walk', '🚶', { entry_type: 'activity', title: 'Walk' }, { last: true }),
+    Q('exercises', 'Exercises', '💪', { entry_type: 'activity', title: 'Exercises' }, { last: true }),
+    Q('shower', 'Shower', '🚿', { entry_type: 'care_log', sub_type: 'hygiene', title: 'Shower' }, { daily: true, last: true }),
+    Q('visit', 'Visit', '👋', { entry_type: 'care_log', sub_type: 'visit', title: 'Visit' }, { last: true }),
+    GOOD, HARD,
+    Q('fall', 'Fall', '⚠️', { entry_type: 'care_log', sub_type: 'fall', title: 'Fall' }, { ask: true, last: true }),
+    NOTE_Q,
+  ],
+  adult: [
+    meal('breakfast', 'Breakfast', '🍳'), meal('lunch', 'Lunch', '🥪'), meal('dinner', 'Dinner', '🍽️'),
+    Q('walk', 'Walk', '🚶', { entry_type: 'activity', title: 'Walk' }, { last: true }),
+    Q('exercises', 'Exercises', '💪', { entry_type: 'activity', title: 'Exercises' }, { last: true }),
+    Q('shower', 'Shower', '🚿', { entry_type: 'care_log', sub_type: 'hygiene', title: 'Shower' }, { daily: true, last: true }),
+    Q('errand', 'Errand', '🛒', { entry_type: 'care_log', sub_type: 'errand', title: 'Errand' }, { ask: true, last: true }),
+    Q('visit', 'Visit', '👋', { entry_type: 'care_log', sub_type: 'visit', title: 'Visit' }, { last: true }),
+    GOOD, HARD, NOTE_Q,
+  ],
+  baby: [
+    Q('bottle', 'Bottle', '🍼', { entry_type: 'feeding', sub_type: 'bottle' }, { ask: true, last: true }),
+    Q('nursing', 'Nursing', '🤱', { entry_type: 'feeding', sub_type: 'nursing' }, { ask: true, last: true }),
+    Q('wet', 'Wet diaper', '💧', { entry_type: 'diaper', sub_type: 'wet' }, { last: true }),
+    Q('dirty', 'Dirty diaper', '💩', { entry_type: 'diaper', sub_type: 'dirty' }, { last: true }),
+    Q('nap', 'Nap', '😴', { entry_type: 'sleep', sub_type: 'nap' }, { ask: true, last: true }),
+    Q('pumping', 'Pumping', '🫙', { entry_type: 'pumping' }, { ask: true, last: true }),
+    Q('milestone', 'Milestone', '🎯', { entry_type: 'milestone' }, { ask: true }),
+    NOTE_Q,
+  ],
+  toddler: [
+    meal('breakfast', 'Breakfast', '🍳', 'food'), meal('lunch', 'Lunch', '🥪', 'food'), meal('dinner', 'Dinner', '🍽️', 'food'),
+    Q('nap', 'Nap', '😴', { entry_type: 'sleep', sub_type: 'nap' }, { last: true }),
+    Q('potty', 'Potty win', '🚽', { entry_type: 'potty', sub_type: 'success' }, { last: true }),
+    Q('accident', 'Accident', '💦', { entry_type: 'potty', sub_type: 'accident' }),
+    Q('tantrum', 'Tantrum', '🌪️', { entry_type: 'tantrum' }, { ask: true, last: true }),
+    GOOD, HARD,
+    Q('screen', 'Screen time', '📱', { entry_type: 'screen_time' }, { ask: true }),
+    Q('milestone', 'Milestone', '🎯', { entry_type: 'milestone' }, { ask: true }),
+    NOTE_Q,
+  ],
+  school: [
+    Q('teeth', 'Teeth', '🪥', { entry_type: 'hygiene', sub_type: 'teeth' }, { daily: true }),
+    Q('shower', 'Shower', '🚿', { entry_type: 'hygiene', sub_type: 'shower' }, { daily: true, last: true }),
+    Q('reading', 'Reading', '📚', { entry_type: 'reading' }, { ask: true, last: true }),
+    Q('homework', 'Homework', '✏️', { entry_type: 'homework' }, { ask: true }),
+    Q('chore', 'Chore', '🧹', { entry_type: 'chore' }, { ask: true }),
+    GOOD, HARD,
+    Q('activity', 'Activity', '⚽', { entry_type: 'activity' }, { ask: true }),
+    Q('screen', 'Screen time', '📱', { entry_type: 'screen_time' }, { ask: true }),
+    NOTE_Q,
+  ],
+  preteen: [
+    Q('shower', 'Shower', '🚿', { entry_type: 'hygiene', sub_type: 'shower' }, { daily: true, last: true }),
+    Q('schoolwork', 'Schoolwork', '📝', { entry_type: 'schoolwork' }, { ask: true }),
+    Q('chore', 'Chore', '🧹', { entry_type: 'chore' }, { ask: true }),
+    { ...GOOD, row: { entry_type: 'mental', mood: 'happy' } }, { ...HARD, row: { entry_type: 'mental', mood: 'upset' } },
+    Q('activity', 'Activity', '🎭', { entry_type: 'extracurricular' }, { ask: true }),
+    Q('social', 'Friends', '🎉', { entry_type: 'social' }, { ask: true, last: true }),
+    Q('screen', 'Screen time', '📱', { entry_type: 'screen_time' }, { ask: true }),
+    NOTE_Q,
+  ],
+  teen: [
+    Q('ride', 'Ride', '🚗', { entry_type: 'transport' }, { ask: true }),
+    Q('academic', 'School', '🎓', { entry_type: 'academic' }, { ask: true }),
+    Q('document', 'Document', '📄', { entry_type: 'document' }, { ask: true }),
+    Q('money', 'Money', '💳', { entry_type: 'financial' }, { ask: true }),
+    GOOD, HARD, NOTE_Q,
+  ],
+  pet: [
+    Q('fed', 'Fed', '🥣', { entry_type: 'pet_feeding', title: 'Fed' }, { last: true }),
+    Q('walk', 'Walk', '🐾', { entry_type: 'pet_walk', title: 'Walk' }, { last: true }),
+    Q('groomed', 'Groomed', '✂️', { entry_type: 'pet_grooming', title: 'Groomed' }, { last: true }),
+    Q('vet', 'Vet', '🩺', { entry_type: 'pet_vet' }, { ask: true, last: true }),
+    NOTE_Q,
+  ],
+  general: [
+    Q('walk', 'Walk', '🚶', { entry_type: 'activity', title: 'Walk' }, { last: true }),
+    Q('visit', 'Visit', '👋', { entry_type: 'care_log', sub_type: 'visit', title: 'Visit' }, { last: true }),
+    GOOD, HARD, NOTE_Q,
+  ],
+};
+
+/** Does this entry count as that button (for "done today" and "Last time")? */
+export function matchesQuick(q, e) {
+  if (!e || e.entry_type !== q.row.entry_type) return false;
+  if (q.mood) return q.mood.includes(e.mood);
+  if (q.row.sub_type && e.sub_type !== q.row.sub_type) return false;
+  // Where buttons share a kind (Walk and Exercises are both activities, the
+  // three meals are all meals), the title tells them apart.
+  const byTitle = q.row.title && (q.row.entry_type === 'activity' || ['meal', 'hygiene'].includes(q.row.sub_type));
+  if (byTitle && !String(e.title || '').toLowerCase().startsWith(q.row.title.toLowerCase())) return false;
+  return true;
+}
+
+/** A one-tap button's entry, ready to save. */
+export function quickRow(q, member, me) {
+  return {
+    family_member_id: member.id,
+    family_member_name: member.name,
+    band: bandOf(member),
+    timestamp: new Date().toISOString(),
+    logged_by_user_id: me?.id,
+    logged_by_name: me?.display_name || me?.full_name || '',
+    ...q.row,
+  };
 }

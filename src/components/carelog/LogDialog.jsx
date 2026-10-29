@@ -23,7 +23,7 @@ function toLocal(iso) {
  * Log or edit one care entry. The fields come from the catalog for the
  * person's band and the chosen type, so this one dialog serves every age.
  */
-export default function LogDialog({ open, onOpenChange, member, entry, type, onSave, onDelete, saving }) {
+export default function LogDialog({ open, onOpenChange, member, entry, type, preset, onSave, onDelete, saving }) {
   const band = bandOf(member);
   const types = CATALOG[band] || CATALOG.general;
   const [entryType, setEntryType] = useState(type || types[0]?.type);
@@ -48,8 +48,10 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, onS
       else if (f.kind === 'photos') base[f.key] = Array.isArray(entry?.[f.key]) ? entry[f.key] : [];
       else base[f.key] = entry?.[f.key] ?? '';
     }
+    // A one-tap button that asks for details starts with its own picks (Bottle, Fall).
+    if (!entry && preset) for (const [k, v] of Object.entries(preset)) if (k !== 'entry_type' && k in base) base[k] = v;
     setForm(base);
-  }, [open, entry, type, member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, entry, type, member?.id, preset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Switching type on a new entry resets the type-specific fields but keeps the time.
   const switchType = (t) => {

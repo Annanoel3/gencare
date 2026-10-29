@@ -484,12 +484,24 @@ Deno.serve(async (req) => {
         seen.add(key);
         const have = byKey.get(key);
         if (have) {
-          if (!fieldsMatch(have, fields)) {
-            const keep: Record<string, unknown> = { ...fields };
-            // What the family changed here stays: who it's for, the category, who it's shared with.
-            if (have.family_member_id) { delete keep.family_member_id; }
-            if (have.category && have.category !== 'Other') delete keep.category;
-            delete keep.visibility;
+          const keep: Record<string, unknown> = { ...fields };
+          // What the family changed here stays: who it's for, the category, who it's shared with.
+          if (have.family_member_id) { delete keep.family_member_id; }
+          if (have.category && have.category !== 'Other') delete keep.category;
+          delete keep.visibility;
+          // The place and notes follow the phone only when they changed on the
+          // phone since the last sync. Otherwise what someone typed here stays
+          // (Anna, Oct 29 2026: an address she pasted into Mom's assessment was
+          // wiped by the next sync because the phone's copy had no address).
+          for (const k of ['location', 'notes']) {
+            const fromPhone = String((fields as any)[k] || '');
+            const last = have[`phone_${k}`];
+            const changedOnPhone = last === undefined || last === null ? !!fromPhone : fromPhone !== String(last);
+            if (!changedOnPhone) delete keep[k];
+            keep[`phone_${k}`] = fromPhone;
+          }
+          const next = { ...have, ...keep };
+          if (!fieldsMatch(have, next) || (have.phone_location ?? null) !== keep.phone_location || (have.phone_notes ?? null) !== keep.phone_notes) {
             await db.Appointment.update(have.id, keep);
             updated++;
           }
@@ -498,7 +510,13 @@ Deno.serve(async (req) => {
           const twin = ((await db.Appointment.filter({ family_id: familyId, date: fields.date, title: fields.title })) || [])
             .find((a: any) => (a.time || '') === (fields.time || '') && !a.device_key);
           if (twin) {
-            await db.Appointment.update(twin.id, { device_key: key, source: 'phone', created_by_user_id: twin.created_by_user_id || user.id });
+            // Linked: the phone's place and notes fill in what's empty here.
+            await db.Appointment.update(twin.id, {
+              device_key: key, source: 'phone', created_by_user_id: twin.created_by_user_id || user.id,
+              phone_location: fields.location || '', phone_notes: fields.notes || '',
+              ...(twin.location ? {} : { location: fields.location || '' }),
+              ...(twin.notes ? {} : { notes: fields.notes || '' }),
+            });
             updated++;
           } else {
             // Another import (the phone's background sync) may have saved it a moment ago.
@@ -506,7 +524,7 @@ Deno.serve(async (req) => {
             if (!already) {
               // Sharing follows the person's choice ("GenCare decides" starts
               // it at Only me until it's sorted, a moment later).
-              await db.Appointment.create({ ...fields, visibility: sharingMode(user) === 'family' ? 'family' : 'private', auto_set: ['visibility', 'category'], family_id: familyId, device_key: key });
+              await db.Appointment.create({ ...fields, phone_location: fields.location || '', phone_notes: fields.notes || '', visibility: sharingMode(user) === 'family' ? 'family' : 'private', auto_set: ['visibility', 'category'], family_id: familyId, device_key: key });
               created++;
             }
           }
