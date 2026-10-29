@@ -77,6 +77,8 @@ const plain = (s: unknown, n: number) => clip(String(s ?? '')
   .replace(/\(\s*\[[^\]]*\]\([^)]*\)\s*\)/g, '')
   .replace(/\[([^\]]*)\]\([^)]*\)/g, (_m: string, label: string) => (/^[\w.-]+\.[a-z]{2,}$/i.test(label.trim()) ? '' : label))
   .replace(/\(?https?:\/\/\S+\)?/g, '')
+  .replace(/\(?\[[\w.-]+\.[a-z]{2,}\]?\)?/gi, '') // a citation cut off by an older, shorter save
+  .replace(/\s*\(\s*$/, '')
   .replace(/\s+([.,;:])/g, '$1'), n);
 // Drop OpenAI's tracking tag from links.
 const cleanUrl = (u: string) => { try { const x = new URL(u); x.searchParams.delete('utm_source'); return x.toString(); } catch { return u; } };
