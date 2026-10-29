@@ -86,6 +86,11 @@ export async function startActivity(me) {
   queue = queue.map((r) => ({ ...r, platform: ctx.platform, build: ctx.build, os: ctx.os, user_id: user.id, user_name: user.name, family_id: user.family_id }));
   track('open', ctx.platform === 'ios' ? 'iPhone app' : ctx.platform === 'android' ? 'Android app' : 'website', typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 200) : '');
   track('permission', 'notifications', await notificationState());
+  // The page reloaded itself after a blank screen (index.html).
+  try {
+    const why = localStorage.getItem('gencare_blank_reload_seen');
+    if (why) { track('error', 'blank screen, reloaded itself', why); localStorage.removeItem('gencare_blank_reload_seen'); }
+  } catch (e) { /* storage off */ }
 
   window.addEventListener('error', (e) => track('error', 'script error', `${e?.message || ''} ${e?.filename ? `@ ${String(e.filename).split('/').pop()}:${e.lineno}` : ''}`.trim()));
   window.addEventListener('unhandledrejection', (e) => {

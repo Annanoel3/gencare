@@ -5,7 +5,33 @@
     <link rel="icon" type="image/svg+xml" href="https://base44.com/logo_v2.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
-    <title>Base44 APP</title>
+    <title>GenCare</title>
+    <script>
+      // A blank screen means the app's code never started: usually the phone
+      // kept an old copy of this page after an update, and the code it points
+      // to is gone. Reload once by itself (never in a loop) instead of leaving
+      // a white screen until someone thinks to refresh.
+      (function () {
+        var KEY = 'gencare_blank_reload';
+        function reloadOnce(why) {
+          var last = 0;
+          try { last = Number(sessionStorage.getItem(KEY) || 0); } catch (e) {}
+          if (Date.now() - last < 60000) return;
+          try { sessionStorage.setItem(KEY, String(Date.now())); localStorage.setItem('gencare_blank_reload_seen', why); } catch (e) {}
+          location.reload();
+        }
+        // The app's code file failed to load.
+        window.addEventListener('error', function (e) {
+          var t = e && e.target;
+          if (t && t.tagName === 'SCRIPT' && !(document.getElementById('root') || {}).childElementCount) reloadOnce('code file failed to load');
+        }, true);
+        // Nothing on screen after 15 seconds.
+        setTimeout(function () {
+          var root = document.getElementById('root');
+          if (root && !root.childElementCount) reloadOnce('nothing showed after 15 seconds');
+        }, 15000);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
