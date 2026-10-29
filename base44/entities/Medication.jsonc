@@ -3,7 +3,7 @@
   "name": "Medication",
   "properties": {
     "anchor_time": {
-      "description": "For an \"until it's done\" reminder: the time the person picked (HH:MM); the other push times are worked out from it and the priority",
+      "description": "For an \"until it's done\" reminder: when it starts on its first day (HH:MM, 8 AM to 8 PM); the other push times are worked out from it and the priority",
       "type": "string"
     },
     "days_of_week": {
@@ -28,8 +28,10 @@
       "type": "string"
     },
     "frequency": {
+      "description": "Once = until it's done (keeps reminding by priority until someone marks it done). One time = one push at its time on once_date, and that's all. The rest repeat at times[]",
       "enum": [
         "Once",
+        "One time",
         "Once daily",
         "Twice daily",
         "Three times daily",
@@ -53,7 +55,7 @@
       "type": "string"
     },
     "once_date": {
-      "description": "For a one-time reminder (frequency Once): the day it happens",
+      "description": "For Once (until it's done): the day it starts. For One time: the day it happens",
       "format": "date",
       "type": "string"
     },
