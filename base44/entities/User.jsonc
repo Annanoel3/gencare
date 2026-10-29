@@ -70,8 +70,13 @@
       "type": "string"
     },
     "help_zip": {
-      "description": "ZIP code this person searched on the Resources page for help near them (optional)",
+      "description": "This person's home ZIP code (optional): place search and Resources lean toward it; asked in the welcome chat",
       "type": "string"
+    },
+    "welcome_done_at": {
+      "description": "When this person finished or closed the welcome chat (so it never shows again on another phone)",
+      "type": "string",
+      "format": "date-time"
     },
     "import_share_calendar_ids": {
       "description": "Of the imported phone calendars, which ones are shared with the family (the rest stay private)",

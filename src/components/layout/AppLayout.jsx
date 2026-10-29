@@ -11,6 +11,7 @@ import { base44 } from '@/api/base44Client';
 import QuickCaptureButton from '@/components/shared/QuickCaptureButton';
 import { startActivity, track } from '@/lib/activity';
 import OneSignalInit from '@/components/shared/OneSignalInit';
+import WelcomeDialog from '@/components/onboarding/WelcomeDialog';
 import RecordingBar from '@/components/shared/RecordingBar';
 import AppUpdateCard from '@/components/shared/AppUpdateCard';
 import NotificationsOffBanner from '@/components/shared/NotificationsOffBanner';
@@ -202,35 +203,10 @@ function AppShell() {
   return (
     <div className="min-h-screen bg-background flex overflow-x-hidden">
       {currentUser && <OneSignalInit user={currentUser} />}
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 border-r border-border bg-card fixed h-full z-30">
-        <div className="p-6 border-b border-border">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <Heart className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-heading text-xl font-bold text-foreground">GenCare</h1>
-              <p className="text-xs text-muted-foreground">Family Care Hub</p>
-            </div>
-          </Link>
-        </div>
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <NavList items={navStructure} expandedGroups={expandedGroups} toggleGroup={toggleGroup} />
-        </nav>
-        <div className="p-4 border-t border-border">
-          <button
-            onClick={() => base44.auth.logout()}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full transition-all"
-          >
-            <LogOut className="w-5 h-5" />
-            Sign Out
-          </button>
-        </div>
-      </aside>
+      {currentUser && <WelcomeDialog user={currentUser} />}
 
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-card border-b border-border z-40">
+      {/* Header (GenCare is a phone app only; Base44's computer sidebar is gone) */}
+      <div className="fixed top-0 left-0 right-0 bg-card border-b border-border z-40">
       <div className="h-16 flex items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -245,9 +221,9 @@ function AppShell() {
       <RecordingBar />
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Menu */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setMobileOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setMobileOpen(false)}>
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-card shadow-xl p-4 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 p-4 mb-4">
               <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
@@ -261,7 +237,7 @@ function AppShell() {
             <nav className="space-y-1">
               <NavList items={navStructure} expandedGroups={expandedGroups} toggleGroup={toggleGroup} onNavigate={() => setMobileOpen(false)} />
             </nav>
-            {/* The phone menu had no way out; the desktop sidebar always did. */}
+            {/* The way out (Anna, Oct 29 2026: it was hard to find). */}
             <button
               onClick={() => base44.auth.logout()}
               className="mt-4 pt-4 border-t border-border flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full transition-all"
@@ -274,18 +250,18 @@ function AppShell() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-64 pt-16 lg:pt-0 min-h-screen min-w-0 overflow-x-hidden">
+      <main className="flex-1 pt-16 min-h-screen min-w-0 overflow-x-hidden">
         <AppUpdateCard />
         <NotificationsOffBanner />
         <PullToRefresh onRefresh={async () => { await Promise.all([queryClient.invalidateQueries(), refreshFamily()]); }}>
-          <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+          <div className="p-4 w-full">
             <Outlet />
           </div>
         </PullToRefresh>
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around py-2 px-2 z-40">
+      {/* Bottom nav */}
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around py-2 px-2 z-40">
         {mobileBottomNav.map(item => {
           const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
           return (

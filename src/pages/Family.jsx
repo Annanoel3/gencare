@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { withFamily, useFamily, relationshipLabel, orderMembers, RELATIONSHIPS } from '@/lib/family';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Users, Plus, School, QrCode, StickyNote, PawPrint, HeartHandshake } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,9 @@ const EMPTY = { name: '', relationship: '', birthdate: '', care_notes: '' };
 export default function Family() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [petMode, setPetMode] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
+  // ?invite=1 (the welcome chat's "Invite my family") opens the invite right away.
+  const [params] = useSearchParams();
+  const [inviteOpen, setInviteOpen] = useState(() => params.get('invite') === '1');
   const [inviteFor, setInviteFor] = useState(null);
   const [inviteAfterAdd, setInviteAfterAdd] = useState(false);
   const [form, setForm] = useState(EMPTY);

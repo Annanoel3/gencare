@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { track } from '@/lib/activity';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { isNativeApp, waitForPlugin } from '@/lib/phone';
 import { markPermissionAnswered } from '@/lib/notifyPermission';
+import { waitForWelcome } from '@/lib/welcome';
 
 // Push notifications, ported from ADHDone's OneSignalInit.
 //   - In the Android/iPhone app: the native OneSignal SDK through NotifyBridge
@@ -39,8 +40,15 @@ function handleNotificationData(data, navigate) {
   if (navigate) navigate(target); else window.location.href = target;
 }
 
+// Signed in to push once per app open. The effect used to re-run on every
+// screen change (useNavigate hands back a new function each time), so the
+// phone was asked about notifications again on each page.
+let syncedFor = '';
+
 export default function OneSignalInit({ user }) {
   const navigate = useNavigate();
+  const navRef = useRef(navigate);
+  navRef.current = navigate;
 
   // Taps on pushes (warm start) and the push that opened the app (cold start).
   useEffect(() => {
@@ -53,15 +61,15 @@ export default function OneSignalInit({ user }) {
       try {
         handle = await NotifyBridge.addListener?.('notificationOpened', (event) => {
           const data = event?.notification?.data || event?.data;
-          handleNotificationData(data, navigate);
+          handleNotificationData(data, navRef.current);
         });
       } catch (e) { /* older build */ }
       NotifyBridge.getLaunchNotification?.().then((result) => {
-        if (result?.notification?.data) handleNotificationData(result.notification.data, navigate);
+        if (result?.notification?.data) handleNotificationData(result.notification.data, navRef.current);
       }).catch(() => {});
     })();
     return () => { cancelled = true; handle?.remove?.(); };
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     const syncOneSignal = async () => {
@@ -71,6 +79,8 @@ export default function OneSignalInit({ user }) {
       if (userEmail && userEmail.includes('@')) externalId = String(userEmail).toLowerCase().trim();
       else if (user?.id) externalId = `${user.id}@gencare.app`;
       else return;
+      if (syncedFor === externalId) return;
+      syncedFor = externalId;
 
       if (isNativeApp()) {
         const NotifyBridge = await waitForPlugin('NotifyBridge', 15000);
@@ -78,8 +88,10 @@ export default function OneSignalInit({ user }) {
           console.warn('[OneSignal] NotifyBridge not found on this build');
           return;
         }
-        // Android 13+ needs the person to allow notifications; this is the
-        // system prompt, shown once.
+        // Android 13+ and iPhone need the person to allow notifications; this
+        // is the system prompt, shown once. A new account gets it right after
+        // the welcome chat, whose last line says it's coming (lib/welcome).
+        await waitForWelcome();
         let permission = null;
         try { permission = await NotifyBridge.requestPermission(); } catch (permErr) { /* they said no, or an old build */ }
         markPermissionAnswered(permission?.granted);
@@ -116,7 +128,7 @@ export default function OneSignalInit({ user }) {
             if (id) savePlayerId(id);
           });
           OneSignal.Notifications?.addEventListener?.('click', (event) => {
-            handleNotificationData(event?.notification?.data, navigate);
+            handleNotificationData(event?.notification?.data, navRef.current);
           });
         } catch (error) {
           console.warn('[OneSignal] web init failed:', error?.message || error);
@@ -124,7 +136,7 @@ export default function OneSignalInit({ user }) {
       });
     };
     syncOneSignal();
-  }, [user, navigate]);
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }
