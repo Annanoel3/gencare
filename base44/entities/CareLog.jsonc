@@ -3,7 +3,7 @@
   "name": "CareLog",
   "properties": {
     "amount": {
-      "description": "ml, dollars, stars, points - see unit",
+      "description": "oz, dollars, stars, points - see unit",
       "type": "number"
     },
     "band": {
@@ -17,7 +17,7 @@
       "type": "string"
     },
     "date": {
-      "description": "A date the entry points at (refill, pickup, cycle start)",
+      "description": "A date the entry points at (pickup, deadline, cycle start)",
       "format": "date",
       "type": "string"
     },
@@ -48,7 +48,7 @@
       "type": "string"
     },
     "level": {
-      "description": "1-5 scale (anxiety, pain, severity)",
+      "description": "1-5 scale (stress, fussiness, how it went)",
       "type": "number"
     },
     "location": {
@@ -74,9 +74,6 @@
       "type": "string"
     },
     "notes": {
-      "type": "string"
-    },
-    "pharmacy": {
       "type": "string"
     },
     "photos": {
@@ -131,7 +128,7 @@
       "type": "string"
     },
     "value": {
-      "description": "Measurement such as weight or temperature",
+      "description": "Measurement such as weight",
       "type": "number"
     },
     "value_b": {
@@ -141,9 +138,6 @@
     "value_c": {
       "description": "Third measurement such as head circumference",
       "type": "number"
-    },
-    "vitals": {
-      "type": "string"
     }
   },
   "required": [
@@ -151,6 +145,7 @@
     "entry_type",
     "timestamp"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -164,6 +159,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
