@@ -1,9 +1,25 @@
 {
   "name": "Appointment",
   "properties": {
+    "ai_checked_at": {
+      "description": "When GenCare last sorted this event (who it's about, shared or not, category)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "ai_share": {
+      "description": "GenCare's sharing pick for this event (used when the person's choice is 'GenCare decides')",
+      "type": "boolean"
+    },
     "all_day": {
       "default": false,
       "type": "boolean"
+    },
+    "auto_set": {
+      "description": "Fields GenCare filled in itself (visibility, member, category); a person's own pick is never in here and never overridden",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "category": {
       "default": "Appointment",
