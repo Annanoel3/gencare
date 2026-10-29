@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import MoreOptions, { Choices } from '@/components/shared/MoreOptions';
+import { Choices } from '@/components/shared/MoreOptions';
 import { useFamily, orderMembers } from '@/lib/family';
 import { DAY_NAMES, defaultTimes, fmtClock, todayStr } from '@/lib/reminders';
 
@@ -27,9 +26,10 @@ function frequencyFor(how, times) {
 }
 
 /**
- * Add or edit a reminder. Up front: what, how often, what time, and who gets
- * it. Everything else (who it's for, details, start day, notes, running out)
- * is under More options.
+ * Add or edit a reminder: what, how often, what time, who gets it, who it's
+ * for and notes. Nothing folded away (Anna, Oct 29 2026); details, a later
+ * start day and "runs out on" are gone from the form, and a value an older
+ * reminder already has is kept.
  */
 export default function ReminderDialog({ open, onOpenChange, med, members = [], onSave, onDelete, saving, adherence }) {
   const [form, setForm] = useState(blank());
@@ -138,53 +138,31 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             <p className="text-xs text-muted-foreground mt-1.5">{summary}{justMe ? ' Nobody else sees it.' : ''}</p>
           </div>
 
-          <MoreOptions defaultOpen={editing} hint="Who it's for, details, start day, notes, running out">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>For</Label>
-                <Select value={form.family_member_id} onValueChange={(v) => set('family_member_id', v)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NOBODY}>Nobody in particular</SelectItem>
-                    {people.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+          {people.length > 0 && (
+            <div>
+              <Label>For</Label>
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {[{ id: NOBODY, name: 'Nobody in particular' }, ...people].map((m) => (
+                  <button key={m.id} type="button" onClick={() => set('family_member_id', m.id)}
+                    className={`rounded-full border px-3 py-1 text-sm ${form.family_member_id === m.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'}`}>
+                    {m.id === NOBODY ? m.name : String(m.name || '').split(' ')[0]}
+                  </button>
+                ))}
               </div>
-              <div><Label>Details</Label><Input value={form.dosage} onChange={(e) => set('dosage', e.target.value)} placeholder="1 scoop" className="mt-1" /></div>
             </div>
-            {once && <div><Label>Starting</Label><Input type="date" value={form.once_date} min={editing ? undefined : todayStr()} onChange={(e) => set('once_date', e.target.value)} className="mt-1" /></div>}
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={2} placeholder="Anything the person doing it should know" /></div>
-            <label className="flex items-center justify-between gap-3 text-sm">
-              <span>Send pushes</span>
-              <Switch checked={form.remind} onCheckedChange={(v) => set('remind', v)} />
-            </label>
-            {!once && (
+          )}
+
+          <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={2} placeholder="Anything the person doing it should know" /></div>
+
+          {editing && !once && (
+            <div className="flex items-center justify-between rounded-xl bg-muted/60 p-3">
               <div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Runs out on</Label><Input type="date" value={form.refill_date} onChange={(e) => set('refill_date', e.target.value)} className="mt-1" /></div>
-                  {form.refill_date && (
-                    <div>
-                      <Label>Remind before</Label>
-                      <Select value={String(form.refill_reminder_days)} onValueChange={(v) => set('refill_reminder_days', Number(v))}>
-                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>{[1, 2, 3, 5, 7, 14].map((n) => <SelectItem key={n} value={String(n)}>{n} day{n > 1 ? 's' : ''} before</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">For things you restock, like dog food or printer ink.</p>
+                <p className="text-sm font-medium">{form.is_active ? 'On' : 'Paused'}</p>
+                {adherence && adherence.total > 0 && <p className="text-xs text-muted-foreground">Last 14 days: {adherence.taken} done, {adherence.missed} missed{adherence.skipped ? `, ${adherence.skipped} skipped` : ''}</p>}
               </div>
-            )}
-            {editing && !once && (
-              <div className="flex items-center justify-between rounded-xl bg-muted/60 p-3">
-                <div>
-                  <p className="text-sm font-medium">{form.is_active ? 'On' : 'Paused'}</p>
-                  {adherence && adherence.total > 0 && <p className="text-xs text-muted-foreground">Last 14 days: {adherence.taken} done, {adherence.missed} missed{adherence.skipped ? `, ${adherence.skipped} skipped` : ''}</p>}
-                </div>
-                <Switch checked={form.is_active} onCheckedChange={(v) => set('is_active', v)} />
-              </div>
-            )}
-          </MoreOptions>
+              <Switch checked={form.is_active} onCheckedChange={(v) => set('is_active', v)} />
+            </div>
+          )}
 
           <div className="flex items-center gap-2 pt-1">
             {editing && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>}

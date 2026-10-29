@@ -13,10 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TaskSteps from './TaskSteps';
-import MoreOptions, { Choices } from '@/components/shared/MoreOptions';
+import { Choices } from '@/components/shared/MoreOptions';
 import { format, addDays } from 'date-fns';
 import {
-  REPEAT_OPTIONS, DAY_NAMES, PRIORITIES, CATEGORIES, createTask, updateTask, deleteTask, addStep,
+  REPEAT_OPTIONS, DAY_NAMES, createTask, updateTask, deleteTask, addStep,
   completeTask, uncompleteTask, toggleStep, nextCopyText, clean,
 } from '@/lib/tasks';
 
@@ -25,8 +25,10 @@ const WHEN = [['none', 'No date'], ['today', 'Today'], ['tomorrow', 'Tomorrow'],
 
 /**
  * Create or edit a task or checklist. Up front: what and when (a checklist
- * also shows its steps and how often). Who it's for, who does it, repeats,
- * steps, priority, category and notes are under More options. `task` null = new.
+ * also shows its steps and how often). Then who does it, who it's for and
+ * notes, nothing else (Anna, Oct 29 2026: folding extras under "More options"
+ * isn't the fix; priority and category are gone, and a value an older task
+ * already has is kept). Repeat is a small link. `task` null = new.
  * `kind` ('task' | 'checklist') applies to a new one.
  */
 export default function TaskSheet({ open, onOpenChange, task = null, kind = 'task', members = [], onChanged }) {
@@ -117,7 +119,8 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const today = format(new Date(), 'yyyy-MM-dd');
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const [picking, setPicking] = useState(false);
-  useEffect(() => { if (open) setPicking(false); }, [open, task]);
+  const [showRepeat, setShowRepeat] = useState(false);
+  useEffect(() => { if (open) { setPicking(false); setShowRepeat(false); } }, [open, task]);
   const when = picking ? 'pick' : !form.due_date ? 'none' : form.due_date === today ? 'today' : form.due_date === tomorrow ? 'tomorrow' : 'pick';
   const setWhen = (v) => {
     setPicking(v === 'pick');
@@ -172,79 +175,40 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             {form.due_date && form.due_time && <p className="text-xs text-muted-foreground mt-1">{form.assigned_user_id && form.assigned_user_id !== NONE ? 'The person doing it gets' : 'Everyone gets'} a push at that time.</p>}
           </div>
 
-          {isChecklist && (
-            <>
-              <div>
-                <Label>Steps (anyone can tick them)</Label>
-                <div className="mt-1 rounded-xl border border-border/60 p-3">
-                  {isNew && pendingSteps.length > 0 && (
-                    <ul className="mb-1 space-y-1">{pendingSteps.map((p, i) => <li key={i} className="text-sm flex items-center gap-2"><span className="w-5 h-5 rounded-md border-2 border-primary/40 inline-block" />{p}</li>)}</ul>
-                  )}
-                  <TaskSteps steps={steps} onToggle={isNew ? undefined : onToggleStep} onAdd={onAddStep} onRemove={isNew ? undefined : onRemoveStep} busyId={stepBusy} />
-                </div>
+          {(isChecklist || steps.length > 0) && (
+            <div>
+              <Label>Steps (anyone can tick them)</Label>
+              <div className="mt-1 rounded-xl border border-border/60 p-3">
+                {isNew && pendingSteps.length > 0 && (
+                  <ul className="mb-1 space-y-1">{pendingSteps.map((p, i) => <li key={i} className="text-sm flex items-center gap-2"><span className="w-5 h-5 rounded-md border-2 border-primary/40 inline-block" />{p}</li>)}</ul>
+                )}
+                <TaskSteps steps={steps} onToggle={isNew ? undefined : onToggleStep} onAdd={onAddStep} onRemove={isNew ? undefined : onRemoveStep} busyId={stepBusy} />
               </div>
-              {repeatField}
-            </>
+            </div>
           )}
 
-          <MoreOptions defaultOpen={!isNew} hint={isChecklist ? "Who it's for, who does it, notes" : "Who it's for, who does it, repeats, steps, notes"}>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>For</Label>
-                <Select value={form.family_member_id || NONE} onValueChange={(v) => set('family_member_id', v)}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Anyone" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Whole family</SelectItem>
-                    {/* People only (Anna, Oct 29 2026: pets don't belong here); you first. */}
-                    {forPeople.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Who does it</Label>
-                <Select value={form.assigned_user_id || NONE} onValueChange={(v) => set('assigned_user_id', v)}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Anyone" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Anyone</SelectItem>
-                    {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.full_name}{a.id === me?.id ? ' (me)' : ''}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+          {isChecklist || form.recurrence !== 'none' || showRepeat ? repeatField
+            : <button type="button" onClick={() => setShowRepeat(true)} className="text-sm text-primary font-medium flex items-center gap-1 -mt-1"><Repeat className="w-3.5 h-3.5" /> Repeat</button>}
+
+          <div>
+            <Label>Who does it</Label>
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              <Pill on={!form.assigned_user_id || form.assigned_user_id === NONE} onClick={() => set('assigned_user_id', NONE)}>Anyone</Pill>
+              {accounts.map((a) => <Pill key={a.id} on={form.assigned_user_id === a.id} onClick={() => set('assigned_user_id', a.id)}>{a.id === me?.id ? 'Me' : String(a.display_name || a.full_name || '').split(' ')[0]}</Pill>)}
             </div>
-
-            {!isChecklist && repeatField}
-
-            {!isChecklist && (
-              <div>
-                <Label>Steps</Label>
-                <div className="mt-1 rounded-xl border border-border/60 p-3">
-                  {isNew && pendingSteps.length > 0 && (
-                    <ul className="mb-1 space-y-1">{pendingSteps.map((p, i) => <li key={i} className="text-sm flex items-center gap-2"><span className="w-5 h-5 rounded-md border-2 border-primary/40 inline-block" />{p}</li>)}</ul>
-                  )}
-                  <TaskSteps steps={steps} onToggle={isNew ? undefined : onToggleStep} onAdd={onAddStep} onRemove={isNew ? undefined : onRemoveStep} busyId={stepBusy} />
+            {forPeople.length > 0 && (
+              <>
+                <p className="text-xs text-muted-foreground mt-2.5 mb-1.5">For</p>
+                <div className="flex flex-wrap gap-2">
+                  <Pill on={!form.family_member_id || form.family_member_id === NONE} onClick={() => set('family_member_id', NONE)}>Whole family</Pill>
+                  {/* People only (Anna, Oct 29 2026: pets don't belong here); you first. */}
+                  {forPeople.map((m) => <Pill key={m.id} on={form.family_member_id === m.id} onClick={() => set('family_member_id', m.id)}>{String(m.name || '').split(' ')[0]}</Pill>)}
                 </div>
-              </div>
+              </>
             )}
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Priority</Label>
-                <Select value={form.priority} onValueChange={(v) => set('priority', v)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>{PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select value={form.category} onValueChange={(v) => set('category', v)}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={2} placeholder="Anything the person doing it should know" /></div>
-          </MoreOptions>
+          <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" rows={2} placeholder="Anything the person doing it should know" /></div>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {!isNew && (
@@ -293,4 +257,10 @@ function fromTask(t) {
     recurrence: (t.is_recurring === false && t.kind !== 'checklist') ? 'none' : (t.recurrence || 'none'),
     recurrence_days: Array.isArray(t.recurrence_days) ? t.recurrence_days : [],
   };
+}
+
+function Pill({ on, onClick, children }) {
+  return (
+    <button type="button" onClick={onClick} className={`rounded-full border px-3 py-1 text-sm ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'}`}>{children}</button>
+  );
 }
