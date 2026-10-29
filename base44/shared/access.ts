@@ -1,6 +1,7 @@
 // Does this family have the app right now? A family has access while its
-// 7-day trial runs, while a member's subscription is active (functions/premium
-// keeps that in step with RevenueCat), or while promo_until (free access given
+// free trial runs (7 days, or 30 on Android for now; see functions/family),
+// while a member's subscription is active (functions/premium keeps that in step
+// with RevenueCat), or while promo_until (free access given
 // by hand) is in the future. The app owner always has access.
 export function accessOf(family: any, user: any) {
   const now = Date.now();

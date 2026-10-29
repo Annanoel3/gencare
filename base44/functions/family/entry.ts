@@ -19,7 +19,7 @@ import { accessOf } from '../../shared/access.ts';
 //   { mode: "remove_member", user_id }  -> { ok }  (owner only)
 //   { mode: "leave" }                   -> { family, me }  (a fresh family of their own)
 //
-// Access (the 7-day free trial, then the Family plan) comes from shared/access.ts so
+// Access (the free trial, then the Family plan) comes from shared/access.ts so
 // every screen asks one place: a family has access while its trial runs, while
 // any member's subscription is active (functions/premium keeps that in step with
 // RevenueCat), or while promo_until is in the future. The app owner always has
@@ -38,6 +38,11 @@ const TRIAL_DAYS = 7;
 // until Google Play billing is live in the app, the website) still get
 // GenCare's own free week with no card. Add 'android' once its build sells plans.
 const STORE_TRIAL_PLATFORMS = new Set(['ios']);
+// Android's own free trial is 30 days for now (Anna, Oct 29 2026): Google Play
+// testers have to keep using the app for 14 days before it can go to
+// production, and they shouldn't hit the paywall on day 7. When Android goes to
+// production, add 'android' to STORE_TRIAL_PLATFORMS and this no longer applies.
+const TRIAL_DAYS_BY_PLATFORM: Record<string, number> = { android: 30 };
 
 function code6() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -97,11 +102,13 @@ async function backfill(db: any, userId: string, familyId: string) {
 
 async function createFamilyFor(db: any, user: any, platform = '') {
   const name = user.full_name ? `${user.full_name.split(' ')[0]}'s Family` : 'My Family';
-  const storeTrial = STORE_TRIAL_PLATFORMS.has(String(platform || '').toLowerCase());
+  const p = String(platform || '').toLowerCase();
+  const storeTrial = STORE_TRIAL_PLATFORMS.has(p);
+  const days = TRIAL_DAYS_BY_PLATFORM[p] || TRIAL_DAYS;
   const family = await db.Family.create({
     name,
     owner_user_id: user.id,
-    ...(storeTrial ? {} : { trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 86400e3).toISOString() }),
+    ...(storeTrial ? {} : { trial_ends_at: new Date(Date.now() + days * 86400e3).toISOString() }),
     subscription_active: false,
   });
   await db.User.update(user.id, { family_id: family.id, family_role: 'owner' });

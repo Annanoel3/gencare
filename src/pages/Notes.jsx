@@ -755,7 +755,7 @@ export default function Notes() {
           <p className="text-[15px] leading-relaxed text-muted-foreground">
             {access?.reason === "subscribed"
               ? `Your family's minutes come back on ${nextMonthStart()}.`
-              : `The free week includes ${usage?.limit_seconds ? Math.round(usage.limit_seconds / 60) : 60} minutes of recording a month. GenCare Family gives the whole family far more, and they come back every month.`}
+              : `The free trial includes ${usage?.limit_seconds ? Math.round(usage.limit_seconds / 60) : 60} minutes of recording a month. GenCare Family gives the whole family far more, and they come back every month.`}
           </p>
           {access?.reason !== "subscribed" && (
             <Link to="/subscribe"><Button className="w-full">See the plan</Button></Link>

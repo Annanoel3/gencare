@@ -1,8 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { accessOf } from '../../shared/access.ts';
 
-// The GenCare Family plan: free for 7 days from when the family was made,
-// then a subscription (Google Play / App Store through RevenueCat) that ONE
+// The GenCare Family plan: a free trial (GenCare's own from when the family was
+// made, or the store's own free week), then a subscription (Google Play / App Store through RevenueCat) that ONE
 // member buys and the whole family shares. Ported from Happy Plants'
 // functions/premium, scoped to the family instead of the person.
 //

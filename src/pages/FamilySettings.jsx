@@ -81,8 +81,8 @@ export default function FamilySettings() {
 
   const planLine = access?.reason === 'subscribed' && family?.subscription_trial ? `Free week${access.until ? ` until ${new Date(access.until).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}, then GenCare Family`
     : access?.reason === 'subscribed' ? 'GenCare Family — active'
-    : access?.reason === 'trial' ? `Free week — ${Math.max(0, Math.ceil((Date.parse(access.until) - Date.now()) / 86400e3))} days left`
-    : access?.reason === 'promo' ? 'Free access' : access?.reason === 'owner' ? 'App owner' : access?.reason === 'no_plan' ? 'No plan yet — start the free week' : 'No plan — free week is over';
+    : access?.reason === 'trial' ? `Free trial — ${Math.max(0, Math.ceil((Date.parse(access.until) - Date.now()) / 86400e3))} days left`
+    : access?.reason === 'promo' ? 'Free access' : access?.reason === 'owner' ? 'App owner' : access?.reason === 'no_plan' ? 'No plan yet — start the free week' : 'No plan — free trial is over';
 
   return (
     <div className="pb-24 lg:pb-8">

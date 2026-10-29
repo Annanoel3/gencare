@@ -102,9 +102,9 @@ export default function Subscribe({ gate = false }) {
           ) : access?.reason === 'subscribed' ? (
             <p className="text-sm text-muted-foreground">Your family is covered{sub?.expires_at ? ` through ${new Date(sub.expires_at).toLocaleDateString()}` : ''}{sub && !sub.will_renew ? ' (not renewing)' : ''}.</p>
           ) : access?.reason === 'trial' ? (
-            <p className="text-sm text-muted-foreground">{trialLeft} day{trialLeft === 1 ? '' : 's'} left on your free week.</p>
+            <p className="text-sm text-muted-foreground">{trialLeft} day{trialLeft === 1 ? '' : 's'} left on your free trial.</p>
           ) : gate && access?.reason === 'trial_over' ? (
-            <p className="text-sm text-muted-foreground">Your free week is over. Keep {family?.name || 'your family'} going with one plan for everyone.</p>
+            <p className="text-sm text-muted-foreground">Your free trial is over. Keep {family?.name || 'your family'} going with one plan for everyone.</p>
           ) : gate ? (
             <p className="text-sm text-muted-foreground">Try it free for a week. One plan covers everyone in {family?.name || 'your family'}.</p>
           ) : (

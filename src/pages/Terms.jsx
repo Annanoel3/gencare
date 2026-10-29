@@ -23,7 +23,7 @@ export default function Terms() {
           GenCare can record audio on your phone and turn it into notes. You are responsible for following the recording laws where you are. In some places everyone in a conversation has to agree to be recorded. Recordings are transcribed and summarized by an AI service, and like any AI output the notes can contain mistakes. Check anything important against the transcript or the person who said it.
         </Section>
         <Section title="Subscriptions">
-          A new family gets GenCare free for 7 days. After that, one member's subscription (through Google Play or the App Store) covers the whole family. Subscriptions renew until cancelled; cancel in your store account. Refunds follow the store's own policy. We may change prices with notice.
+          A new family can use GenCare free for a trial period, and the app shows when it ends. After that, one member's subscription (through Google Play or the App Store) covers the whole family. A free trial started through Google Play or the App Store turns into a paid subscription when it ends unless you cancel before then. Subscriptions renew until cancelled; cancel in your store account. Refunds follow the store's own policy. We may change prices with notice.
         </Section>
         <Section title="Your data">
           How GenCare handles your information is described in the <Link to="/privacy-policy" className="text-primary underline">Privacy Policy</Link>. You can delete your data or your account from Settings.
