@@ -15,6 +15,7 @@
       "type": "string"
     },
     "care_notes": {
+      "description": "Important info: anything the family should know about this person",
       "type": "string"
     },
     "color": {
@@ -52,6 +53,14 @@
     },
     "name": {
       "description": "Full name",
+      "type": "string"
+    },
+    "other_contact_name": {
+      "description": "Another contact for this person (neighbor, coach, babysitter)",
+      "type": "string"
+    },
+    "other_contact_phone": {
+      "description": "That contact's phone number",
       "type": "string"
     },
     "photo_url": {
@@ -103,6 +112,7 @@
     "name",
     "relationship"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -116,6 +126,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
