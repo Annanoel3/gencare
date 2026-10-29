@@ -4,10 +4,17 @@ import { Lock, Smartphone, Mic, Repeat, Users } from 'lucide-react';
 import { getMemberColorByMemberId } from '@/utils/memberColors';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 
-// Events worth recording notes at: a doctor's visit, therapy, a school meeting.
-export const RECORDABLE = ['Doctor', 'Therapy', 'School'];
+// Event categories. 'Doctor' and 'Therapy' were categories before Oct 2026;
+// any row still carrying one reads as a plain Appointment.
+export const CATEGORIES = ['Appointment', 'School', 'Work', 'Sports', 'Social', 'Other'];
+export function categoryOf(appt) {
+  const c = appt?.category || '';
+  return c === 'Doctor' || c === 'Therapy' ? 'Appointment' : c;
+}
+// Events worth recording notes at: an appointment, a school or work meeting.
+export const RECORDABLE = ['Appointment', 'School', 'Work'];
 export function isRecordable(appt) {
-  return !!appt && RECORDABLE.includes(appt.category || '');
+  return !!appt && RECORDABLE.includes(categoryOf(appt));
 }
 
 function fmtTime(t) {
@@ -51,7 +58,7 @@ export default function EventRow({ appt, members, onClick }) {
               {appt.family_member_name}
             </span>
           )}
-          {appt.category && appt.category !== 'Other' && <span className="text-xs text-muted-foreground">{appt.category}</span>}
+          {appt.category && categoryOf(appt) !== 'Other' && <span className="text-xs text-muted-foreground">{categoryOf(appt)}</span>}
           {appt.location && <span className="text-xs text-muted-foreground">📍 {appt.location}</span>}
           {canRecord && isRecordable(appt) && (
             <Link

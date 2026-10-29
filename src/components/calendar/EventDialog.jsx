@@ -10,11 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { isRecordable } from './EventRow';
+import { isRecordable, categoryOf, CATEGORIES } from './EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import { EVENT_REPEATS, repeatLabel, parseRRule } from '@/lib/occurrences';
 
-export const CATEGORIES = ['Doctor', 'Therapy', 'School', 'Sports', 'Social', 'Other'];
+export { CATEGORIES };
 const REMINDERS = [
   { v: -1, label: 'No reminder' },
   { v: 0, label: 'At the time' },
@@ -38,7 +38,7 @@ function Chip({ on, onClick, children }) {
 function blank(date) {
   return {
     title: '', date: format(date || new Date(), 'yyyy-MM-dd'), time: '', end_time: '', all_day: false,
-    category: 'Doctor', family_member_id: NONE, location: '', doctor_name: '', notes: '',
+    category: 'Appointment', family_member_id: NONE, location: '', doctor_name: '', notes: '',
     reminder_minutes: 60, visibility: 'family', shared_with: [], end_date: '', recurrence: '', until: '',
   };
 }
@@ -60,6 +60,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
       setForm({
         ...blank(defaultDate),
         ...appt,
+        category: categoryOf(appt) || 'Other',
         family_member_id: appt.family_member_id || NONE,
         reminder_minutes: typeof appt.reminder_minutes === 'number' ? appt.reminder_minutes : 60,
         visibility: appt.visibility || 'family',
@@ -196,9 +197,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             </div>
           )}
           <div><Label>Location</Label><Input value={form.location} onChange={(e) => set('location', e.target.value)} className="mt-1" /></div>
-          {(form.category === 'Doctor' || form.category === 'Therapy') && (
-            <div><Label>With (doctor / provider)</Label><Input value={form.doctor_name} onChange={(e) => set('doctor_name', e.target.value)} className="mt-1" /></div>
-          )}
+          <div><Label>With</Label><Input value={form.doctor_name} onChange={(e) => set('doctor_name', e.target.value)} placeholder="Who it's with (optional)" className="mt-1" /></div>
           <div><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="mt-1" /></div>
 
           {editing && canRecord && isRecordable(form) && (

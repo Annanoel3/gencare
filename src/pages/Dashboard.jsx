@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { MESSAGES_KEY, listMessages } from '@/lib/messages';
 import { expandAppointments } from '@/lib/occurrences';
+import { REMINDERS_KEY, listReminders, slotsForDay, todayStr } from '@/lib/reminders';
 import WelcomeHeader from '@/components/dashboard/WelcomeHeader';
 import StatCards from '@/components/dashboard/StatCards';
 import FamilyOverview from '@/components/dashboard/FamilyOverview';
@@ -27,10 +28,7 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Appointment.list('-date', 50),
   });
 
-  const { data: medications = [] } = useQuery({
-    queryKey: ['medications'],
-    queryFn: () => base44.entities.Medication.list('-created_date', 50),
-  });
+  const { data: reminders = [] } = useQuery({ queryKey: REMINDERS_KEY, queryFn: listReminders });
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['careTasks'],
@@ -46,7 +44,7 @@ export default function Dashboard() {
   });
 
   const todayAppts = expandAppointments(appointments, new Date(), new Date());
-  const activeMeds = medications.filter(m => m.is_active !== false);
+  const remindersToday = slotsForDay(reminders, [], todayStr()).length;
   const topLevel = tasks.filter(t => !t.parent_task_id && t.kind !== 'checklist');
   const pendingTasks = topLevel.filter(t => t.status === 'pending' || t.status === 'in_progress');
   const urgentTasks = topLevel.filter(t => t.priority === 'urgent' && t.status !== 'completed');
@@ -56,7 +54,7 @@ export default function Dashboard() {
       <WelcomeHeader userName={user?.full_name?.split(' ')[0]} />
       <StatCards
         appointments={todayAppts.length}
-        medications={activeMeds.length}
+        reminders={remindersToday}
         tasks={pendingTasks.length}
         urgentTasks={urgentTasks.length}
       />

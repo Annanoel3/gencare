@@ -50,17 +50,19 @@ const TIME = (label = 'Time') => ({ key: 'time', kind: 'time', label });
 const DONE = { key: 'completed', kind: 'toggle', label: 'Done' };
 const DOC = { key: 'doc_url', kind: 'url', label: 'Document link' };
 const CONTACT = (label = 'Contact') => ({ key: 'contact', kind: 'text', label });
+// A plain note: anything worth writing down that no other tile fits.
+const NOTE = { type: 'note', label: 'Note', icon: '📝', fields: [TITLE('What', 'e.g. what you noticed today'), NOTES, { key: 'photos', kind: 'photos', label: 'Photos' }] };
 
 export const CATALOG = {
   baby: [
     { type: 'feeding', label: 'Feeding', icon: '🍼', fields: [
       SUB('How', ['nursing', 'bottle', 'solid']),
       { key: 'side', kind: 'side', label: 'Side', when: (f) => f.sub_type === 'nursing' },
-      { key: 'amount', kind: 'number', label: 'Amount', unit: 'ml', when: (f) => f.sub_type !== 'nursing' },
+      { key: 'amount', kind: 'number', label: 'Amount', unit: 'oz', step: 0.5, when: (f) => f.sub_type !== 'nursing' },
       { ...MIN('Minutes'), when: (f) => f.sub_type !== 'solid' },
       NOTES,
     ] },
-    { type: 'pumping', label: 'Pumping', icon: '🫙', fields: [{ key: 'side', kind: 'side', label: 'Side' }, AMOUNT('Amount', 'ml'), MIN(), NOTES] },
+    { type: 'pumping', label: 'Pumping', icon: '🫙', fields: [{ key: 'side', kind: 'side', label: 'Side' }, { key: 'amount', kind: 'number', label: 'Amount', unit: 'oz', step: 0.5 }, MIN(), NOTES] },
     { type: 'diaper', label: 'Diaper', icon: '🧷', fields: [SUB('Type', ['wet', 'dirty', 'mixed']), NOTES] },
     { type: 'sleep', label: 'Sleep', icon: '😴', fields: [SUB('Type', ['nap', 'night']), MIN('Minutes asleep'), NOTES] },
     { type: 'growth', label: 'Growth', icon: '📏', fields: [
@@ -68,16 +70,11 @@ export const CATALOG = {
       { key: 'value_b', kind: 'number', label: 'Length', unit: 'in', step: 0.1 },
       { key: 'value_c', kind: 'number', label: 'Head', unit: 'in', step: 0.1 },
       NOTES,
-    ], hint: 'Logged at checkups. Compare with the CDC/WHO growth charts your pediatrician uses.' },
-    { type: 'medical', label: 'Medical', icon: '🩺', fields: [
-      SUB('What', ['checkup', 'vaccine', 'fever', 'illness', 'medication_given']),
-      { key: 'value', kind: 'number', label: 'Temperature', unit: '°F', step: 0.1, when: (f) => f.sub_type === 'fever' || f.sub_type === 'illness' },
-      TITLE('Details', 'e.g. 4-month shots, Dr. Chen'),
-      NOTES,
     ] },
     { type: 'teething', label: 'Teething', icon: '🦷', fields: [SUB('Tooth', ['front_bottom', 'front_top', 'side', 'molar', 'unsure']), { key: 'level', kind: 'level', label: 'How fussy (1–5)' }, NOTES] },
     { type: 'milestone', label: 'Milestone', icon: '🎯', fields: [SUB('Area', ['motor', 'speech', 'social']), TITLE('What happened', 'e.g. rolled over, first smile'), NOTES] },
     { type: 'memory', label: 'Memory', icon: '📸', fields: [TITLE('Moment', 'e.g. first beach day'), NOTES, { key: 'photos', kind: 'photos', label: 'Photos' }] },
+    NOTE,
   ],
   toddler: [
     { type: 'tantrum', label: 'Tantrum', icon: '🌪️', fields: [
@@ -92,12 +89,7 @@ export const CATALOG = {
     { type: 'milestone', label: 'Milestone', icon: '🎯', fields: [SUB('Area', ['speech', 'motor', 'social']), TITLE('What happened', 'e.g. first full sentence'), NOTES] },
     { type: 'sleep', label: 'Sleep', icon: '😴', fields: [SUB('Type', ['nap', 'night', 'bedtime_routine']), MIN('Minutes asleep'), NOTES] },
     { type: 'food', label: 'Food', icon: '🍽️', fields: [SUB('Meal', ['breakfast', 'lunch', 'dinner', 'snack']), TITLE('What they ate', 'e.g. pasta, peas, half a banana'), NOTES] },
-    { type: 'allergy', label: 'Allergy', icon: '⚠️', fields: [
-      TITLE('Trigger', 'e.g. peanuts, pollen'),
-      SUB('Reaction', ['rash', 'hives', 'swelling', 'stomach', 'breathing', 'other']),
-      { key: 'level', kind: 'level', label: 'Severity (1–5)' },
-      NOTES,
-    ] },
+    NOTE,
   ],
   school: [
     { type: 'reading', label: 'Reading', icon: '📚', fields: [TITLE('Book', 'e.g. Magic Tree House #4'), MIN(), NOTES] },
@@ -107,6 +99,7 @@ export const CATALOG = {
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
     { type: 'screen_time', label: 'Screen time', icon: '📱', fields: [MIN(), NOTES] },
     { type: 'activity', label: 'Activity', icon: '⚽', fields: [TITLE('Activity', 'e.g. soccer practice'), MIN(), NOTES] },
+    NOTE,
   ],
   preteen: [
     { type: 'schoolwork', label: 'Schoolwork', icon: '📝', fields: [TITLE('Assignment', 'e.g. science project'), DUE, DONE, { key: 'grade', kind: 'text', label: 'Grade', placeholder: 'e.g. A-' }, NOTES] },
@@ -114,36 +107,37 @@ export const CATALOG = {
     { type: 'chore', label: 'Chore', icon: '🧹', fields: [TITLE('Chore', 'e.g. take out trash'), AMOUNT('Points', 'pts'), DONE, NOTES] },
     { type: 'puberty', label: 'Puberty', icon: '🌱', fields: [SUB('About', ['menstrual', 'acne', 'growth']), { key: 'date', kind: 'date', label: 'Cycle start', when: (f) => f.sub_type === 'menstrual' }, NOTES] },
     { type: 'hygiene', label: 'Hygiene', icon: '🪥', fields: [SUB('Habit', ['shower', 'teeth', 'deodorant']), NOTES] },
-    { type: 'mental', label: 'Mental health', icon: '🧠', fields: [MOOD, { key: 'level', kind: 'level', label: 'Anxiety (1–5)' }, { key: 'title', kind: 'text', label: 'Stress trigger', placeholder: 'e.g. test tomorrow' }, NOTES] },
+    { type: 'mental', label: 'Feelings', icon: '💭', fields: [MOOD, { key: 'level', kind: 'level', label: 'Stress (1–5)' }, { key: 'title', kind: 'text', label: "What's on their mind", placeholder: 'e.g. test tomorrow' }, NOTES] },
     { type: 'screen_time', label: 'Screen time', icon: '📱', fields: [MIN(), NOTES] },
     { type: 'social', label: 'Social', icon: '🎉', fields: [SUB('What', ['playdate', 'sleepover', 'party', 'other']), TITLE('With whom / where', 'e.g. at Mia\'s'), CONTACT("Friend's parent"), DATE('When'), NOTES] },
     { type: 'allowance', label: 'Allowance', icon: '💵', fields: [SUB('What', ['earn', 'spend', 'save']), AMOUNT('Amount', '$'), { key: 'title', kind: 'text', label: 'For', placeholder: 'e.g. weekly allowance' }, NOTES] },
+    NOTE,
   ],
   teen: [
     { type: 'transport', label: 'Transport', icon: '🚗', fields: [SUB('What', ['carpool', 'rideshare', 'pickup', 'dropoff', 'driving']), TITLE('Where', 'e.g. practice at Lincoln HS'), DATE('Date'), TIME(), CONTACT('Driver / contact'), { key: 'status', kind: 'select', label: 'Status', options: ['pending', 'scheduled', 'done'] }, NOTES] },
     { type: 'financial', label: 'Money', icon: '💳', fields: [SUB('What', ['allowance', 'school_fee', 'bank_transfer', 'job_pay', 'spending']), AMOUNT('Amount', '$'), TITLE('For', 'e.g. yearbook'), DATE('Date'), NOTES] },
-    { type: 'document', label: 'Document', icon: '📄', fields: [SUB('Kind', ['physical', 'immunization', 'insurance', 'sports_clearance', 'permit_license', 'passport', 'school_form']), TITLE('Document', 'e.g. sports physical 2026'), DATE('Expires / due'), DOC, NOTES] },
+    { type: 'document', label: 'Document', icon: '📄', fields: [SUB('Kind', ['school_form', 'sports_form', 'permit_license', 'passport', 'id_card', 'other']), TITLE('Document', 'e.g. permit test paperwork'), DATE('Expires / due'), DOC, NOTES] },
     { type: 'academic', label: 'Academic', icon: '🎓', fields: [SUB('What', ['college_app', 'fafsa', 'test', 'project', 'grades']), TITLE('What', 'e.g. SAT registration'), DUE, { key: 'status', kind: 'select', label: 'Status', options: ['pending', 'scheduled', 'done'] }, NOTES] },
+    NOTE,
   ],
   adult: [
-    { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'vitals', 'medication_given', 'hygiene', 'mobility', 'visit', 'hand_off']), TITLE('Details', 'e.g. lunch, walked to mailbox'), { key: 'given_by', kind: 'text', label: 'Provided by', placeholder: 'e.g. Dad, aide Maria' }, { key: 'vitals', kind: 'text', label: 'Vitals', placeholder: 'e.g. BP 128/82, HR 72', when: (f) => f.sub_type === 'vitals' }, NOTES] },
-    { type: 'therapy', label: 'Therapy', icon: '🏃', fields: [SUB('Kind', ['physical', 'occupational', 'speech', 'counseling', 'other']), TITLE('What they worked on', 'e.g. stairs, grip strength'), MIN(), { key: 'level', kind: 'level', label: 'How it went (1–5)' }, NOTES] },
-    { type: 'symptom', label: 'Symptom', icon: '🩺', fields: [TITLE('Symptom', 'e.g. headache, dizziness'), { key: 'level', kind: 'level', label: 'Severity (1–5)' }, MIN('How long'), NOTES] },
+    { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'errand', 'hygiene', 'mobility', 'visit', 'hand_off', 'other']), TITLE('Details', 'e.g. lunch, walked to mailbox'), { key: 'given_by', kind: 'text', label: 'Helped by', placeholder: 'e.g. Dad, Maria' }, NOTES] },
+    { type: 'activity', label: 'Activity', icon: '🏃', fields: [TITLE('Activity', 'e.g. walk around the block'), MIN(), { key: 'level', kind: 'level', label: 'How it went (1–5)' }, NOTES] },
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
-    { type: 'cognitive', label: 'Cognitive', icon: '🧠', fields: [SUB('Area', ['memory', 'language', 'mobility', 'attention']), TITLE('Observation', 'e.g. found words faster today'), NOTES] },
-    { type: 'legal', label: 'Legal & financial', icon: '🗂️', fields: [SUB('Kind', ['poa', 'living_will', 'insurance', 'disability', 'fmla', 'benefit', 'bill', 'other']), TITLE('What', 'e.g. short-term disability claim'), AMOUNT('Amount', '$'), DATE('Date'), DOC, NOTES] },
+    { type: 'legal', label: 'Legal & financial', icon: '🗂️', fields: [SUB('Kind', ['poa', 'will', 'insurance', 'benefit', 'time_off_work', 'bill', 'tax', 'other']), TITLE('What', 'e.g. renewed car insurance'), AMOUNT('Amount', '$'), DATE('Date'), DOC, NOTES] },
+    NOTE,
   ],
   senior: [
-    { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'vitals', 'medication_given', 'hygiene', 'mobility', 'fall', 'visit', 'hand_off']), TITLE('Details', 'e.g. breakfast and morning meds'), { key: 'given_by', kind: 'text', label: 'Provided by', placeholder: 'e.g. aide Maria, Dad' }, { key: 'vitals', kind: 'text', label: 'Vitals', placeholder: 'e.g. BP 120/80', when: (f) => f.sub_type === 'vitals' }, NOTES] },
-    { type: 'legal', label: 'Legal & financial', icon: '🗂️', fields: [SUB('Kind', ['poa', 'living_will', 'dnr', 'medicaid', 'insurance', 'benefit', 'bill', 'other']), TITLE('What', 'e.g. updated POA, signed 3/12'), AMOUNT('Amount', '$'), DATE('Date'), DOC, NOTES] },
-    { type: 'medication', label: 'Medication note', icon: '💊', fields: [SUB('What', ['prescription', 'refill', 'contraindication', 'side_effect']), TITLE('Details', 'e.g. don\'t combine with grapefruit'), { key: 'pharmacy', kind: 'text', label: 'Pharmacy' }, DATE('Refill date'), NOTES], hint: 'Daily doses and reminders live on the Medications page; this is for notes the doctor or pharmacist gave you.' },
-    { type: 'cognitive', label: 'Cognitive', icon: '🧠', fields: [SUB('Area', ['memory', 'language', 'mobility', 'attention']), TITLE('Observation', 'e.g. forgot names twice this week'), NOTES] },
+    { type: 'care_log', label: 'Care log', icon: '📋', fields: [SUB('What', ['meal', 'errand', 'hygiene', 'mobility', 'fall', 'visit', 'hand_off', 'other']), TITLE('Details', 'e.g. breakfast, walked to the mailbox'), { key: 'given_by', kind: 'text', label: 'Helped by', placeholder: 'e.g. Maria, Dad' }, NOTES] },
+    { type: 'activity', label: 'Activity', icon: '🏃', fields: [TITLE('Activity', 'e.g. walk around the block'), MIN(), { key: 'level', kind: 'level', label: 'How it went (1–5)' }, NOTES] },
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
+    { type: 'legal', label: 'Legal & financial', icon: '🗂️', fields: [SUB('Kind', ['poa', 'will', 'insurance', 'benefit', 'bill', 'tax', 'other']), TITLE('What', 'e.g. updated POA, signed 3/12'), AMOUNT('Amount', '$'), DATE('Date'), DOC, NOTES] },
+    NOTE,
   ],
   general: [
-    { type: 'care_log', label: 'Care log', icon: '📋', fields: [TITLE('Details', 'What you did or noticed'), { key: 'given_by', kind: 'text', label: 'Provided by' }, NOTES] },
+    { type: 'care_log', label: 'Care log', icon: '📋', fields: [TITLE('Details', 'What you did or noticed'), { key: 'given_by', kind: 'text', label: 'Helped by' }, NOTES] },
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
-    { type: 'symptom', label: 'Symptom', icon: '🩺', fields: [TITLE('Symptom'), { key: 'level', kind: 'level', label: 'Severity (1–5)' }, NOTES] },
+    NOTE,
   ],
 };
 
@@ -202,7 +196,6 @@ export function summarize(e) {
   else if (typeof e.value === 'number') bits.push(`${e.value}${e.unit && e.unit !== '$' ? ` ${e.unit}` : ''}`);
   if (typeof e.level === 'number') bits.push(`${e.level}/5`);
   if (e.side) bits.push(pretty(e.side));
-  if (e.vitals) bits.push(e.vitals);
   if (e.grade) bits.push(`grade ${e.grade}`);
   if (e.response) bits.push(e.response);
   if (e.completed) bits.push('✓ done');
@@ -219,7 +212,7 @@ export function todayStats(band, logs) {
   const sum = (t, key) => today.filter((l) => l.entry_type === t).reduce((a, l) => a + (Number(l[key]) || 0), 0);
   const open = (t) => logs.filter((l) => l.entry_type === t && l.completed !== true && (l.due_date || l.status !== 'done')).length;
   switch (band) {
-    case 'baby': return [['Feeds', count('feeding')], ['Diapers', count('diaper')], ['Sleep', `${Math.round(sum('sleep', 'minutes') / 6) / 10} h`], ['Pumped', `${sum('pumping', 'amount')} ml`]];
+    case 'baby': return [['Feeds', count('feeding')], ['Diapers', count('diaper')], ['Sleep', `${Math.round(sum('sleep', 'minutes') / 6) / 10} h`], ['Pumped', `${Math.round(sum('pumping', 'amount') * 10) / 10} oz`]];
     case 'toddler': return [['Tantrums', count('tantrum')], ['Screen', `${sum('screen_time', 'minutes')} min`], ['Potty wins', count('potty', 'success')], ['Naps', count('sleep', 'nap')]];
     case 'school': return [['Reading', `${sum('reading', 'minutes')} min`], ['Homework open', logs.filter((l) => l.entry_type === 'homework' && !l.completed).length], ['Stars', logs.filter((l) => l.entry_type === 'chore' && l.completed).reduce((a, l) => a + (Number(l.amount) || 0), 0)], ['Screen', `${sum('screen_time', 'minutes')} min`]];
     case 'preteen': {
@@ -227,22 +220,21 @@ export function todayStats(band, logs) {
       return [['Schoolwork open', logs.filter((l) => l.entry_type === 'schoolwork' && !l.completed).length], ['Allowance', `$${bal.toFixed(2)}`], ['Points', logs.filter((l) => l.entry_type === 'chore' && l.completed).reduce((a, l) => a + (Number(l.amount) || 0), 0)], ['Screen', `${sum('screen_time', 'minutes')} min`]];
     }
     case 'teen': return [['Rides open', open('transport')], ['Academic open', open('academic')], ['Documents', logs.filter((l) => l.entry_type === 'document').length], ['Money (30d)', `$${logs.filter((l) => l.entry_type === 'financial' && l.timestamp && (Date.now() - parseISO(l.timestamp)) < 30 * 86400000).reduce((a, l) => a + (Number(l.amount) || 0), 0).toFixed(0)}`]];
-    case 'adult': return [['Care today', count('care_log')], ['Therapy (7d)', logs.filter((l) => l.entry_type === 'therapy' && l.timestamp && (Date.now() - parseISO(l.timestamp)) < 7 * 86400000).length], ['Last vitals', lastVitals(logs)], ['Mood', lastMood(logs)]];
-    case 'senior': return [['Care today', count('care_log')], ['Last vitals', lastVitals(logs)], ['Cognitive (30d)', logs.filter((l) => l.entry_type === 'cognitive' && l.timestamp && (Date.now() - parseISO(l.timestamp)) < 30 * 86400000).length], ['Mood', lastMood(logs)]];
+    case 'adult':
+    case 'senior': return [['Care today', count('care_log')], ['Activity (7d)', within(logs, 'activity', 7)], ['Visits (7d)', logs.filter((l) => l.entry_type === 'care_log' && l.sub_type === 'visit' && l.timestamp && (Date.now() - parseISO(l.timestamp)) < 7 * 86400000).length], ['Mood', lastMood(logs)]];
     default: return [['Today', today.length], ['This week', logs.filter((l) => l.timestamp && (Date.now() - parseISO(l.timestamp)) < 7 * 86400000).length]];
   }
 }
 
-function lastVitals(logs) {
-  const v = logs.find((l) => l.vitals);
-  return v ? v.vitals : '—';
+function within(logs, type, days) {
+  return logs.filter((l) => l.entry_type === type && l.timestamp && (Date.now() - parseISO(l.timestamp)) < days * 86400000).length;
 }
 function lastMood(logs) {
   const m = logs.find((l) => l.mood);
   return m ? `${moodEmoji(m.mood)} ${pretty(m.mood)}` : '—';
 }
 
-/** Entries with a future date (refills, pickups, deadlines), soonest first. */
+/** Entries with a future date (pickups, deadlines, paperwork), soonest first. */
 export function upcoming(logs) {
   const today = format(new Date(), 'yyyy-MM-dd');
   return logs

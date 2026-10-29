@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
 import { Link } from 'react-router-dom';
-import { Users, Plus, Heart, Phone, School, Stethoscope, QrCode } from 'lucide-react';
+import { Users, Plus, Phone, School, QrCode, StickyNote } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -93,12 +93,6 @@ export default function Family() {
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
-                  {member.primary_doctor && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Stethoscope className="w-4 h-4" />
-                      <span className="truncate">Dr. {member.primary_doctor}</span>
-                    </div>
-                  )}
                   {member.emergency_contact_name && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Phone className="w-4 h-4" />
@@ -111,10 +105,10 @@ export default function Family() {
                       <span className="truncate">{member.school_name}</span>
                     </div>
                   )}
-                  {member.medical_conditions?.length > 0 && (
+                  {member.care_notes && (
                     <div className="flex items-center gap-2 text-muted-foreground">
-                      <Heart className="w-4 h-4" />
-                      <span className="truncate">{member.medical_conditions.join(', ')}</span>
+                      <StickyNote className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{member.care_notes.split('\n')[0]}</span>
                     </div>
                   )}
                 </div>
@@ -150,8 +144,8 @@ export default function Family() {
               <Input type="date" value={form.birthdate} onChange={e => setForm({...form, birthdate: e.target.value})} className="mt-1" />
             </div>
             <div>
-              <Label>Care Notes</Label>
-              <Textarea value={form.care_notes} onChange={e => setForm({...form, care_notes: e.target.value})} placeholder="Any important notes..." className="mt-1" />
+              <Label>Important info</Label>
+              <Textarea value={form.care_notes} onChange={e => setForm({...form, care_notes: e.target.value})} placeholder="Anything the family should know about them" className="mt-1" />
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

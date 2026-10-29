@@ -16,7 +16,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import Family from '@/pages/Family';
 import FamilyMemberDetail from '@/pages/FamilyMemberDetail';
-import Medications from '@/pages/Medications';
+import Reminders from '@/pages/Reminders';
 import CalendarPage from '@/pages/CalendarPage';
 import Tasks from '@/pages/Tasks';
 import Journal from '@/pages/Journal';
@@ -75,7 +75,8 @@ const AuthenticatedApp = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/family" element={<Family />} />
           <Route path="/family/:id" element={<FamilyMemberDetail />} />
-          <Route path="/medications" element={<Medications />} />
+          <Route path="/reminders" element={<Reminders />} />
+          <Route path="/medications" element={<Navigate to="/reminders" replace />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/checklists" element={<Navigate to="/tasks" replace />} />

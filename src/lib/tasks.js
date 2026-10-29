@@ -23,7 +23,7 @@ export const REPEAT_OPTIONS = [
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-export const CATEGORIES = ['Medical', 'School', 'Grocery', 'Household', 'Transportation', 'Financial', 'Personal Care', 'Other'];
+export const CATEGORIES = ['Appointments', 'School', 'Grocery', 'Household', 'Transportation', 'Financial', 'Personal Care', 'Other'];
 
 export const isOpen = (t) => t && (t.status === 'pending' || t.status === 'in_progress');
 export const isStep = (t) => !!t?.parent_task_id;

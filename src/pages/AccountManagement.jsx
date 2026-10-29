@@ -59,7 +59,7 @@ export default function AccountManagement() {
             <div className="flex-1">
               <h2 className="font-heading text-lg font-semibold">Delete My Data</h2>
               <p className="text-sm text-muted-foreground mt-1 mb-4">
-                This permanently removes all family members, medications, appointments, tasks, journals, messages, checklists, and notes you've created. Your account and login remain active.
+                This permanently removes all family members, reminders, appointments, tasks, journals, messages, checklists, and notes you've created. Your account and login remain active.
               </p>
               <Button variant="outline" className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10" onClick={() => setConfirmOpen('data')}>
                 <Trash2 className="w-4 h-4" /> Delete My Data

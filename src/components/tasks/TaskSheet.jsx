@@ -116,7 +116,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
         <div className="space-y-4 mt-1">
           <div>
             <Label>{isChecklist ? 'Checklist name' : 'What needs doing'} *</Label>
-            <Input value={form.title} onChange={(e) => set('title', e.target.value)} className="mt-1" autoFocus={isNew} placeholder={isChecklist ? 'Morning routine' : 'Pick up the prescription'} />
+            <Input value={form.title} onChange={(e) => set('title', e.target.value)} className="mt-1" autoFocus={isNew} placeholder={isChecklist ? 'Morning routine' : 'Pick up the dry cleaning'} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

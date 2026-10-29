@@ -1,11 +1,11 @@
 import React from 'react';
-import { CalendarDays, Pill, ClipboardList, AlertTriangle } from 'lucide-react';
+import { CalendarDays, BellRing, ClipboardList, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function StatCards({ appointments, medications, tasks, urgentTasks }) {
+export default function StatCards({ appointments, reminders, tasks, urgentTasks }) {
   const stats = [
     { label: "Today's Appointments", value: appointments, icon: CalendarDays, gradient: 'from-blue-500/10 to-blue-600/5', iconBg: 'bg-blue-500/15', iconColor: 'text-blue-600' },
-    { label: 'Active Medications', value: medications, icon: Pill, gradient: 'from-emerald-500/10 to-emerald-600/5', iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-600' },
+    { label: 'Reminders Today', value: reminders, icon: BellRing, gradient: 'from-emerald-500/10 to-emerald-600/5', iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-600' },
     { label: 'Pending Tasks', value: tasks, icon: ClipboardList, gradient: 'from-purple-500/10 to-purple-600/5', iconBg: 'bg-purple-500/15', iconColor: 'text-purple-600' },
     { label: 'Urgent Items', value: urgentTasks, icon: AlertTriangle, gradient: 'from-red-500/10 to-red-600/5', iconBg: 'bg-red-500/15', iconColor: 'text-red-600' },
   ];

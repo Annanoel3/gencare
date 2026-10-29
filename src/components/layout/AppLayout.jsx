@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  LayoutDashboard, Users, Pill, CalendarDays,
+  LayoutDashboard, Users, BellRing, CalendarDays,
   ClipboardList, BookOpen, MessageCircle, Menu, X,
   Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic
 } from 'lucide-react';
@@ -27,7 +27,7 @@ function buildNavStructure(members, canRecord, unread = 0) {
       { path: '/family', icon: Users, label: 'Family Members' },
       { path: '/messages', icon: MessageCircle, label: 'Messages', badge: unread },
       { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-      { path: '/medications', icon: Pill, label: 'Medications' },
+      { path: '/reminders', icon: BellRing, label: 'Reminders' },
       { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [

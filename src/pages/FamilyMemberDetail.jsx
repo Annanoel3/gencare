@@ -2,19 +2,19 @@ import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { ArrowLeft, Heart, Pill, Phone, School, Stethoscope, FileText, Edit, Save, X, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, BellRing, Phone, School, FileText, Edit, Save, X, LayoutDashboard, StickyNote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CareFeed from '@/components/dashboard/CareFeed';
 import PhoneActions from '@/components/shared/PhoneActions';
 import MemberColorPicker from '@/components/family/MemberColorPicker';
-import { getMemberColorClass, getMemberColorByMemberId } from '@/utils/memberColors';
+import { getMemberColorClass } from '@/utils/memberColors';
+import { frequencyLabel, fmtClock } from '@/lib/reminders';
 
 export default function FamilyMemberDetail() {
   const { id } = useParams();
@@ -30,8 +30,8 @@ export default function FamilyMemberDetail() {
     },
   });
 
-  const { data: medications = [] } = useQuery({
-    queryKey: ['memberMedications', id],
+  const { data: reminders = [] } = useQuery({
+    queryKey: ['memberReminders', id],
     queryFn: () => base44.entities.Medication.filter({ family_member_id: id }),
   });
 
@@ -55,13 +55,8 @@ export default function FamilyMemberDetail() {
 
   const startEditing = () => {
     setForm({
-      medical_conditions: member?.medical_conditions?.join(', ') || '',
-      allergies: member?.allergies?.join(', ') || '',
-      primary_doctor: member?.primary_doctor || '',
-      primary_doctor_phone: member?.primary_doctor_phone || '',
-      insurance_provider: member?.insurance_provider || '',
-      insurance_policy_number: member?.insurance_policy_number || '',
-      preferred_pharmacy: member?.preferred_pharmacy || '',
+      other_contact_name: member?.other_contact_name || '',
+      other_contact_phone: member?.other_contact_phone || '',
       emergency_contact_name: member?.emergency_contact_name || '',
       emergency_contact_phone: member?.emergency_contact_phone || '',
       school_name: member?.school_name || '',
@@ -73,14 +68,7 @@ export default function FamilyMemberDetail() {
     setEditing(true);
   };
 
-  const saveEditing = () => {
-    const data = {
-      ...form,
-      medical_conditions: form.medical_conditions ? form.medical_conditions.split(',').map(s => s.trim()).filter(Boolean) : [],
-      allergies: form.allergies ? form.allergies.split(',').map(s => s.trim()).filter(Boolean) : [],
-    };
-    updateMutation.mutate(data);
-  };
+  const saveEditing = () => updateMutation.mutate({ ...form });
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-20">
@@ -134,13 +122,13 @@ export default function FamilyMemberDetail() {
         )}
       </div>
 
-      <Tabs defaultValue="medical" className="space-y-4">
+      <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="bg-muted rounded-xl w-full grid grid-cols-6">
           <TabsTrigger value="overview" className="rounded-lg text-xs px-1">Overview</TabsTrigger>
-          <TabsTrigger value="medical" className="rounded-lg text-xs px-1">Medical</TabsTrigger>
+          <TabsTrigger value="info" className="rounded-lg text-xs px-1">Info</TabsTrigger>
           <TabsTrigger value="contacts" className="rounded-lg text-xs px-1">Contacts</TabsTrigger>
           <TabsTrigger value="school" className="rounded-lg text-xs px-1">School</TabsTrigger>
-          <TabsTrigger value="medications" className="rounded-lg text-xs px-1">Meds</TabsTrigger>
+          <TabsTrigger value="reminders" className="rounded-lg text-xs px-1">Reminders</TabsTrigger>
           <TabsTrigger value="journal" className="rounded-lg text-xs px-1">Journal</TabsTrigger>
         </TabsList>
 
@@ -156,29 +144,16 @@ export default function FamilyMemberDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="medical">
+        <TabsContent value="info">
           <Card className="border-border/50">
             <CardHeader>
-              <CardTitle className="font-heading flex items-center gap-2"><Heart className="w-5 h-5 text-red-500" /> Medical Info</CardTitle>
+              <CardTitle className="font-heading flex items-center gap-2"><StickyNote className="w-5 h-5 text-amber-500" /> Important info</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               {editing ? (
-                <>
-                  <div><Label>Medical Conditions (comma separated)</Label><Input value={form.medical_conditions} onChange={e => setForm({...form, medical_conditions: e.target.value})} className="mt-1" /></div>
-                  <div><Label>Allergies (comma separated)</Label><Input value={form.allergies} onChange={e => setForm({...form, allergies: e.target.value})} className="mt-1" /></div>
-                  <div><Label>Insurance Provider</Label><Input value={form.insurance_provider} onChange={e => setForm({...form, insurance_provider: e.target.value})} className="mt-1" /></div>
-                  <div><Label>Policy Number</Label><Input value={form.insurance_policy_number} onChange={e => setForm({...form, insurance_policy_number: e.target.value})} className="mt-1" /></div>
-                  <div><Label>Preferred Pharmacy</Label><Input value={form.preferred_pharmacy} onChange={e => setForm({...form, preferred_pharmacy: e.target.value})} className="mt-1" /></div>
-                  <div><Label>Care Notes</Label><Textarea value={form.care_notes} onChange={e => setForm({...form, care_notes: e.target.value})} className="mt-1" /></div>
-                </>
+                <Textarea value={form.care_notes} onChange={e => setForm({...form, care_notes: e.target.value})} rows={8} placeholder="Anything the family should know about them: what to pack, what to avoid, how they like things done, where the spare key is…" />
               ) : (
-                <>
-                  <InfoRow label="Conditions" value={member.medical_conditions?.length > 0 ? member.medical_conditions.map((c, i) => <Badge key={i} variant="secondary" className="mr-1">{c}</Badge>) : 'None listed'} />
-                  <InfoRow label="Allergies" value={member.allergies?.length > 0 ? member.allergies.map((a, i) => <Badge key={i} variant="destructive" className="mr-1">{a}</Badge>) : 'None listed'} />
-                  <InfoRow label="Insurance" value={member.insurance_provider ? `${member.insurance_provider} — ${member.insurance_policy_number || ''}` : 'Not set'} />
-                  <InfoRow label="Pharmacy" value={member.preferred_pharmacy || 'Not set'} />
-                  <InfoRow label="Care Notes" value={member.care_notes || 'No notes'} />
-                </>
+                <p className="text-sm whitespace-pre-wrap">{member.care_notes || <span className="text-muted-foreground">Nothing yet. Tap Edit to add anything the family should know.</span>}</p>
               )}
             </CardContent>
           </Card>
@@ -190,17 +165,17 @@ export default function FamilyMemberDetail() {
             <CardContent className="space-y-4">
               {editing ? (
                 <>
-                  <div><Label>Primary Doctor</Label><Input value={form.primary_doctor} onChange={e => setForm({...form, primary_doctor: e.target.value})} className="mt-1" /></div>
-                  <div><Label>Doctor Phone</Label><Input value={form.primary_doctor_phone} onChange={e => setForm({...form, primary_doctor_phone: e.target.value})} className="mt-1" /></div>
                   <div><Label>Emergency Contact</Label><Input value={form.emergency_contact_name} onChange={e => setForm({...form, emergency_contact_name: e.target.value})} className="mt-1" /></div>
                   <div><Label>Emergency Phone</Label><Input value={form.emergency_contact_phone} onChange={e => setForm({...form, emergency_contact_phone: e.target.value})} className="mt-1" /></div>
+                  <div><Label>Another Contact</Label><Input value={form.other_contact_name} onChange={e => setForm({...form, other_contact_name: e.target.value})} placeholder="e.g. neighbor, coach, babysitter" className="mt-1" /></div>
+                  <div><Label>Their Phone</Label><Input value={form.other_contact_phone} onChange={e => setForm({...form, other_contact_phone: e.target.value})} className="mt-1" /></div>
                 </>
               ) : (
                 <>
-                  <InfoRow label="Primary Doctor" value={member.primary_doctor ? `Dr. ${member.primary_doctor}` : 'Not set'} />
-                  <InfoRow label="Doctor Phone" value={member.primary_doctor_phone || 'Not set'} action={<PhoneActions number={member.primary_doctor_phone} name={member.primary_doctor} />} />
                   <InfoRow label="Emergency Contact" value={member.emergency_contact_name || 'Not set'} />
                   <InfoRow label="Emergency Phone" value={member.emergency_contact_phone || 'Not set'} action={<PhoneActions number={member.emergency_contact_phone} name={member.emergency_contact_name} />} />
+                  <InfoRow label="Another Contact" value={member.other_contact_name || 'Not set'} />
+                  <InfoRow label="Their Phone" value={member.other_contact_phone || 'Not set'} action={<PhoneActions number={member.other_contact_phone} name={member.other_contact_name} />} />
                 </>
               )}
             </CardContent>
@@ -230,23 +205,23 @@ export default function FamilyMemberDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="medications">
+        <TabsContent value="reminders">
           <Card className="border-border/50">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="font-heading flex items-center gap-2"><Pill className="w-5 h-5 text-emerald-500" /> Medications</CardTitle>
-                <Link to="/medications" className="text-sm text-primary hover:underline">Manage all</Link>
+                <CardTitle className="font-heading flex items-center gap-2"><BellRing className="w-5 h-5 text-emerald-500" /> Reminders</CardTitle>
+                <Link to="/reminders" className="text-sm text-primary hover:underline">See all</Link>
               </div>
             </CardHeader>
             <CardContent>
-              {medications.length === 0 ? (
-                <p className="text-muted-foreground text-sm py-4 text-center">No medications tracked for {member.name}.</p>
+              {reminders.filter(r => r.is_active !== false).length === 0 ? (
+                <p className="text-muted-foreground text-sm py-4 text-center">No reminders for {member.name}.</p>
               ) : (
                 <div className="space-y-3">
-                  {medications.filter(med => med.is_active !== false).map(med => (
-                    <Link key={med.id} to={`/medications?med=${med.id}`} className="block p-3 rounded-xl bg-muted/50 hover:bg-muted">
-                      <p className="font-medium">{med.medication_name}</p>
-                      <p className="text-sm text-muted-foreground">{[med.dosage, med.frequency, Array.isArray(med.times) && med.times.length ? med.times.join(', ') : ''].filter(Boolean).join(' · ')}</p>
+                  {reminders.filter(r => r.is_active !== false).map(r => (
+                    <Link key={r.id} to={`/reminders?item=${r.id}`} className="block p-3 rounded-xl bg-muted/50 hover:bg-muted">
+                      <p className="font-medium">{r.medication_name}</p>
+                      <p className="text-sm text-muted-foreground">{[r.dosage, frequencyLabel(r.frequency), Array.isArray(r.times) && r.times.length ? r.times.map(fmtClock).join(', ') : ''].filter(Boolean).join(' · ')}</p>
                     </Link>
                   ))}
                 </div>

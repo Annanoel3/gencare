@@ -69,7 +69,7 @@ export default function Journal() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><BookOpen className="w-7 h-7 text-primary" /> Care Journal</h1>
-          <p className="text-muted-foreground mt-1">What you noticed, what the doctor said, the good days and the hard ones.</p>
+          <p className="text-muted-foreground mt-1">What you noticed, what people said, the good days and the hard ones.</p>
         </div>
         <Button onClick={() => setDialog({ open: true, entry: null })} className="rounded-xl gap-2"><Plus className="w-4 h-4" /><span className="hidden sm:inline">New entry</span></Button>
       </div>

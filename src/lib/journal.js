@@ -8,8 +8,7 @@ import { withFamily } from '@/lib/family';
 
 export const CATEGORIES = [
   { value: 'Observation', icon: '👀' },
-  { value: 'Symptom', icon: '🩺' },
-  { value: 'Doctor Note', icon: '📋' },
+  { value: 'Appointment', icon: '📋' },
   { value: 'Behavior', icon: '🧠' },
   { value: 'Mood', icon: '💭' },
   { value: 'Milestone', icon: '🎯' },

@@ -13,7 +13,7 @@ import { withFamily, useFamily } from "@/lib/family";
 import { plugin } from "@/lib/phone";
 import { isRecordable } from "@/components/calendar/EventRow";
 
-// ── Record Notes: record a doctor's visit, meeting or class; get clear notes ──
+// ── Record Notes: record an appointment, meeting or class; get clear notes ──
 // The same setup as ADHDone's Notes page, pointed at GenCare's calendar.
 //
 //   1. Record: the phone records (RecorderBridge / RecorderService) with the
@@ -26,11 +26,11 @@ import { isRecordable } from "@/components/calendar/EventRow";
 //      stays one tap away.
 //   4. The audio is deleted from the phone once it has been transcribed.
 //
-// A recordable appointment (Doctor, Therapy, School) coming up already has its
+// A recordable event (Appointment, School, Work) coming up already has its
 // card, drawn dashed because nothing's recorded yet. Its page is where
 // questions go beforehand (saved on the appointment as prep_questions) and
 // where recording starts. Recordings are shared with the family by default
-// (a doctor's visit for Mom is for everyone caring for her). The calendar
+// (a visit for Mom is for everyone helping her). The calendar
 // links here with ?appointment=ID (the event's page) or ?appointment=ID&record=1.
 
 const recorder = () => plugin("RecorderBridge");
@@ -710,7 +710,7 @@ export default function Notes() {
         title: unhi(todo.text),
         family_member_id: record.family_member_id || "",
         family_member_name: record.family_member_name || "",
-        category: "Medical",
+        category: "Other",
         priority: "medium",
         status: "pending",
         notes: `From the notes: ${record.title || notes.title || "a recording"}`,
@@ -940,7 +940,7 @@ export default function Notes() {
                   {askOne?.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask"}
                 </Button>
               </div>
-              {!askOne && <p className={`text-xs ${soft}`}>Like “what did the doctor say about the dose?” — the answer comes with their exact words.</p>}
+              {!askOne && <p className={`text-xs ${soft}`}>Like “what did they say about next steps?” — the answer comes with their exact words.</p>}
               {askOne && !askOne.loading && (
                 <div className="space-y-2 pt-1">
                   <p className={heading}>{askOne.answer}</p>
@@ -1177,7 +1177,7 @@ export default function Notes() {
       <div className="max-w-2xl mx-auto space-y-5">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Record Notes</h1>
-          <p className={soft}>Record a doctor's visit, meeting or class. GenCare writes short, clear notes the whole family can read: to-dos first, then the details you'll need.</p>
+          <p className={soft}>Record an appointment, meeting or class. GenCare writes short, clear notes the whole family can read: to-dos first, then the details you'll need.</p>
         </div>
 
         <div className={`${card} space-y-3`}>

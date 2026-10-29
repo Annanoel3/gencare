@@ -35,7 +35,7 @@ export default function DeleteAccount() {
 
         <section>
           <h2 className="font-heading text-lg font-semibold mb-2">What gets deleted</h2>
-          <p className="text-muted-foreground">Your profile, the family members you created, appointments, medications, care logs, checklists, journal entries, messages, notes and recordings, your push-notification registration, and your subscription record in our systems. Deletion is immediate and cannot be undone. If you were the only member of a family, the family's shared data is deleted too; if other members remain, data they created stays with them.</p>
+          <p className="text-muted-foreground">Your profile, the family members you created, appointments, reminders, care logs, checklists, journal entries, messages, notes and recordings, your push-notification registration, and your subscription record in our systems. Deletion is immediate and cannot be undone. If you were the only member of a family, the family's shared data is deleted too; if other members remain, data they created stays with them.</p>
         </section>
 
         <section>

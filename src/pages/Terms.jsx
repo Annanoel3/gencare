@@ -14,13 +14,13 @@ export default function Terms() {
 
       <div className="space-y-5 text-sm leading-relaxed">
         <Section title="What GenCare is">
-          GenCare is a family care organizer made by Mediocre at Best Dev. It helps a family keep one calendar, task list, medication list, care logs and recorded notes in one place and share them with each other. It is not medical advice, a medical record system, or an emergency service. For an emergency, call your local emergency number.
+          GenCare is a family care organizer made by Mediocre at Best Dev. It helps a family keep one calendar, task list, reminders, care logs and recorded notes in one place and share them with each other. It is not medical advice, a medical record system, or an emergency service. For an emergency, call your local emergency number.
         </Section>
         <Section title="Your account and your family">
-          You need an account to use GenCare. When you join a family, everyone in that family can see what is shared with the family: the calendar, tasks, medications, care logs, messages, and recordings marked as shared. Only add people you trust, and only share information you are comfortable with them seeing. The family owner can remove members. You can leave a family at any time; what you shared stays with the family.
+          You need an account to use GenCare. When you join a family, everyone in that family can see what is shared with the family: the calendar, tasks, reminders, care logs, messages, and recordings marked as shared. Only add people you trust, and only share information you are comfortable with them seeing. The family owner can remove members. You can leave a family at any time; what you shared stays with the family.
         </Section>
         <Section title="Recording">
-          GenCare can record audio on your phone and turn it into notes. You are responsible for following the recording laws where you are. In some places everyone in a conversation has to agree to be recorded. Recordings are transcribed and summarized by an AI service, and like any AI output the notes can contain mistakes. Check anything important, especially medical instructions, against the transcript or the person who said it.
+          GenCare can record audio on your phone and turn it into notes. You are responsible for following the recording laws where you are. In some places everyone in a conversation has to agree to be recorded. Recordings are transcribed and summarized by an AI service, and like any AI output the notes can contain mistakes. Check anything important against the transcript or the person who said it.
         </Section>
         <Section title="Subscriptions">
           A new family gets GenCare free for 7 days. After that, one member's subscription (through Google Play or the App Store) covers the whole family. Subscriptions renew until cancelled; cancel in your store account. Refunds follow the store's own policy. We may change prices with notice.

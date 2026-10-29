@@ -14,11 +14,12 @@ import { expandAppointments } from '../../shared/recurrence.ts';
 //   2. Task due-time pushes: a task with a due date AND time, at that time.
 //   3. The morning digest at 7:00 local: today's events and the tasks due
 //      today or overdue, one push per person, once a day.
-//   4. Medications: a push at each dose time (and a MedicationLog row marked
-//      'due' so the Taken button has something to flip), a 'missed' push and
-//      log status 90 minutes later if nobody marked it, and a refill push once
-//      a day from refill_reminder_days before the refill date.
-//   5. Wellness: a daily 'how are you holding up?' push for caregivers who
+//   4. Reminders (stored in the Medication / MedicationLog tables): a push at
+//      each set time (and a log row marked 'due' so the Done button has
+//      something to flip), a "not done yet?" push and 'missed' status 90
+//      minutes later if nobody marked it, and a "runs out" push once a day
+//      from refill_reminder_days before the runs-out date (refill_date).
+//   5. Wellness: a daily 'how are you holding up?' push for anyone who
 //      set an hour, skipped once they've checked in that day.
 //
 // Replaces checkDueTasks (Jul 2026), which pushed every task in the whole
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const db = base44.asServiceRole.entities;
   const now = Date.now();
-  const out: Record<string, number> = { families: 0, appointment_reminders: 0, task_pushes: 0, digests: 0, dose_pushes: 0, missed_pushes: 0, refill_pushes: 0 };
+  const out: Record<string, number> = { families: 0, appointment_reminders: 0, task_pushes: 0, digests: 0, reminder_pushes: 0, missed_pushes: 0, runs_out_pushes: 0 };
 const MISSED_AFTER_MS = 90 * 60_000;
   try {
     const families = (await db.Family.list()) || [];
@@ -142,7 +143,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
         await db.CareTask.update(t.id, { reminder_sent_at: new Date(now).toISOString() });
       }
 
-      // 4. Medications.
+      // 4. Reminders.
       const meds = ((await db.Medication.filter({ family_id: fam.id })) || []).filter((m: any) => m.is_active !== false);
       if (meds.length) {
         const dow = new Date(localToMs(today, '12:00', tz)).getUTCDay();
@@ -151,8 +152,8 @@ const MISSED_AFTER_MS = 90 * 60_000;
         for (const m of meds) {
           const times: string[] = Array.isArray(m.times) ? m.times.filter((t: string) => /^\d{2}:\d{2}$/.test(t)) : [];
           const days: number[] = Array.isArray(m.days_of_week) ? m.days_of_week : [];
-          const forWhom = m.family_member_name ? `${m.family_member_name}'s ` : '';
-          const dose = `${forWhom}${m.medication_name}${m.dosage ? ` ${m.dosage}` : ''}`;
+          const label = `${m.medication_name}${m.dosage ? ` (${m.dosage})` : ''}${m.family_member_name ? ` · ${m.family_member_name}` : ''}`;
+          const screen = `/reminders?item=${m.id}`;
           if (m.remind !== false && (!days.length || days.includes(dow))) {
             for (const t of times) {
               const slotMs = localToMs(today, t, tz);
@@ -164,8 +165,8 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 logsToday.push(log);
                 for (const u of users) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: `Time for ${dose}`, message: m.instructions ? m.instructions : 'Tap to mark it taken', data: { type: 'med_due', medicationId: m.id, logId: log.id, screen: '/medications' }, priority: 'high' });
-                  out.dose_pushes++;
+                  await sendPush({ email: u.email, title: label, message: m.notes ? String(m.notes).split('\n')[0].slice(0, 120) : 'Tap to mark it done', data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  out.reminder_pushes++;
                 }
                 continue;
               }
@@ -175,22 +176,22 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 log.status = 'missed';
                 for (const u of users) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: `Missed? ${dose}`, message: `The ${fmtClock(t)} dose was not marked taken. Tap to mark it, or skip it.`, data: { type: 'med_missed', medicationId: m.id, logId: log.id, screen: '/medications' }, priority: 'high' });
+                  await sendPush({ email: u.email, title: `Not done yet? ${label}`, message: `The ${fmtClock(t)} reminder wasn't marked done. Tap to mark it, or skip it.`, data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.missed_pushes++;
                 }
               }
             }
           }
-          // Refill: once a day, from N days before, in the morning.
+          // Runs out: once a day, from N days before, in the morning.
           if (m.refill_date && local.hour === DIGEST_HOUR + 1 && local.minute < 15 && m.refill_reminded_on !== today) {
             const leadDays = typeof m.refill_reminder_days === 'number' ? m.refill_reminder_days : 3;
             const daysLeft = Math.round((Date.UTC(+m.refill_date.slice(0, 4), +m.refill_date.slice(5, 7) - 1, +m.refill_date.slice(8, 10)) - Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10))) / 86_400_000);
             if (daysLeft <= leadDays && daysLeft >= -30) {
-              const when = daysLeft < 0 ? `was due ${-daysLeft} day${daysLeft === -1 ? '' : 's'} ago` : daysLeft === 0 ? 'is due today' : daysLeft === 1 ? 'is due tomorrow' : `is due in ${daysLeft} days`;
+              const when = daysLeft < 0 ? `ran out ${-daysLeft} day${daysLeft === -1 ? '' : 's'} ago` : daysLeft === 0 ? 'runs out today' : daysLeft === 1 ? 'runs out tomorrow' : `runs out in ${daysLeft} days`;
               for (const u of users) {
                 if (!wantsPush(u, 'reminders')) continue;
-                await sendPush({ email: u.email, title: `Refill ${dose}`, message: `The refill ${when}${m.pharmacy ? ` · ${m.pharmacy}` : ''}`, data: { type: 'med_refill', medicationId: m.id, screen: '/medications' } });
-                out.refill_pushes++;
+                await sendPush({ email: u.email, title: `${m.medication_name} ${when}`, message: m.family_member_name ? `For ${m.family_member_name}. Time to restock.` : 'Time to restock.', data: { type: 'reminder_restock', reminderId: m.id, screen } });
+                out.runs_out_pushes++;
               }
               await db.Medication.update(m.id, { refill_reminded_on: today });
             }

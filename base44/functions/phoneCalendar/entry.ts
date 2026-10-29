@@ -110,11 +110,11 @@ function rowToAppointment(row: any, calendarId: string, tz: string, shared: bool
 
 function guessCategory(title: string) {
   const t = title.toLowerCase();
-  if (/\b(dr\.?|doctor|dentist|ortho|pediatric|clinic|md|appt|appointment|checkup|check-up|vaccine|shot|hospital|lab|blood)\b/.test(t)) return 'Doctor';
-  if (/\b(therap|pt |ot |speech|counsel|psych)/.test(t)) return 'Therapy';
   if (/\b(school|class|teacher|pta|parent|conference|tutor|homework|exam|test)\b/.test(t)) return 'School';
+  if (/\b(work|shift|standup|meeting with|interview)\b/.test(t)) return 'Work';
   if (/\b(practice|game|soccer|football|baseball|basketball|swim|dance|gym|match|tournament|karate|ballet)\b/.test(t)) return 'Sports';
   if (/\b(birthday|party|dinner|lunch|brunch|visit|wedding|playdate|sleepover|bbq)\b/.test(t)) return 'Social';
+  if (/\b(appt|appointment|dr\.?|dentist|haircut|salon|vet|checkup|check-up)\b/.test(t)) return 'Appointment';
   return 'Other';
 }
 

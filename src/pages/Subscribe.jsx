@@ -12,8 +12,8 @@ import {
 const PERKS = [
   'The whole family on one calendar, with everyone’s phone kept in step',
   'Push notifications when someone adds or changes an appointment',
-  'Record notes at doctor visits and meetings — organized notes plus the full transcript',
-  'Medications, care logs, checklists and messages, shared with everyone who helps',
+  'Record notes at appointments and meetings — organized notes plus the full transcript',
+  'Reminders, care logs, checklists and messages, shared with everyone who helps',
   'One subscription covers every member of the family',
 ];
 

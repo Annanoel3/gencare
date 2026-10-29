@@ -99,7 +99,7 @@ export default function EntryDialog({ open, onOpenChange, entry, members = [], d
 
           <div>
             <Label>Entry *</Label>
-            <Textarea value={form.content} onChange={(e) => set('content', e.target.value)} placeholder="What happened, what you noticed, what the doctor said…" className="mt-1 min-h-[140px]" autoFocus={!editing} />
+            <Textarea value={form.content} onChange={(e) => set('content', e.target.value)} placeholder="What happened, what you noticed, what was said…" className="mt-1 min-h-[140px]" autoFocus={!editing} />
           </div>
 
           <div>

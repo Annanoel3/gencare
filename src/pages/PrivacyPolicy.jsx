@@ -20,14 +20,14 @@ export default function PrivacyPolicy() {
       <div className="prose prose-sm max-w-none space-y-6 text-foreground">
         <section>
           <h2 className="font-heading text-lg font-semibold mb-2">1. Introduction</h2>
-          <p className="text-muted-foreground">GenCare ("we", "us", "our") is a family care management application that helps you organize health information, appointments, medications, and care tasks for your loved ones. This Privacy Policy explains how we collect, use, and protect your data when you use our service.</p>
+          <p className="text-muted-foreground">GenCare ("we", "us", "our") is a family organizer that helps you keep a shared calendar, reminders, tasks, care logs and notes for the people you look after. This Privacy Policy explains how we collect, use, and protect your data when you use our service.</p>
         </section>
 
         <section>
           <h2 className="font-heading text-lg font-semibold mb-2">2. Information We Collect</h2>
           <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
             <li><strong>Account Information:</strong> Your name, email address, and authentication credentials.</li>
-            <li><strong>Family Care Data:</strong> Profiles, medical conditions, allergies, medications, appointments, care tasks, journal entries, and notes you create.</li>
+            <li><strong>Family Data:</strong> Profiles, appointments, reminders, tasks, care logs, journal entries, messages, and notes you create. These can include personal details you choose to write down, including health details.</li>
             <li><strong>Integration Data:</strong> If you connect Google Calendar, we access your calendar events to display them in the app.</li>
             <li><strong>Usage Data:</strong> How you interact with the app, device information, and crash reports.</li>
           </ul>

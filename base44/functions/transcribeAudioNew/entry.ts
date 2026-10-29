@@ -203,7 +203,7 @@ function publicUsage(u: any) {
 // ── Transcript → notes ─────────────────────────────────────────────────────
 
 const NOTES_SYSTEM =
-  "You write notes for a busy family caregiver from a recording they made of a doctor's visit, meeting, class " +
+  "You write notes for a busy family caregiver from a recording they made of an appointment, meeting, class " +
   "or conversation, the way a sharp, caring assistant who sat in on it would. They will glance at these " +
   "notes later, probably in a hurry, and may share them with other family members who weren't there, so every " +
   "line has to earn its place. Answer with JSON only.";
@@ -661,7 +661,7 @@ async function notesAsk(base44: any, user: any, body: any) {
     };
   };
   const openai = lean(new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY") }), { name: 'transcribeAudioNew' });
-  const SYSTEM = "You help a family caregiver find things in recordings the family made of doctor's visits, meetings, classes and conversations. Answer with JSON only.";
+  const SYSTEM = "You help a family caregiver find things in recordings the family made of appointments, meetings, classes and conversations. Answer with JSON only.";
 
   let index = recs.map((r, i) => JSON.stringify({ n: i + 1, ...brief(r) })).join("\n");
   if (index.length > 120000) index = index.slice(0, 120000);
@@ -782,7 +782,7 @@ async function notesAskOne(base44: any, user: any, body: any) {
     return Response.json({ ok: true, answer: "This recording didn't pick up any speech, so there's nothing to look in.", quotes: [] });
   }
   const openai = lean(new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY") }), { name: 'transcribeAudioNew' });
-  const SYSTEM = "You help a family caregiver find what was said in a recording they made of a doctor's visit, meeting, class or conversation. You answer only from the transcript, and you quote it exactly. Answer with JSON only.";
+  const SYSTEM = "You help a family caregiver find what was said in a recording they made of an appointment, meeting, class or conversation. You answer only from the transcript, and you quote it exactly. Answer with JSON only.";
   let out: any;
   try {
     out = await askJson(openai, SYSTEM, `The recording: "${String(rec.title || rec.notes?.title || "Recording")}", made ${whenRecorded(rec.started_at, tz)}.${aboutLine(rec) ? `\n${aboutLine(rec)}` : ""}

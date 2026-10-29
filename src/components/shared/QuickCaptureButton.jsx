@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, X, Mic, FileText, Calendar, Pill, Camera, MessageSquare } from 'lucide-react';
+import { Plus, X, FileText, Calendar, BellRing, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
 import { withFamily, useFamily } from '@/lib/family';
 import { authorOf, todayStr } from '@/lib/journal';
@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const captureOptions = [
   { icon: FileText, label: 'Quick Note', type: 'note', color: 'bg-blue-500' },
   { icon: Calendar, label: 'Appointment', type: 'appointment', color: 'bg-purple-500' },
-  { icon: Pill, label: 'Medication', type: 'medication', color: 'bg-emerald-500' },
+  { icon: BellRing, label: 'Reminder', type: 'reminder', color: 'bg-emerald-500' },
   { icon: MessageSquare, label: 'Task', type: 'task', color: 'bg-orange-500' },
 ];
 
@@ -29,8 +29,10 @@ export default function QuickCaptureButton() {
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
   const { me } = useFamily();
+  const navigate = useNavigate();
 
   const handleOptionClick = (type) => {
+    if (type === 'reminder') { setExpanded(false); navigate('/reminders?new=1'); return; }
     setCaptureType(type);
     setDialogOpen(true);
     setExpanded(false);
@@ -50,8 +52,6 @@ export default function QuickCaptureButton() {
       } else if (captureType === 'appointment') {
         await base44.entities.Appointment.create(withFamily({ title: (title || content).trim(), date, notes: title ? content : undefined }));
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      } else if (captureType === 'medication') {
-        await base44.entities.CareJournal.create(withFamily({ content, category: 'Doctor Note', entry_date: todayStr(), ...authorOf(me) }));
       }
       queryClient.invalidateQueries();
       setDialogOpen(false);
@@ -61,7 +61,7 @@ export default function QuickCaptureButton() {
     }
   };
 
-  const typeLabels = { note: 'Quick Note', appointment: 'New Appointment', medication: 'Medication Note', task: 'New Task' };
+  const typeLabels = { note: 'Quick Note', appointment: 'New Appointment', task: 'New Task' };
 
   return (
     <>

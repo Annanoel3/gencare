@@ -2,15 +2,29 @@ import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
 import { format } from 'date-fns';
 
-// Medications and doses. A dose "slot" is a medication × one of its times on
-// one day. The reminder job writes a MedicationLog row ('due') at the time;
-// the Taken button writes or flips that row. Marking a dose from the app
-// before the job got there makes the row itself.
+// Reminders: things the family does at set times (feed the dog, water the
+// plants, a daily call, a pill). A "slot" is a reminder × one of its times on
+// one day. The reminder job writes a log row ('due') at the time; the Done
+// button writes or flips that row. Marking one done from the app before the
+// job got there makes the row itself.
+//
+// Storage note: these live in the Medication / MedicationLog tables (the page
+// started out as a medication list). Only the table names are left from that;
+// the fields used are what/details/for/times/days/notes/runs-out date, and a
+// log's 'taken' status means done.
+
+export const REMINDERS_KEY = ['reminders'];
+export const listReminders = () => base44.entities.Medication.list('-created_date', 200);
 
 export const FREQUENCIES = ['Once daily', 'Twice daily', 'Three times daily', 'Four times daily', 'Weekly', 'Bi-weekly', 'Monthly', 'As needed'];
+export const FREQUENCY_LABELS = {
+  'Once daily': 'Once a day', 'Twice daily': 'Twice a day', 'Three times daily': '3 times a day', 'Four times daily': '4 times a day',
+  Weekly: 'Weekly', 'Bi-weekly': 'Every 2 weeks', Monthly: 'Monthly', 'As needed': 'No set time',
+};
+export const frequencyLabel = (f) => FREQUENCY_LABELS[f] || f || '';
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** Suggested dose times for a frequency, used when the person hasn't set any. */
+/** Suggested times for a frequency, used when the person hasn't set any. */
 export function defaultTimes(frequency) {
   switch (frequency) {
     case 'Twice daily': return ['08:00', '20:00'];
@@ -30,7 +44,7 @@ export function fmtClock(t) {
   return `${h % 12 || 12}:${String(m || 0).padStart(2, '0')} ${ap}`;
 }
 
-/** Today's dose slots across active medications, with their log (if any). */
+/** Today's slots across active reminders, with their log (if any). */
 export function slotsForDay(meds, logs, day = todayStr()) {
   const dow = new Date(day + 'T12:00:00').getDay();
   const out = [];
@@ -46,8 +60,8 @@ export function slotsForDay(meds, logs, day = todayStr()) {
   return out.sort((a, b) => a.time.localeCompare(b.time));
 }
 
-/** Mark a slot taken / skipped / back to due. */
-export async function markDose(slot, status, me) {
+/** Mark a slot done ('taken') / skipped / back to due. */
+export async function markSlot(slot, status, me) {
   const base = {
     medication_id: slot.med.id, medication_name: slot.med.medication_name,
     family_member_id: slot.med.family_member_id, family_member_name: slot.med.family_member_name,
@@ -69,10 +83,7 @@ export function cleanMed(form, members) {
     frequency: form.frequency,
     family_member_id: form.family_member_id,
     family_member_name: member?.name || form.family_member_name || '',
-    instructions: form.instructions || '',
-    prescribing_doctor: form.prescribing_doctor || '',
-    pharmacy: form.pharmacy || '',
-    notes: form.notes || '',
+    notes: (form.notes || '').trim(),
     times,
     days_of_week: Array.isArray(form.days_of_week) ? form.days_of_week : [],
     remind: form.remind !== false,
@@ -84,7 +95,7 @@ export function cleanMed(form, members) {
   return data;
 }
 
-/** Taken / total over the last `days` days for one medication. */
+/** Done / total over the last `days` days for one reminder. */
 export function adherence(med, logs, days = 14) {
   const since = format(new Date(Date.now() - days * 86400000), 'yyyy-MM-dd');
   const mine = logs.filter((l) => l.medication_id === med.id && l.day >= since && l.status !== 'due');
