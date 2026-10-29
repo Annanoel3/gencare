@@ -20,6 +20,15 @@
       "description": "How this person is shown to the family",
       "type": "string"
     },
+    "event_sharing_default": {
+      "description": "Who sees the events this person adds or brings in from their phone: auto = GenCare decides per event, family = everyone, private = only them. Unset = not chosen yet (asked on the Calendar page)",
+      "enum": [
+        "auto",
+        "family",
+        "private"
+      ],
+      "type": "string"
+    },
     "export_calendar_id": {
       "description": "The phone calendar (provider id) GenCare writes into",
       "type": "string"
