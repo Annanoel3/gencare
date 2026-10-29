@@ -75,7 +75,7 @@ export async function sortNewEvent(created, left = {}, mode = '') {
   } catch (e) { r = null; }
   if (!r?.ok) return null;
   const auto = new Set(Array.isArray(created.auto_set) ? created.auto_set : []);
-  const patch = { ai_checked_at: new Date().toISOString(), ai_share: !!r.share };
+  const patch = { ai_checked_at: new Date().toISOString(), ai_share: !!r.share, ai_trip: !!r.trip };
   if (left.member && r.member_id) { patch.family_member_id = r.member_id; patch.family_member_name = r.member_name || ''; auto.add('member'); }
   if (left.category && r.category && r.category !== created.category) { patch.category = r.category; auto.add('category'); }
   let becameShared = false;
@@ -87,6 +87,8 @@ export async function sortNewEvent(created, left = {}, mode = '') {
   }
   patch.auto_set = [...auto];
   await base44.entities.Appointment.update(created.id, patch);
+  // Part of a trip: the family's "<name> traveling" event follows.
+  if (r.trip) await base44.functions.invoke('phoneCalendar', { mode: 'away' }).catch(() => {});
   return { patch, becameShared, shared: wantShare ? !!r.share : null, memberName: patch.family_member_name || '' };
 }
 
