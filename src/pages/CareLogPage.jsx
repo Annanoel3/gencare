@@ -13,7 +13,7 @@ import LogDialog from '@/components/carelog/LogDialog';
 import LogRow from '@/components/carelog/LogRow';
 import VaultSection from '@/components/carelog/VaultSection';
 import { track } from '@/lib/activity';
-import { BANDS, bandOf, cleanLog, createLog, updateLog, deleteLog, upcoming, summarize, isLocked, QUICK, matchesQuick, quickRow } from '@/lib/careLog';
+import { bandOf, cleanLog, createLog, updateLog, deleteLog, upcoming, summarize, isLocked, QUICK, matchesQuick, quickRow } from '@/lib/careLog';
 
 const isPet = (m) => /^pet$/i.test(String(m?.relationship || ''));
 const firstName = (s) => String(s || '').split(' ')[0];
@@ -141,7 +141,7 @@ export default function CareLogPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-heading font-semibold truncate">{person.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {band === 'pet' ? (person.birthdate ? `${formatAge(person.birthdate)} · Pet` : 'Pet') : person.birthdate ? `${formatAge(person.birthdate)} · ${BANDS[band].label}` : <>No birthdate yet. <Link to={`/family/${person.id}`} className="text-primary underline">Add one</Link> and the buttons fit their age.</>}
+                    {band === 'pet' ? (person.birthdate ? `${formatAge(person.birthdate)} · Pet` : 'Pet') : person.birthdate ? formatAge(person.birthdate) : <>No birthdate yet. <Link to={`/family/${person.id}`} className="text-primary underline">Add one</Link> and the buttons fit their age.</>}
                   </p>
                 </div>
                 <Link to={`/family/${person.id}`} className="text-sm text-primary">Profile</Link>

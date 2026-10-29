@@ -15,7 +15,9 @@ export const BANDS = {
   preteen: { label: 'Pre-teen', from: 108, to: 156 },
   teen: { label: 'Teen', from: 156, to: 216 },
   adult: { label: 'Adult', from: 216, to: 780 },
-  senior: { label: 'Senior', from: 780, to: Infinity },
+  // Shown to nobody: the label under a person's name is just their age
+  // (Anna, Oct 29 2026: her mom doesn't like being called a senior).
+  senior: { label: 'Adult', from: 780, to: Infinity },
   general: { label: 'Care', from: null, to: null },
   pet: { label: 'Pet', from: null, to: null },
 };
