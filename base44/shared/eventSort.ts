@@ -16,19 +16,31 @@ const MODEL = "gpt-6-astra";
 const BACKUP_MODEL = "gpt-6-luna";
 export const SORT_CATEGORIES = ["Appointment", "School", "Work", "Sports", "Social", "Other"];
 
-const SYSTEM = `You help a family share one calendar. Someone added events (typed in, or brought in from their phone's calendar). For each event, decide three things the way a thoughtful family assistant who knows this family would.
+const SYSTEM = `You help a family share one calendar. Someone added events (typed in, or brought in from their phone's calendar). For each event, decide who it's about, whether the rest of the family should see it, and its category, the way a thoughtful family assistant who knows this family would. Read the events together: one that names someone ("Mom Spero Assessment") tells you who other visits to the same place are probably for.
 
-who: the id of the family profile the event is about — the person who has to be there or whose need it serves (Mom's speech therapy is Mom's, even if someone else drives her). Read names, nicknames and relationships the way the person who added it would mean them: "Mom" from someone means that person's mother. Use "" when it's about the person who added it and they have no profile, about a pet, a friend, a coworker, anyone not in the list, or when you can't tell. Never guess a profile just to fill the field.
+who: the id of the family profile the event is about: the person or pet who has to be there or whose need it serves (Mom's speech therapy is Mom's, even if someone else drives her). "Mom", "Dad", "Grandma" and the like mean the people with that relationship to the person who added the event: a profile listed as Mother and written by that same person is their Mom. Pets have profiles too ("Kirito ultrasound" is Kirito's). Use "self" when it's about the person who added it (their own trip, their own appointment). Use "" when it's about someone not in the list, or you can't tell. Never guess a profile just to fill the field.
 
-share: true when the rest of the family would want it on the shared calendar — appointments and care, school and kids' activities, family plans and gatherings, travel, things that affect the household or that others may need to help with or plan around. false when it's the person's own life: plans with friends, dates, their own work meetings and shifts, personal errands, gifts or surprises for someone in the family, and anything sensitive (their own therapy, legal, money or intimate health matters). When unsure, false: showing the family something private does more harm than keeping something to themselves.
+share: be picky. The shared calendar is for what the rest of the family needs to know or plan around, not everything on someone's phone. Share (true): events about the people being cared for, the kids or the pets; family plans and gatherings the family takes part in; household matters; and the person being away from home: their trips (flights, hotels, out-of-town stays), so everyone knows they're gone. Keep private (false): the person's own appointments and health, their own work, their own plans with friends, errands, bills and money, gifts or surprises, and anything sensitive. When unsure, keep it private: showing the family something private does more harm than keeping something to themselves.
 
 category: Appointment, School, Work, Sports, Social or Other.
 
-Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id or empty>","share":true,"category":"Appointment"}]} with one entry for every event.`;
+Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id, self, or empty>","share":true,"category":"Appointment"}]} with one entry for every event.`;
 
-export type SortMember = { id: string; name: string; relationship?: string; added_by?: string; is_poster?: boolean };
+export type SortMember = { id: string; name: string; relationship?: string; added_by?: string; added_by_id?: string; is_poster?: boolean; is_pet?: boolean };
 export type SortItem = { key: string; title: string; notes?: string; location?: string; with?: string; date?: string; time?: string };
-export type SortResult = { who: string; share: boolean; category: string };
+export type SortResult = { who: string; self: boolean; share: boolean; category: string };
+
+// "Mom"/"Dad" in a title the model left without a profile: the one Mother /
+// Father profile the person who added it made themselves, if there's exactly one.
+const MOM = /\b(mom|mommy|mama|mother)\b/i;
+const DAD = /\b(dad|daddy|papa|father)\b/i;
+function parentFor(title: string, members: SortMember[], posterId: string) {
+  const mine = members.filter((m) => !m.is_pet && m.added_by_id && m.added_by_id === posterId);
+  const one = (rel: RegExp) => { const hits = mine.filter((m) => rel.test(String(m.relationship || ''))); return hits.length === 1 ? hits[0].id : ''; };
+  const mom = MOM.test(title) ? one(/^(mother|mom)$/i) : '';
+  const dad = DAD.test(title) ? one(/^(father|dad)$/i) : '';
+  return mom && dad ? '' : mom || dad;
+}
 
 const clip = (s: unknown, n: number) => String(s || "").replace(/\s+/g, " ").trim().slice(0, n);
 
@@ -37,7 +49,7 @@ const clip = (s: unknown, n: number) => String(s || "").replace(/\s+/g, " ").tri
  * a failed call) means "not sorted", which callers treat as: nobody in
  * particular, not shared, category unchanged.
  */
-export async function sortEvents(items: SortItem[], ctx: { poster: string; members: SortMember[] }): Promise<Map<string, SortResult>> {
+export async function sortEvents(items: SortItem[], ctx: { poster: string; posterId?: string; members: SortMember[] }): Promise<Map<string, SortResult>> {
   const out = new Map<string, SortResult>();
   if (!items.length) return out;
   const apiKey = Deno.env.get("OPENAI_API_KEY");
@@ -45,7 +57,7 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; membe
   const openai = lean(new OpenAI({ apiKey, timeout: 45000, maxRetries: 1 }), { name: "eventSort" });
   const memberIds = new Set(ctx.members.map((m) => m.id));
   const family = ctx.members.length
-    ? ctx.members.map((m) => `- id ${m.id}: ${m.name}${m.relationship ? `, ${m.relationship}` : ""}${m.added_by ? ` (relationship as written by ${m.added_by})` : ""}${m.is_poster ? " — this is the person who added the events" : ""}`).join("\n")
+    ? ctx.members.map((m) => `- id ${m.id}: ${m.name}${m.is_pet ? ", a pet" : m.relationship ? `, ${m.relationship}${m.added_by ? ` (relationship as written by ${m.added_by})` : ""}` : ""}${m.is_poster ? " (this is the person who added the events)" : ""}`).join("\n")
     : "(no profiles yet)";
   const events = items.map((e) => ({
     key: e.key,
@@ -66,11 +78,18 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; membe
         max_completion_tokens: 6000,
       } as any);
       const parsed = JSON.parse(res?.choices?.[0]?.message?.content || "{}");
+      const posterProfile = ctx.members.find((m) => m.is_poster)?.id || "";
+      const titles = new Map(items.map((e) => [e.key, e.title]));
       for (const r of Array.isArray(parsed?.events) ? parsed.events : []) {
         const key = String(r?.key || "");
         if (!key) continue;
+        const raw = String(r?.who || "");
+        const self = raw === "self";
+        let who = self ? posterProfile : memberIds.has(raw) ? raw : "";
+        if (!who && !self) who = parentFor(String(titles.get(key) || ""), ctx.members, ctx.posterId || "");
         out.set(key, {
-          who: memberIds.has(String(r?.who || "")) ? String(r.who) : "",
+          who,
+          self,
           share: r?.share === true,
           category: SORT_CATEGORIES.includes(String(r?.category)) ? String(r.category) : "",
         });
@@ -85,7 +104,7 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; membe
 
 /** Family profiles as the sorter sees them. */
 export async function sortMembers(db: any, familyId: string, posterId: string): Promise<{ members: SortMember[]; newest: string }> {
-  const rows = (await db.FamilyMember.filter({ family_id: familyId })) || [];
+  const rows = ((await db.FamilyMember.filter({ family_id: familyId })) || []).filter((m: any) => m.is_active !== false);
   const users = (await db.User.filter({ family_id: familyId })) || [];
   const nameOf = (id: string) => {
     const u = users.find((x: any) => x.id === id || x.email === id);
@@ -94,12 +113,15 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
   let newest = "";
   const members = rows.map((m: any) => {
     if (String(m.created_date || "") > newest) newest = String(m.created_date || "");
+    const addedBy = String(m.created_by_user_id || m.created_by_id || "");
     return {
       id: m.id,
       name: String(m.name || ""),
       relationship: String(m.relationship || ""),
-      added_by: nameOf(m.created_by_user_id || m.created_by_id || m.created_by || ""),
+      added_by: nameOf(addedBy || m.created_by || ""),
+      added_by_id: addedBy,
       is_poster: !!posterId && m.linked_user_id === posterId,
+      is_pet: /^pet$/i.test(String(m.relationship || "")),
     };
   });
   return { members, newest };

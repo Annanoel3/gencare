@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CareFeed from '@/components/dashboard/CareFeed';
 import PhoneActions from '@/components/shared/PhoneActions';
 import MemberColorPicker from '@/components/family/MemberColorPicker';
-import { getMemberColorClass } from '@/utils/memberColors';
+import { getMemberColorClass, isPet } from '@/utils/memberColors';
 import { frequencyLabel, fmtClock } from '@/lib/reminders';
 import InviteModal from '@/components/family/InviteModal';
 import { useFamily } from '@/lib/family';
@@ -86,6 +86,7 @@ export default function FamilyMemberDetail() {
       <Link to="/family" className="text-primary hover:underline mt-2 inline-block">Back to Family</Link>
     </div>
   );
+  const pet = isPet(member);
 
   return (
     <div className="pb-24 lg:pb-8">
@@ -103,19 +104,20 @@ export default function FamilyMemberDetail() {
         <div className="flex-1">
           <h1 className="font-heading text-2xl font-bold">{member.name}</h1>
           <p className="text-muted-foreground">{member.relationship}{member.birthdate ? ` · Born ${member.birthdate}` : ''}</p>
-          {member.linked_user_id ? (
+          {pet ? null : member.linked_user_id ? (
             <p className="text-xs text-primary font-medium mt-1">{member.linked_user_id === me?.id ? 'This is you' : 'Uses GenCare'}</p>
           ) : (
             <button type="button" onClick={() => setInviteOpen(true)} className="text-xs text-primary font-medium mt-1 hover:underline">Invite {member.name.split(' ')[0]} to GenCare</button>
           )}
-          <MemberColorPicker
+          {/* Every pet shares the pet color. */}
+          {!pet && <MemberColorPicker
             value={getMemberColorClass(member, members)}
             onChange={async (color) => {
               await base44.entities.FamilyMember.update(id, { color });
               queryClient.invalidateQueries({ queryKey: ['familyMember', id] });
               queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
             }}
-          />
+          />}
         </div>
         {!editing ? (
           <Button variant="outline" onClick={startEditing} className="gap-2 rounded-xl">
@@ -134,11 +136,11 @@ export default function FamilyMemberDetail() {
       <InviteModal open={inviteOpen} member={member} onClose={() => { setInviteOpen(false); queryClient.invalidateQueries({ queryKey: ['familyMember', id] }); }} />
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="bg-muted rounded-xl w-full grid grid-cols-6">
+        <TabsList className={`bg-muted rounded-xl w-full grid ${pet ? 'grid-cols-5' : 'grid-cols-6'}`}>
           <TabsTrigger value="overview" className="rounded-lg text-xs px-1">Overview</TabsTrigger>
           <TabsTrigger value="info" className="rounded-lg text-xs px-1">Info</TabsTrigger>
           <TabsTrigger value="contacts" className="rounded-lg text-xs px-1">Contacts</TabsTrigger>
-          <TabsTrigger value="school" className="rounded-lg text-xs px-1">School</TabsTrigger>
+          {!pet && <TabsTrigger value="school" className="rounded-lg text-xs px-1">School</TabsTrigger>}
           <TabsTrigger value="reminders" className="rounded-lg text-xs px-1">Reminders</TabsTrigger>
           <TabsTrigger value="journal" className="rounded-lg text-xs px-1">Journal</TabsTrigger>
         </TabsList>

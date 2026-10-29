@@ -31,6 +31,7 @@ export default function EventRow({ appt, members, onClick }) {
   const { members: accounts } = useFamily();
   const color = getEventColorClass(appt, members, accounts);
   const memberDot = getMemberColorByMemberId(appt.family_member_id, members);
+  const poster = String(appt.created_by_name || '').split(' ')[0];
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -55,12 +56,18 @@ export default function EventRow({ appt, members, onClick }) {
               {fmtTime(appt.time)}{appt.end_time ? ` – ${fmtTime(appt.end_time)}` : ''}
             </span>
           ) : null}
-          {appt.family_member_name && (
+          {appt.family_member_name ? (
             <span className="inline-flex items-center gap-1 text-xs">
               <span className={`w-2 h-2 rounded-full ${memberDot}`} />
               {appt.family_member_name}
             </span>
-          )}
+          ) : appt.visibility !== 'private' && poster ? (
+            // About nobody the app knows (a trip, their own plans): whose it is.
+            <span className="inline-flex items-center gap-1 text-xs">
+              <span className={`w-2 h-2 rounded-full ${color}`} />
+              {poster}
+            </span>
+          ) : null}
           {appt.category && categoryOf(appt) !== 'Other' && <span className="text-xs text-muted-foreground">{categoryOf(appt)}</span>}
           {appt.location && <span className="text-xs text-muted-foreground">📍 {appt.location}</span>}
           {canRecord && isRecordable(appt) && (

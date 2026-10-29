@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 
 import { getMemberColorClass } from '@/utils/memberColors';
 
-const relationships = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Son', 'Daughter', 'Spouse', 'Sibling', 'Uncle', 'Aunt', 'Cousin', 'Foster Child', 'Other'];
+const relationships = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Son', 'Daughter', 'Spouse', 'Sibling', 'Uncle', 'Aunt', 'Cousin', 'Foster Child', 'Pet', 'Other'];
 
 export default function Family() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -134,7 +134,7 @@ export default function Family() {
           <div className="space-y-4 mt-2">
             <div>
               <Label>Name *</Label>
-              <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Full name" className="mt-1" />
+              <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder={form.relationship === 'Pet' ? "Pet's name" : 'Full name'} className="mt-1" />
             </div>
             <div>
               <Label>Relationship *</Label>
@@ -153,17 +153,21 @@ export default function Family() {
               <Label>Important info</Label>
               <Textarea value={form.care_notes} onChange={e => setForm({...form, care_notes: e.target.value})} placeholder="Anything the family should know about them" className="mt-1" />
             </div>
-            <p className="text-xs text-muted-foreground">Will they use GenCare on their own phone? Tap Add &amp; Invite: when they join with the invite, this profile becomes theirs.</p>
+            {form.relationship !== 'Pet' && (
+              <p className="text-xs text-muted-foreground">Will they use GenCare on their own phone? Tap Add &amp; Invite: when they join with the invite, this profile becomes theirs.</p>
+            )}
             <div className="flex flex-wrap justify-end gap-2 pt-1">
               <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() => { setInviteAfterAdd(true); createMutation.mutate(form); }}
-                disabled={!form.name || !form.relationship || createMutation.isPending}
-              >
-                <QrCode className="w-4 h-4" /> Add &amp; Invite
-              </Button>
+              {form.relationship !== 'Pet' && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => { setInviteAfterAdd(true); createMutation.mutate(form); }}
+                  disabled={!form.name || !form.relationship || createMutation.isPending}
+                >
+                  <QrCode className="w-4 h-4" /> Add &amp; Invite
+                </Button>
+              )}
               <Button
                 onClick={() => { setInviteAfterAdd(false); createMutation.mutate(form); }}
                 disabled={!form.name || !form.relationship || createMutation.isPending}

@@ -48,7 +48,11 @@ export default function EventCard({ appt, members = [], showDay = false }) {
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm leading-snug">{appt.title}</p>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-            {appt.family_member_name && <span className="inline-flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${memberDot}`} />{appt.family_member_name}</span>}
+            {appt.family_member_name
+              ? <span className="inline-flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${memberDot}`} />{appt.family_member_name}</span>
+              : appt.visibility !== 'private' && appt.created_by_name
+                ? <span className="inline-flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${color}`} />{String(appt.created_by_name).split(' ')[0]}</span>
+                : null}
             <span>{when}</span>
             {appt.span_days > 1 && <span>Day {appt.span_index + 1} of {appt.span_days}</span>}
             {cat && cat !== 'Other' && <span>{cat}</span>}

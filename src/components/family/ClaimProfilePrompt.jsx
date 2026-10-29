@@ -39,7 +39,7 @@ export default function ClaimProfilePrompt() {
   const candidates = useMemo(() => {
     if (!me?.id || profiles.some((p) => p.linked_user_id === me.id)) return [];
     const declined = readDeclined(me.id);
-    return profiles.filter((p) => !p.linked_user_id && p.is_active !== false && !declined.has(p.id)
+    return profiles.filter((p) => !p.linked_user_id && p.is_active !== false && !declined.has(p.id) && !/^pet$/i.test(String(p.relationship || ''))
       && (p.created_by_user_id || p.created_by_id) && (p.created_by_user_id || p.created_by_id) !== me.id);
   }, [profiles, me?.id]);
 

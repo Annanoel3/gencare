@@ -8,7 +8,7 @@ import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isVa
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/events';
 import SharingChoiceDialog from '@/components/calendar/SharingChoice';
-import { CalendarDays, Plus, Smartphone } from 'lucide-react';
+import { CalendarDays, Plus, Smartphone, Sparkles, Loader2 } from 'lucide-react';
 import MonthView from '@/components/calendar/MonthView';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
@@ -17,7 +17,7 @@ import EventDialog from '@/components/calendar/EventDialog';
 import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { getMemberColorClass, getUserColorClass, PRIVATE_COLOR } from '@/utils/memberColors';
+import { getMemberColorClass, getUserColorClass, PRIVATE_COLOR, PET_COLOR, isPet } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { toast } from '@/components/ui/use-toast';
 
@@ -163,6 +163,24 @@ export default function CalendarPage() {
   // "Who sees the events you add?", asked the first time (closed without an
   // answer: asked again next visit). Never on top of another popup.
   const [askClosed, setAskClosed] = useState(false);
+
+  // The app owner's "Sort again": GenCare re-sorts their events from a week
+  // ago through the next 60 days (who each is about, sharing, category),
+  // still leaving alone anything picked by hand.
+  const [resorting, setResorting] = useState(false);
+  const resort = async () => {
+    setResorting(true);
+    try {
+      const res = await base44.functions.invoke('phoneCalendar', { mode: 'resort' });
+      const r = res?.data || res;
+      if (!r?.ok) throw new Error(r?.error || 'Try again');
+      toast({ title: 'Sorted again', description: `${r.looked_at} events checked, ${r.sorted} updated.` });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      exportSoon();
+    } catch (e) {
+      toast({ title: 'Could not sort', description: e?.message || 'Try again', variant: 'destructive' });
+    } finally { setResorting(false); }
+  };
   const askSharing = !!me?.id && !sharingDefault && !askClosed && !dialogOpen && !phoneOpen && !params.get('open');
 
   // Repeating and multi-day events, one entry per day, for the days in view.
@@ -188,7 +206,12 @@ export default function CalendarPage() {
           </h1>
           <p className="text-muted-foreground mt-1">The whole family's appointments and events, in one place.</p>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex flex-wrap gap-2">
+          {me?.role === 'admin' && (
+            <Button variant="outline" onClick={resort} disabled={resorting} className="rounded-xl gap-2" title="Only your account sees this">
+              {resorting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Sort again
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setPhoneOpen(true)} className="rounded-xl gap-2"><Smartphone className="w-4 h-4" /> Phone calendar</Button>
           <Button onClick={openNew} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Event</Button>
         </div>
@@ -197,7 +220,7 @@ export default function CalendarPage() {
       {/* What the colors mean: whose event it is (about them, or from their
           calendar when it's about nobody the app knows); gray is only you. */}
       <div className="flex flex-wrap gap-3 mb-4 px-1">
-        {members.map(m => (
+        {members.filter((m) => !isPet(m)).map(m => (
           <div key={m.id} className="flex items-center gap-1.5">
             <span className={`w-2.5 h-2.5 rounded-full ${getMemberColorClass(m, members)}`} />
             <span className="text-xs text-muted-foreground">{m.name}</span>
@@ -209,6 +232,12 @@ export default function CalendarPage() {
             <span className="text-xs text-muted-foreground">{(u.full_name || u.email || '?').split(' ')[0]}</span>
           </div>
         ))}
+        {members.some(isPet) && (
+          <div className="flex items-center gap-1.5">
+            <span className={`w-2.5 h-2.5 rounded-full ${PET_COLOR}`} />
+            <span className="text-xs text-muted-foreground">Pets</span>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <span className={`w-2.5 h-2.5 rounded-full ${PRIVATE_COLOR}`} />
           <span className="text-xs text-muted-foreground">Only you</span>

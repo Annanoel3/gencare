@@ -17,6 +17,7 @@ export const BANDS = {
   adult: { label: 'Adult', from: 216, to: 780 },
   senior: { label: 'Senior', from: 780, to: Infinity },
   general: { label: 'Care', from: null, to: null },
+  pet: { label: 'Pet', from: null, to: null },
 };
 
 export function ageMonths(birthdate) {
@@ -25,8 +26,9 @@ export function ageMonths(birthdate) {
   return isValid(d) ? differenceInMonths(new Date(), d) : null;
 }
 
-/** Which band a person is in today. No birthdate → 'general'. */
+/** Which band a person is in today. No birthdate → 'general'. Pets → 'pet'. */
 export function bandOf(member) {
+  if (/^pet$/i.test(String(member?.relationship || ''))) return 'pet';
   const m = ageMonths(member?.birthdate);
   if (m === null || m < 0) return 'general';
   for (const [key, b] of Object.entries(BANDS)) {
@@ -132,6 +134,13 @@ export const CATALOG = {
     { type: 'activity', label: 'Activity', icon: '🏃', fields: [TITLE('Activity', 'e.g. walk around the block'), MIN(), { key: 'level', kind: 'level', label: 'How it went (1–5)' }, NOTES] },
     { type: 'mood', label: 'Mood', icon: '💭', fields: [MOOD, NOTES] },
     { type: 'legal', label: 'Legal & financial', icon: '🗂️', fields: [SUB('Kind', ['poa', 'will', 'insurance', 'benefit', 'bill', 'tax', 'other']), TITLE('What', 'e.g. updated POA, signed 3/12'), AMOUNT('Amount', '$'), DATE('Date'), DOC, NOTES] },
+    NOTE,
+  ],
+  pet: [
+    { type: 'pet_feeding', label: 'Fed', icon: '🥣', fields: [TITLE('What', 'e.g. breakfast, half a can'), { key: 'given_by', kind: 'text', label: 'Fed by' }, NOTES] },
+    { type: 'pet_walk', label: 'Walk & play', icon: '🐾', fields: [TITLE('What', 'e.g. walk around the block'), MIN(), { key: 'given_by', kind: 'text', label: 'By' }, NOTES] },
+    { type: 'pet_vet', label: 'Vet', icon: '🩺', fields: [TITLE('What', 'e.g. ear check, shots'), DATE('Date'), AMOUNT('Cost', '$'), NOTES] },
+    { type: 'pet_grooming', label: 'Grooming', icon: '✂️', fields: [TITLE('What', 'e.g. nails trimmed, bath'), NOTES] },
     NOTE,
   ],
   general: [

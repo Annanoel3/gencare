@@ -91,6 +91,18 @@ function isBirthday(row: any) {
   return /birthday/i.test(String(row.calendarName || '')) || /\b(birthday|bday|b-day)\b/i.test(String(row.title || ''));
 }
 
+// Google's text on events it makes from emails ("To see detailed information
+// for automatically created events…", "This event was created from an email
+// you received in Gmail" + a link into the person's mailbox): not for the family.
+function cleanNotes(text: unknown) {
+  return String(text || '')
+    .split(/\r?\n/)
+    .filter((line) => !/automatically created events like this one|g\.co\/calendar|created from an email you received in Gmail|mail\.google\.com\/mail\?extsrc=cal/i.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // One phone row -> appointment fields.
 function rowToAppointment(row: any, calendarId: string, tz: string, user: any) {
   const begin = Number(row.nextBegin) || Number(row.dtstart) || 0;
@@ -118,7 +130,7 @@ function rowToAppointment(row: any, calendarId: string, tz: string, user: any) {
     date, time, end_time: endTime, end_date: endDate, all_day: allDay,
     timezone: row.timezone || tz,
     location: String(row.location || ''),
-    notes: String(row.description || '').slice(0, 4000),
+    notes: cleanNotes(row.description).slice(0, 4000),
     category: guessCategory(title),
     source: 'phone',
     visibility: 'private',
@@ -187,6 +199,8 @@ function decisionPatch(a: any, r: { who: string; share: boolean; category: strin
   if (!a.family_member_id || auto.has('member')) {
     const m = members.find((x: any) => x.id === r.who);
     if (m) { patch.family_member_id = m.id; patch.family_member_name = m.name; auto.add('member'); }
+    // A sort that now finds nobody takes back an earlier guess of its own.
+    else if (auto.has('member')) { patch.family_member_id = ''; patch.family_member_name = ''; auto.delete('member'); }
   }
   if (r.category && categoryIsAuto(a, auto)) { patch.category = r.category; auto.add('category'); }
   if (visibilityIsAuto(a, auto)) { patch.visibility = visibilityFor(mode, !!r.share); auto.add('visibility'); }
@@ -196,29 +210,56 @@ function decisionPatch(a: any, r: { who: string; share: boolean; category: strin
 
 const SORT_DAYS = 60;
 const SORT_BATCH = 40;
-// Sort this person's imports in the next 60 days that haven't been sorted yet
-// (or that matched nobody, when a profile has been added since). A batch per
+
+// Sort these events (one AI call per 40) and save what GenCare decided for
+// the fields nobody picked.
+async function sortRows(db: any, user: any, familyId: string, rows: any[], members?: any[]) {
+  if (!rows.length) return 0;
+  const people = members || (await sortMembers(db, familyId, user.id)).members;
+  const mode = sharingMode(user);
+  const now = new Date().toISOString();
+  const batches: any[][] = [];
+  for (let i = 0; i < rows.length; i += SORT_BATCH) batches.push(rows.slice(i, i + SORT_BATCH));
+  const counts = await Promise.all(batches.map(async (batch) => {
+    const results = await sortEvents(
+      batch.map((a: any) => ({ key: a.id, title: a.title, notes: a.notes, location: a.location, with: a.doctor_name, date: a.date, time: a.time })),
+      { poster: user.display_name || user.full_name || '', posterId: user.id, members: people },
+    );
+    if (!results.size) return 0;
+    return inGroups(batch.filter((a: any) => results.has(a.id)), (a: any) => db.Appointment.update(a.id, decisionPatch(a, results.get(a.id)!, mode, people, now)));
+  }));
+  return counts.reduce((x, y) => x + y, 0);
+}
+
+// This person's events from a week ago through the next 60 days (and repeating ones).
+function inSortWindow(a: any, tz: string) {
+  const from = addDays(todayIn(tz), -7);
+  const until = addDays(todayIn(tz), SORT_DAYS);
+  return !!a.recurrence || (String(a.end_date || a.date || '') >= from && String(a.date || '') <= until);
+}
+
+// Sort this person's imports in the window that haven't been sorted yet (or
+// that matched nobody, when a profile has been added since). One batch per
 // run keeps each sync quick; the rest go on the next sync.
 async function sortImports(db: any, user: any, familyId: string, tz: string) {
-  const today = todayIn(tz);
-  const until = addDays(today, SORT_DAYS);
   const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
   const { members, newest } = await sortMembers(db, familyId, user.id);
   const due = mine.filter((a: any) => {
-    const near = !!a.recurrence || (String(a.end_date || a.date || '') >= today && String(a.date || '') <= until);
-    if (!near) return false;
+    if (!inSortWindow(a, tz)) return false;
     if (!a.ai_checked_at) return true;
     return !a.family_member_id && !!newest && String(a.ai_checked_at) < newest;
   }).sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || ''))).slice(0, SORT_BATCH);
-  if (!due.length) return 0;
-  const results = await sortEvents(
-    due.map((a: any) => ({ key: a.id, title: a.title, notes: a.notes, location: a.location, with: a.doctor_name, date: a.date, time: a.time })),
-    { poster: user.display_name || user.full_name || '', members },
-  );
-  if (!results.size) return 0;
-  const mode = sharingMode(user);
-  const now = new Date().toISOString();
-  return inGroups(due.filter((a: any) => results.has(a.id)), (a: any) => db.Appointment.update(a.id, decisionPatch(a, results.get(a.id)!, mode, members, now)));
+  return sortRows(db, user, familyId, due, members);
+}
+
+// "Sort again" (the app owner's button): every event of theirs in the window,
+// sorted fresh. Still only touches what nobody picked by hand.
+async function resortAll(db: any, user: any, familyId: string, tz: string) {
+  const mine = ((await db.Appointment.filter({ family_id: familyId, created_by_user_id: user.id })) || [])
+    .filter((a: any) => inSortWindow(a, tz))
+    .sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || '')))
+    .slice(0, SORT_BATCH * 5);
+  return { sorted: await sortRows(db, user, familyId, mine), looked_at: mine.length };
 }
 
 // The person changed their sharing choice: their imports that GenCare (not
@@ -304,6 +345,11 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, settings: pick(after), applied });
     }
 
+    if (mode === 'resort') {
+      if (user.role !== 'admin') return Response.json({ ok: false, error: 'Only the app owner can do that' }, { status: 403 });
+      return Response.json({ ok: true, ...(await resortAll(db, user, familyId, tz)) });
+    }
+
     if (mode === 'sort_imports') {
       const sorted = await sortImports(db, user, familyId, tz);
       return Response.json({ ok: true, sorted });
@@ -314,7 +360,7 @@ Deno.serve(async (req) => {
       const title = String(e.title || '').trim();
       if (!title) return Response.json({ ok: false, error: 'No title' }, { status: 400 });
       const { members } = await sortMembers(db, familyId, user.id);
-      const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time }], { poster: user.display_name || user.full_name || '', members })).get('e');
+      const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time }], { poster: user.display_name || user.full_name || '', posterId: user.id, members })).get('e');
       if (!r) return Response.json({ ok: false, error: 'Could not sort' });
       const m = members.find((x) => x.id === r.who);
       return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, category: r.category });
@@ -442,7 +488,8 @@ Deno.serve(async (req) => {
       const reminder = typeof user.export_reminder_minutes === 'number' ? user.export_reminder_minutes : 30;
       for (const a of wanted.values()) {
         const link = byAppt.get(a.id);
-        const forWhom = a.family_member_name ? `${a.family_member_name}: ` : '';
+        const poster = a.created_by_user_id && a.created_by_user_id !== user.id ? String(a.created_by_name || '').split(' ')[0] : '';
+        const forWhom = a.family_member_name ? `${a.family_member_name}: ` : poster ? `${poster}: ` : '';
         const title = `${forWhom}${a.title}`;
         const description = [a.notes || '', a.doctor_name ? `With ${a.doctor_name}` : '', 'Added from GenCare'].filter(Boolean).join('\n');
         const eventTz = a.timezone ? safeTz(a.timezone) : tz;

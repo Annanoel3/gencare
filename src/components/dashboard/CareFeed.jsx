@@ -49,7 +49,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       id: a.id,
       memberId: a.family_member_id,
       // An event only you can see isn't the whole family's.
-      memberName: a.family_member_name || (a.visibility === 'private' ? 'You' : ''),
+      memberName: a.family_member_name || (a.visibility === 'private' ? 'You' : String(a.created_by_name || '').split(' ')[0]),
       label: cat && cat !== 'Other' ? cat : 'Event',
       tint: a.visibility === 'private' ? 'bg-muted/40' : getEventLightColorClass(a, members, accounts),
       detail: [a.title, a.all_day ? 'All day' : ''].filter(Boolean).join(' · '),

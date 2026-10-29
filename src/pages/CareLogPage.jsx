@@ -100,7 +100,7 @@ export default function CareLogPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-heading text-lg font-semibold">{person.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {person.birthdate ? `${formatAge(person.birthdate)} · ${BANDS[band].label}` : <>No birthdate yet — <Link to={`/family/${person.id}`} className="text-primary underline">add one</Link> and this page fits itself to their age.</>}
+                    {band === 'pet' ? (person.birthdate ? `${formatAge(person.birthdate)} · Pet` : 'Pet') : person.birthdate ? `${formatAge(person.birthdate)} · ${BANDS[band].label}` : <>No birthdate yet — <Link to={`/family/${person.id}`} className="text-primary underline">add one</Link> and this page fits itself to their age.</>}
                   </p>
                 </div>
                 <Link to={`/family/${person.id}`} className="text-sm text-primary hover:underline">Profile</Link>
