@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Copy, Check, RefreshCw } from 'lucide-react';
 import { createInvite } from '@/lib/family';
 
-export default function InviteModal({ open, onClose }) {
+// `member` (optional): the profile this invite is for. Whoever joins with it
+// becomes that profile, so the family's notes about them stay with them.
+export default function InviteModal({ open, onClose, member }) {
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -17,7 +19,7 @@ export default function InviteModal({ open, onClose }) {
     setLoading(true);
     setError('');
     try {
-      setInvite(await createInvite());
+      setInvite(await createInvite(member?.id));
     } catch (e) {
       setError(e?.message || 'Could not make an invite code');
     }
@@ -25,8 +27,8 @@ export default function InviteModal({ open, onClose }) {
   };
 
   useEffect(() => {
-    if (open) makeInvite();
-  }, [open]);
+    if (open) makeInvite(); else setInvite(null);
+  }, [open, member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const joinUrl = invite ? `${window.location.origin}/join?code=${invite.code}` : '';
 
@@ -46,7 +48,7 @@ export default function InviteModal({ open, onClose }) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Invite Family Member</DialogTitle>
+          <DialogTitle>{member ? `Invite ${member.name.split(' ')[0]}` : 'Invite Family Member'}</DialogTitle>
         </DialogHeader>
 
         {loading && (
@@ -60,7 +62,9 @@ export default function InviteModal({ open, onClose }) {
         {invite && !loading && (
           <div className="flex flex-col items-center gap-5">
             <p className="text-sm text-muted-foreground text-center">
-              Share this QR code or code with a family member. It expires in 7 days.
+              {member
+                ? `Send this to ${member.name.split(' ')[0]}. When they join with it, the ${member.name} profile becomes theirs. It expires in 7 days.`
+                : 'Share this QR code or code with a family member. It expires in 7 days.'}
             </p>
 
             <div className="bg-white p-4 rounded-xl border border-border shadow-sm">

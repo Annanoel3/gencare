@@ -10,9 +10,10 @@ import { accessOf } from '../../shared/access.ts';
 //   { mode: "ensure", pending_invite? } -> { family, me, members, access }
 //        First open: creates a family for a new account (or joins the invite
 //        they signed up with) and stamps family_id on anything they made before.
-//   { mode: "lookup", code }            -> { family_name, invited_by }  (no sign-in needed)
+//   { mode: "lookup", code }            -> { family_name, invited_by, member_name }  (no sign-in needed)
 //   { mode: "join", code }              -> { family, me }
-//   { mode: "invite" }                  -> { invite }  (7-day code)
+//   { mode: "invite", member_id? }      -> { invite }  (7-day code; with member_id the
+//        invite is for that profile, and whoever joins with it becomes that profile)
 //   { mode: "members" }                 -> { members }
 //   { mode: "rename", name }            -> { family }
 //   { mode: "remove_member", user_id }  -> { ok }  (owner only)
@@ -100,6 +101,40 @@ async function createFamilyFor(db: any, user: any) {
   return family;
 }
 
+// A profile someone made by hand ("Mom") becomes the account that joins for it:
+// FamilyMember.linked_user_id = that account. An invite made for a profile
+// links that profile; a plain invite links a profile only when exactly one
+// unlinked profile in the family has the same full name as the new account.
+// Never links the person who made the invite, never takes a profile that is
+// already someone else's, and a person is linked to one profile at most.
+async function linkProfile(db: any, user: any, invite: any, familyId: string) {
+  if (!user?.id || invite?.created_by_user_id === user.id) return null;
+  const members = ((await db.FamilyMember.filter({ family_id: familyId })) || []).filter((m: any) => m.is_active !== false);
+  let target: any = null;
+  if (invite?.family_member_id) {
+    target = members.find((m: any) => m.id === invite.family_member_id) || null;
+    if (target?.linked_user_id && target.linked_user_id !== user.id) target = null;
+  } else {
+    if (members.some((m: any) => m.linked_user_id === user.id)) return null;
+    const name = String(user.full_name || user.display_name || '').trim().toLowerCase();
+    const same = name ? members.filter((m: any) => !m.linked_user_id && String(m.name || '').trim().toLowerCase() === name) : [];
+    if (same.length === 1) target = same[0];
+  }
+  if (!target) return null;
+  if (target.linked_user_id !== user.id) await db.FamilyMember.update(target.id, { linked_user_id: user.id });
+  for (const m of members) {
+    if (m.id !== target.id && m.linked_user_id === user.id) await db.FamilyMember.update(m.id, { linked_user_id: null });
+  }
+  return target.id;
+}
+
+// Someone leaving (or removed from) a family: their profile there goes back to
+// being a plain profile the family keeps.
+async function unlinkProfiles(db: any, userId: string, familyId: string) {
+  const mine = ((await db.FamilyMember.filter({ family_id: familyId })) || []).filter((m: any) => m.linked_user_id === userId);
+  for (const m of mine) await db.FamilyMember.update(m.id, { linked_user_id: null });
+}
+
 async function joinByCode(db: any, user: any, code: string) {
   const clean = String(code || '').trim().toUpperCase();
   if (!clean) throw new Error('Enter the invite code');
@@ -110,11 +145,17 @@ async function joinByCode(db: any, user: any, code: string) {
   const fams = await db.Family.filter({ id: invite.family_id });
   const family = fams?.[0];
   if (!family) throw new Error('That family no longer exists');
-  if (user.family_id === family.id) return family;
+  if (user.family_id === family.id) {
+    // Already in (opened the link again, or signed up and then tapped it):
+    // still make the profile theirs.
+    try { await linkProfile(db, user, invite, family.id); } catch (e) { console.warn('[family] link failed:', (e as Error).message); }
+    return family;
+  }
   await db.User.update(user.id, { family_id: family.id, family_role: 'member', invite_code_used: clean });
   await db.Invite.update(invite.id, { uses_count: (invite.uses_count || 0) + 1 });
   // Their own things come along (a member who tried the app alone first).
   await backfill(db, user.id, family.id);
+  try { await linkProfile(db, user, invite, family.id); } catch (e) { console.warn('[family] link failed:', (e as Error).message); }
   return family;
 }
 
@@ -133,7 +174,7 @@ Deno.serve(async (req) => {
     const invite = invites.find((i: any) => i.family_id);
     if (!invite) return Response.json({ ok: false, error: 'Code not found or no longer active' });
     if (invite.expires_at && Date.parse(invite.expires_at) < Date.now()) return Response.json({ ok: false, error: 'This invite code has expired. Ask for a new one.' });
-    return Response.json({ ok: true, family_name: invite.family_name, invited_by: invite.created_by_name || '' });
+    return Response.json({ ok: true, family_name: invite.family_name, invited_by: invite.created_by_name || '', member_name: invite.family_member_name || '' });
   }
 
   let me: any = null;
@@ -177,6 +218,13 @@ Deno.serve(async (req) => {
     if (!family) return Response.json({ ok: false, error: 'No family yet' }, { status: 400 });
 
     if (mode === 'invite') {
+      // An invite for one profile: check it's in this family and not already someone's.
+      let member: any = null;
+      if (body.member_id) {
+        member = (await db.FamilyMember.filter({ id: String(body.member_id) }))?.[0] || null;
+        if (!member || member.family_id !== family.id) return Response.json({ ok: false, error: 'That person is not in your family' }, { status: 400 });
+        if (member.linked_user_id) return Response.json({ ok: false, error: `${member.name} already uses GenCare` }, { status: 400 });
+      }
       let code = code6();
       for (let i = 0; i < 5; i++) {
         const clash = (await db.Invite.filter({ code })) || [];
@@ -188,6 +236,9 @@ Deno.serve(async (req) => {
         family_id: family.id,
         family_name: family.name,
         created_by_name: me.display_name || me.full_name || '',
+        created_by_user_id: me.id,
+        family_member_id: member?.id || null,
+        family_member_name: member?.name || null,
         expires_at: new Date(Date.now() + 7 * 86400e3).toISOString(),
         is_active: true,
         uses_count: 0,
@@ -211,11 +262,13 @@ Deno.serve(async (req) => {
       const target = (await db.User.filter({ id: String(body.user_id || '') }))?.[0];
       if (!target || target.family_id !== family.id) return Response.json({ ok: false, error: 'Not in this family' }, { status: 400 });
       if (target.id === me.id) return Response.json({ ok: false, error: 'Use Leave family instead' }, { status: 400 });
+      try { await unlinkProfiles(db, target.id, family.id); } catch (_) { /* fine */ }
       await createFamilyFor(db, target); // they get a family of their own, with nothing in it
       return Response.json({ ok: true, members: await membersOf(db, family.id) });
     }
 
     if (mode === 'leave') {
+      try { await unlinkProfiles(db, me.id, family.id); } catch (_) { /* fine */ }
       const fresh2 = await createFamilyFor(db, { ...me, family_id: null });
       const after = (await db.User.filter({ id: me.id }))?.[0] || me;
       return Response.json({ ok: true, family: fresh2, me: publicUser(after), members: await membersOf(db, fresh2.id), access: accessOf(fresh2, after) });

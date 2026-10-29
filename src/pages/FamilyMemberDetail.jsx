@@ -15,11 +15,15 @@ import PhoneActions from '@/components/shared/PhoneActions';
 import MemberColorPicker from '@/components/family/MemberColorPicker';
 import { getMemberColorClass } from '@/utils/memberColors';
 import { frequencyLabel, fmtClock } from '@/lib/reminders';
+import InviteModal from '@/components/family/InviteModal';
+import { useFamily } from '@/lib/family';
 
 export default function FamilyMemberDetail() {
   const { id } = useParams();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const { me } = useFamily();
   const queryClient = useQueryClient();
 
   const { data: member, isLoading } = useQuery({
@@ -99,6 +103,11 @@ export default function FamilyMemberDetail() {
         <div className="flex-1">
           <h1 className="font-heading text-2xl font-bold">{member.name}</h1>
           <p className="text-muted-foreground">{member.relationship}{member.birthdate ? ` · Born ${member.birthdate}` : ''}</p>
+          {member.linked_user_id ? (
+            <p className="text-xs text-primary font-medium mt-1">{member.linked_user_id === me?.id ? 'This is you' : 'Uses GenCare'}</p>
+          ) : (
+            <button type="button" onClick={() => setInviteOpen(true)} className="text-xs text-primary font-medium mt-1 hover:underline">Invite {member.name.split(' ')[0]} to GenCare</button>
+          )}
           <MemberColorPicker
             value={getMemberColorClass(member, members)}
             onChange={async (color) => {
@@ -121,6 +130,8 @@ export default function FamilyMemberDetail() {
           </div>
         )}
       </div>
+
+      <InviteModal open={inviteOpen} member={member} onClose={() => { setInviteOpen(false); queryClient.invalidateQueries({ queryKey: ['familyMember', id] }); }} />
 
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="bg-muted rounded-xl w-full grid grid-cols-6">

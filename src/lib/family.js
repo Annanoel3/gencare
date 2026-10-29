@@ -82,8 +82,10 @@ export function useFamily() {
 }
 
 // Household helpers: all go through the backend so RLS and the owner rules hold.
-export async function createInvite() {
-  const res = await base44.functions.invoke('family', { mode: 'invite' });
+// With a profile's id, the invite is for that person: when they join with it,
+// the profile the family made for them becomes theirs.
+export async function createInvite(memberId) {
+  const res = await base44.functions.invoke('family', { mode: 'invite', member_id: memberId || undefined });
   const data = res?.data || res;
   if (!data?.ok) throw new Error(data?.error || 'Could not make an invite');
   return data.invite;

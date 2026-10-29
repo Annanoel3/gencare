@@ -21,6 +21,8 @@ const relationships = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Son', 
 export default function Family() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteFor, setInviteFor] = useState(null);
+  const [inviteAfterAdd, setInviteAfterAdd] = useState(false);
   const [form, setForm] = useState({ name: '', relationship: '', birthdate: '', care_notes: '' });
   const queryClient = useQueryClient();
 
@@ -31,10 +33,14 @@ export default function Family() {
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.FamilyMember.create(withFamily(data)),
-    onSuccess: () => {
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
       setDialogOpen(false);
       setForm({ name: '', relationship: '', birthdate: '', care_notes: '' });
+      // "Add & invite": the invite is for the profile just made, so when they
+      // join with it, this profile becomes theirs.
+      if (inviteAfterAdd && created?.id) { setInviteFor(created); setInviteOpen(true); }
+      setInviteAfterAdd(false);
     },
   });
 
@@ -89,7 +95,7 @@ export default function Family() {
                   </Avatar>
                   <div>
                     <h3 className="font-semibold text-lg">{member.name}</h3>
-                    <p className="text-sm text-muted-foreground">{member.relationship}</p>
+                    <p className="text-sm text-muted-foreground">{member.relationship}{member.linked_user_id ? ' · On GenCare' : ''}</p>
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
@@ -118,7 +124,7 @@ export default function Family() {
         </div>
       )}
 
-      <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
+      <InviteModal open={inviteOpen} member={inviteFor} onClose={() => { setInviteOpen(false); setInviteFor(null); }} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -126,12 +132,6 @@ export default function Family() {
             <DialogTitle className="font-heading text-xl">Add Family Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            <div className="rounded-xl bg-muted/60 p-3 flex items-center gap-3">
-              <p className="text-sm flex-1">Should they use GenCare on their own phone too? Send them an invite.</p>
-              <Button variant="outline" size="sm" className="gap-2 flex-shrink-0" onClick={() => { setDialogOpen(false); setInviteOpen(true); }}>
-                <QrCode className="w-4 h-4" /> Invite
-              </Button>
-            </div>
             <div>
               <Label>Name *</Label>
               <Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Full name" className="mt-1" />
@@ -153,10 +153,19 @@ export default function Family() {
               <Label>Important info</Label>
               <Textarea value={form.care_notes} onChange={e => setForm({...form, care_notes: e.target.value})} placeholder="Anything the family should know about them" className="mt-1" />
             </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <p className="text-xs text-muted-foreground">Will they use GenCare on their own phone? Tap Add &amp; Invite: when they join with the invite, this profile becomes theirs.</p>
+            <div className="flex flex-wrap justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button
-                onClick={() => createMutation.mutate(form)}
+                variant="outline"
+                className="gap-2"
+                onClick={() => { setInviteAfterAdd(true); createMutation.mutate(form); }}
+                disabled={!form.name || !form.relationship || createMutation.isPending}
+              >
+                <QrCode className="w-4 h-4" /> Add &amp; Invite
+              </Button>
+              <Button
+                onClick={() => { setInviteAfterAdd(false); createMutation.mutate(form); }}
                 disabled={!form.name || !form.relationship || createMutation.isPending}
               >
                 {createMutation.isPending ? 'Adding...' : 'Add Member'}

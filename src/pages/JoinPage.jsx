@@ -32,7 +32,7 @@ export default function JoinPage() {
     try {
       const found = await lookupInvite(c.toUpperCase());
       if (!found?.ok) setError(found?.error || 'Code not found or has expired. Please check and try again.');
-      else setInvite({ code: c.toUpperCase(), family_name: found.family_name, created_by_name: found.invited_by });
+      else setInvite({ code: c.toUpperCase(), family_name: found.family_name, created_by_name: found.invited_by, member_name: found.member_name || '' });
     } catch (e) {
       setError('Could not check that code. Try again in a moment.');
     }
@@ -95,6 +95,9 @@ export default function JoinPage() {
                 <p className="text-xl font-bold text-foreground">{invite.family_name}</p>
                 {invite.created_by_name && (
                   <p className="text-sm text-muted-foreground mt-1">by {invite.created_by_name}</p>
+                )}
+                {invite.member_name && (
+                  <p className="text-sm text-muted-foreground mt-3">They've already set up a profile for you as <span className="font-medium text-foreground">{invite.member_name}</span>. It becomes yours when you join.</p>
                 )}
               </div>
               <Button onClick={handleJoin} className="w-full gap-2">
