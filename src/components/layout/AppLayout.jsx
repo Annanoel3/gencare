@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, BellRing, CalendarDays,
   ClipboardList, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';

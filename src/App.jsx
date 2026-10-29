@@ -22,6 +22,7 @@ import Tasks from '@/pages/Tasks';
 import CareLogPage from '@/pages/CareLogPage';
 import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
+import Resources from '@/pages/Resources';
 import JoinPage from '@/pages/JoinPage';
 import Settings from '@/pages/Settings';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
@@ -88,6 +89,7 @@ const AuthenticatedApp = () => {
           ))}
           <Route path="/messages" element={<Messages />} />
           <Route path="/wellness" element={<Wellness />} />
+          <Route path="/resources" element={<Resources />} />
           <Route path="/notes" element={<Notes />} />
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/family-settings" element={<FamilySettings />} />
