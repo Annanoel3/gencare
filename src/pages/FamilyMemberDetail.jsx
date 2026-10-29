@@ -17,7 +17,8 @@ import MemberColorPicker from '@/components/family/MemberColorPicker';
 import { getMemberColorClass, isPet, takenColors } from '@/utils/memberColors';
 import { frequencyLabel, fmtClock } from '@/lib/reminders';
 import InviteModal from '@/components/family/InviteModal';
-import { useFamily, relationshipLabel } from '@/lib/family';
+import { useFamily, relationshipLabel, RELATIONSHIPS } from '@/lib/family';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const TAB_LABELS = { overview: 'Overview', info: 'Info', school: 'School', reminders: 'Reminders' };
 
@@ -52,12 +53,19 @@ export default function FamilyMemberDetail() {
     mutationFn: (data) => base44.entities.FamilyMember.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['familyMember', id] });
+      queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
       setEditing(false);
     },
   });
 
+  // Name, relationship and birthday are editable too (Anna, Oct 29 2026: she
+  // couldn't put that she's the daughter; Care Log's "add a birthday" also
+  // lands here).
   const startEditing = () => {
     setForm({
+      name: member?.name || '',
+      relationship: /^self$/i.test(String(member?.relationship || '')) ? '' : member?.relationship || '',
+      birthdate: member?.birthdate || '',
       other_contact_name: member?.other_contact_name || '',
       other_contact_phone: member?.other_contact_phone || '',
       emergency_contact_name: member?.emergency_contact_name || '',
@@ -71,7 +79,13 @@ export default function FamilyMemberDetail() {
     setEditing(true);
   };
 
-  const saveEditing = () => updateMutation.mutate({ ...form });
+  const saveEditing = () => {
+    const { relationship, name, ...rest } = form;
+    const data = { ...rest, name: String(name || '').trim() || member.name };
+    // Your own profile with nothing picked stays "Self" (reads "You").
+    if (!isPet(member)) data.relationship = relationship || (member.linked_user_id ? 'Self' : member.relationship || 'Other');
+    updateMutation.mutate(data);
+  };
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-20">
@@ -90,7 +104,7 @@ export default function FamilyMemberDetail() {
   // child of the family; and always if school info was already filled in.
   const years = member.birthdate ? (Date.now() - Date.parse(member.birthdate)) / (365.25 * 86400e3) : null;
   const showSchool = !pet && (!!(member.school_name || member.school_phone || member.school_grade || member.school_teacher)
-    || (years !== null && !Number.isNaN(years) ? years < 23 : /^(son|daughter|foster child|grandchild)$/i.test(String(member.relationship || ''))));
+    || (years !== null && !Number.isNaN(years) ? years < 23 : !member.linked_user_id && /^(son|daughter|foster child|grandchild)$/i.test(String(member.relationship || ''))));
   // Contacts and Journal were hidden Oct 29 2026 (family members are the
   // contacts; Care Log notes and Wellness cover the journal).
   const tabs = ['overview', 'info', showSchool && 'school', 'reminders'].filter(Boolean);
@@ -140,6 +154,24 @@ export default function FamilyMemberDetail() {
           </div>
         )}
       </div>
+
+      {editing && (
+        <Card className="border-border/50 mb-4">
+          <CardContent className="pt-5 grid gap-4 sm:grid-cols-3">
+            <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1" /></div>
+            {!pet && (
+              <div>
+                <Label>Relationship</Label>
+                <Select value={form.relationship || undefined} onValueChange={(v) => setForm({ ...form, relationship: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Pick one" /></SelectTrigger>
+                  <SelectContent>{RELATIONSHIPS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
+            <div><Label>{pet ? 'Birthday' : 'Date of birth'}</Label><Input type="date" value={form.birthdate || ''} onChange={(e) => setForm({ ...form, birthdate: e.target.value })} className="mt-1" /></div>
+          </CardContent>
+        </Card>
+      )}
 
       <InviteModal open={inviteOpen} member={member} onClose={() => { setInviteOpen(false); queryClient.invalidateQueries({ queryKey: ['familyMember', id] }); }} />
 

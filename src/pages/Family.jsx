@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { withFamily, useFamily, relationshipLabel, orderMembers } from '@/lib/family';
+import { withFamily, useFamily, relationshipLabel, orderMembers, RELATIONSHIPS } from '@/lib/family';
 import { Link } from 'react-router-dom';
 import { Users, Plus, School, QrCode, StickyNote, PawPrint, HeartHandshake } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 
 import { getMemberColorClass, isPet } from '@/utils/memberColors';
 
-const relationships = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Son', 'Daughter', 'Spouse', 'Sibling', 'Uncle', 'Aunt', 'Cousin', 'Foster Child', 'Other'];
+const relationships = RELATIONSHIPS;
 const EMPTY = { name: '', relationship: '', birthdate: '', care_notes: '' };
 
 export default function Family() {

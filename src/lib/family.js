@@ -99,11 +99,17 @@ export async function joinFamily(code) {
   return data;
 }
 
-// A profile's relationship as shown to `meId`: a person's own profile
-// ("Self") reads "You" to them and nothing to everyone else.
+// The relationships people can pick (Add Member and a profile's Edit).
+export const RELATIONSHIPS = ['Mother', 'Father', 'Grandmother', 'Grandfather', 'Son', 'Daughter', 'Spouse', 'Sibling', 'Uncle', 'Aunt', 'Cousin', 'Foster Child', 'Other'];
+
+// A profile's relationship as shown to `meId`. Your own profile reads "You"
+// (plus what you picked for yourself, like "You · Daughter"); one still set
+// to "Self" reads nothing to everyone else.
 export function relationshipLabel(member, meId) {
-  if (/^self$/i.test(String(member?.relationship || ''))) return member?.linked_user_id && member.linked_user_id === meId ? 'You' : '';
-  return member?.relationship || '';
+  const rel = String(member?.relationship || '');
+  const self = /^self$/i.test(rel);
+  if (member?.linked_user_id && member.linked_user_id === meId) return self || !rel ? 'You' : `You · ${rel}`;
+  return self ? '' : rel;
 }
 
 // Profiles in the order people expect: you, then the rest of the people
