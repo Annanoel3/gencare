@@ -1,0 +1,76 @@
+{
+  "name": "LocalHelpCache",
+  "properties": {
+    "area": {
+      "description": "City and county the ZIP is in, as the search found it",
+      "type": "string"
+    },
+    "family_id": {
+      "description": "Family whose search made this row (only used to cap new searches per day)",
+      "type": "string"
+    },
+    "places": {
+      "description": "Local places found by the web search (each link was a page the search opened)",
+      "items": {
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "searched_at": {
+      "description": "When the web search ran; saved results are reused by every family for about 6 months",
+      "format": "date-time",
+      "type": "string"
+    },
+    "zip": {
+      "description": "5-digit US ZIP code searched",
+      "type": "string"
+    }
+  },
+  "required": [
+    "zip",
+    "searched_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}

@@ -69,6 +69,10 @@
       ],
       "type": "string"
     },
+    "help_zip": {
+      "description": "ZIP code this person searched on the Resources page for help near them (optional)",
+      "type": "string"
+    },
     "import_share_calendar_ids": {
       "description": "Of the imported phone calendars, which ones are shared with the family (the rest stay private)",
       "items": {
