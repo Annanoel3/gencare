@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon } from 'lucide-react';
+import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon, LogOut } from 'lucide-react';
 import SupportDialog from '@/components/shared/SupportDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -168,6 +168,12 @@ export default function Settings() {
             </Link>
           </div>
         </div>
+
+        {/* Sign out lives here as well as the menus (Anna, Oct 29 2026: on a
+            phone it was hard to find). */}
+        <Button variant="outline" onClick={() => base44.auth.logout()} className="w-full h-12 gap-2 text-destructive border-destructive/30 hover:bg-destructive/5">
+          <LogOut className="w-4 h-4" /> Sign out{user?.email ? ` of ${user.email}` : ''}
+        </Button>
       </div>
 
       <SupportDialog open={!!support} kind={support || 'support'} onClose={() => setSupport(null)} />

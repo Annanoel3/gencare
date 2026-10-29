@@ -261,6 +261,14 @@ function AppShell() {
             <nav className="space-y-1">
               <NavList items={navStructure} expandedGroups={expandedGroups} toggleGroup={toggleGroup} onNavigate={() => setMobileOpen(false)} />
             </nav>
+            {/* The phone menu had no way out; the desktop sidebar always did. */}
+            <button
+              onClick={() => base44.auth.logout()}
+              className="mt-4 pt-4 border-t border-border flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full transition-all"
+            >
+              <LogOut className="w-5 h-5" />
+              Sign Out
+            </button>
           </div>
         </div>
       )}
