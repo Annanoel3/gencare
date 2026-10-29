@@ -13,9 +13,7 @@
         "Work",
         "Sports",
         "Social",
-        "Other",
-        "Doctor",
-        "Therapy"
+        "Other"
       ],
       "type": "string"
     },
