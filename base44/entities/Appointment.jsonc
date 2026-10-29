@@ -6,14 +6,16 @@
       "type": "boolean"
     },
     "category": {
-      "default": "Doctor",
+      "default": "Appointment",
       "enum": [
-        "Doctor",
-        "Therapy",
+        "Appointment",
         "School",
+        "Work",
         "Sports",
         "Social",
-        "Other"
+        "Other",
+        "Doctor",
+        "Therapy"
       ],
       "type": "string"
     },
@@ -32,6 +34,7 @@
       "type": "string"
     },
     "doctor_name": {
+      "description": "Who the event is with (shown as 'With')",
       "type": "string"
     },
     "end_date": {
@@ -128,6 +131,7 @@
     "title",
     "date"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -161,6 +165,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
