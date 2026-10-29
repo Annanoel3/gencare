@@ -1,14 +1,16 @@
 {
+  "description": "Reminders page: things the family does at set times. (Table name kept from when the page was a medication list.)",
   "name": "Medication",
   "properties": {
     "days_of_week": {
-      "description": "Weekdays the doses happen on, 0 = Sunday; empty = every day",
+      "description": "Weekdays it happens on, 0 = Sunday; empty = every day",
       "items": {
         "type": "integer"
       },
       "type": "array"
     },
     "dosage": {
+      "description": "Details, shown next to the name (1 scoop)",
       "type": "string"
     },
     "family_id": {
@@ -34,41 +36,34 @@
       ],
       "type": "string"
     },
-    "instructions": {
-      "type": "string"
-    },
     "is_active": {
       "default": true,
       "type": "boolean"
     },
     "medication_name": {
+      "description": "What to remind the family about (feed the dog, water the plants)",
       "type": "string"
     },
     "notes": {
       "type": "string"
     },
-    "pharmacy": {
-      "type": "string"
-    },
-    "prescribing_doctor": {
-      "type": "string"
-    },
     "refill_date": {
+      "description": "Runs-out date for things that need restocking",
       "format": "date",
       "type": "string"
     },
     "refill_reminded_on": {
-      "description": "The day the refill push last went out, so it goes once a day",
+      "description": "The day the runs-out push last went out, so it goes once a day",
       "type": "string"
     },
     "refill_reminder_days": {
       "default": 3,
-      "description": "Push about the refill this many days before refill_date",
+      "description": "Push about running out this many days before refill_date",
       "type": "number"
     },
     "remind": {
       "default": true,
-      "description": "Dose pushes on/off",
+      "description": "Pushes at each time on/off",
       "type": "boolean"
     },
     "start_date": {
@@ -76,7 +71,7 @@
       "type": "string"
     },
     "times": {
-      "description": "Dose times, HH:MM in the family's own time (08:00, 20:00). Each gets a push and a Taken button; empty = no dose reminders",
+      "description": "Times, HH:MM in the family's own time (08:00, 20:00). Each gets a push and a Done button",
       "items": {
         "type": "string"
       },
@@ -87,6 +82,7 @@
     "medication_name",
     "family_member_id"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -100,6 +96,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
