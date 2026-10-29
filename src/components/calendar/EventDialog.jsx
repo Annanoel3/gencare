@@ -31,11 +31,18 @@ function Chip({ on, onClick, children }) {
 // you add"); with "GenCare decides" it shows as its own chip until saved.
 function blank(date, sharingDefault) {
   return {
-    title: '', date: format(date || new Date(), 'yyyy-MM-dd'), time: '', end_time: '', all_day: false,
+    title: '', date: format(date || new Date(), 'yyyy-MM-dd'), time: nextHour(), end_time: '', all_day: false,
     category: 'Appointment', family_member_id: NONE, location: '', doctor_name: '', notes: '',
     reminder_minutes: 60, visibility: sharingDefault === 'auto' ? 'auto' : sharingDefault === 'private' ? 'private' : 'family',
     shared_with: [], end_date: '', recurrence: '', until: '',
   };
+}
+
+// A new event starts at the next full hour instead of an empty time box
+// (Anna, Oct 29 2026); change it or switch on All day.
+function nextHour() {
+  const h = (new Date().getHours() + 1) % 24;
+  return `${String(h).padStart(2, '0')}:00`;
 }
 
 const AUTOSAVE_MS = 700;

@@ -171,7 +171,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
                 {form.due_date && (form.due_time || showTime) && <Input type="time" value={form.due_time} onChange={(e) => set('due_time', e.target.value)} aria-label="Time" className="flex-1" />}
               </div>
             )}
-            {form.due_date && !form.due_time && !showTime && <button type="button" onClick={() => setShowTime(true)} className="text-sm text-primary font-medium mt-2">+ Add a time (sends a push)</button>}
+            {form.due_date && !form.due_time && !showTime && <button type="button" onClick={() => { setShowTime(true); set('due_time', `${String((new Date().getHours() + 1) % 24).padStart(2, '0')}:00`); }} className="text-sm text-primary font-medium mt-2">+ Add a time (sends a push)</button>}
             {form.due_date && form.due_time && <p className="text-xs text-muted-foreground mt-1">{form.assigned_user_id && form.assigned_user_id !== NONE ? 'The person doing it gets' : 'Everyone gets'} a push at that time.</p>}
           </div>
 
