@@ -19,8 +19,6 @@ const config: CapacitorConfig = {
       '*.base44.com',
       'accounts.google.com',
       '*.google.com',
-      // Sign in with Apple (App Store guideline 4.8) opens Apple's page in the app.
-      'appleid.apple.com',
     ],
   },
   plugins: {
