@@ -8,6 +8,7 @@ import { toast } from '@/components/ui/use-toast';
 import { useFamily, claimProfile, makeMyProfile } from '@/lib/family';
 import { isNativeApp } from '@/lib/phone';
 import { wasAsked, onPermissionAnswered } from '@/lib/notifyPermission';
+import { waitForWelcome } from '@/lib/welcome';
 
 const declinedKey = (userId) => `gencare_profile_declined_${userId}`;
 function readDeclined(userId) {
@@ -29,6 +30,9 @@ export default function ClaimProfilePrompt() {
   const [closed, setClosed] = useState(false);
   const [permissionDone, setPermissionDone] = useState(() => !isNativeApp() || wasAsked());
   useEffect(() => (permissionDone ? undefined : onPermissionAnswered(() => setPermissionDone(true))), [permissionDone]);
+  // Not while the welcome chat is up, either.
+  const [welcomeDone, setWelcomeDone] = useState(false);
+  useEffect(() => { let live = true; waitForWelcome().then(() => { if (live) setWelcomeDone(true); }); return () => { live = false; }; }, []);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ['familyMembers'],
@@ -73,7 +77,7 @@ export default function ClaimProfilePrompt() {
     makeMyProfile().then(() => queryClient.invalidateQueries({ queryKey: ['familyMembers'] })).catch(() => {});
   };
 
-  const open = !closed && permissionDone && candidates.length > 0;
+  const open = !closed && permissionDone && welcomeDone && candidates.length > 0;
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) setClosed(true); }}>
       <DialogContent className="sm:max-w-md">

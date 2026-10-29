@@ -11,9 +11,11 @@ import useTypewriter from './useTypewriter';
 // The first-run conversation (the same idea as ADHDone's welcome chat): a few
 // short lines the app types out, each question answered in the chat. Only
 // what this person is missing is asked:
-//   intro  - new accounts only: what GenCare is for
-//   name   - only when the account has no real name (an email sign-up's
-//            "name" is just the start of the email address)
+//   intro  - new accounts only: a note from Anna, who made GenCare by herself
+//            (Anna, Oct 29 2026: "our opening is our chance to connect, not
+//            to give an overview")
+//   name   - required for new accounts, unless they joined with an invite made
+//            for their profile, so the family already knows who they are
 //   zip    - only when they haven't given their own home ZIP; it keeps place
 //            search and Resources near home (Anna, Oct 29 2026: her dad's new
 //            app never asked)
@@ -40,11 +42,12 @@ export default function WelcomeChat({ plan, home, onDone }) {
   const beats = useMemo(() => {
     const list = [];
     if (plan.fresh) {
-      list.push({ id: 'intro', text: 'Welcome to GenCare! It keeps your family\'s calendar, reminders and notes in one place, so everyone who helps knows what\'s going on.' });
+      list.push({ id: 'hello', text: "Hi, I'm Anna, and I built GenCare on my own." });
+      list.push({ id: 'intro', text: 'I made it when my family was in a time of need. Keeping appointments and everything else organized gave us more time for what mattered most: being with each other. I hope it does the same for yours.' });
     } else {
       list.push({ id: 'intro', text: 'Quick question so GenCare works better for you.' });
     }
-    if (plan.needName) list.push({ id: 'name', text: 'First, what should your family call you?', input: 'name' });
+    if (plan.needName) list.push({ id: 'name', text: plan.fresh ? "First, what should your family call you?" : 'What should your family call you?', input: 'name' });
     if (plan.needZip) {
       list.push({
         id: 'zip',
@@ -87,7 +90,13 @@ export default function WelcomeChat({ plan, home, onDone }) {
   const sendName = () => {
     const name = draft.trim().replace(/\s+/g, ' ').slice(0, 60);
     if (!name) return;
-    if (!plan.preview) base44.auth.updateMe({ display_name: name }).catch(() => {});
+    if (!plan.preview) {
+      base44.auth.updateMe({ display_name: name }).catch(() => {});
+      // Their own profile in the family, made for them automatically with
+      // whatever the account was called (often the start of their email),
+      // takes the name too.
+      if (plan.selfProfileId) base44.entities.FamilyMember.update(plan.selfProfileId, { name }).catch(() => {});
+    }
     track('action', 'welcome: name given');
     next(name);
   };
@@ -129,7 +138,6 @@ export default function WelcomeChat({ plan, home, onDone }) {
               placeholder="Your name" autoComplete="given-name" autoCapitalize="words" aria-label="Your name" />
             <Button onClick={sendName} disabled={!draft.trim()}>Send</Button>
           </div>
-          <Button variant="ghost" onClick={() => skip('name')} className="w-full text-xs">Skip</Button>
         </div>
       )}
 

@@ -36,10 +36,14 @@ const realName = (u) => {
   return /\s/.test(full) && !full.includes('@') ? full : '';
 };
 
-// "robert" -> "Robert" to start the name box with; nothing for "robertv1975".
+// What to start the name box with: a real-looking name the account already
+// has ("Jordan Reyes", or "robert" -> "Robert"); nothing for "robertv1975".
 const guessName = (u) => {
-  const full = String(u?.full_name || '').trim();
-  return /^[a-z][a-z'-]{1,19}$/i.test(full) ? full[0].toUpperCase() + full.slice(1).toLowerCase() : '';
+  const names = [u?.display_name, u?.full_name].map((n) => String(n || '').trim());
+  const full = names.find((n) => /\s/.test(n) && !n.includes('@'));
+  if (full) return full;
+  const one = names.find((n) => /^[a-z][a-z'-]{1,19}$/i.test(n));
+  return one ? one[0].toUpperCase() + one.slice(1).toLowerCase() : '';
 };
 
 function doneHere() {
@@ -57,27 +61,38 @@ export default function WelcomeDialog({ user: me }) {
     if (!me?.id) return undefined;
     if (doneHere() || me.welcome_done_at) { setWelcomeState('none'); return undefined; }
     let live = true;
-    const fresh = Date.now() - serverMs(me.created_date) < NEW_ACCOUNT_DAYS * 86400e3;
-    const needName = !realName(me);
-    const needZip = !isZip(me.help_zip);
-    if (!fresh && !needName && !needZip) {
-      finish(false);
-      return undefined;
-    }
-    homeArea().then((h) => { if (live) setHome(h); });
-    setPlan({
-      fresh,
-      needName,
-      nameGuess: needName ? guessName(me) : '',
-      needZip,
-      // The phone asks about notifications right after this (OneSignalInit
-      // waits for it), so new accounts get told it's coming.
-      needNotify: fresh && isNativeApp() && !wasAsked(),
-      // Just them so far, and it's their family: point them at inviting.
-      solo: fresh && family?.owner_user_id === me.id && (members || []).length <= 1,
-    });
-    setWelcomeState('open');
-    track('action', 'welcome chat shown', fresh ? 'new account' : 'asking what was missing');
+    (async () => {
+      const fresh = Date.now() - serverMs(me.created_date) < NEW_ACCOUNT_DAYS * 86400e3;
+      // Their profile in the family. One someone else made and invited them
+      // to means the family already knows who they are (Anna, Oct 29 2026: the
+      // name is required unless they joined through an invite that knows them).
+      let mine = null;
+      try { mine = ((await base44.entities.FamilyMember.filter({ linked_user_id: me.id })) || [])[0] || null; } catch (e) { mine = null; }
+      if (!live) return;
+      const maker = mine ? (mine.created_by_user_id || mine.created_by_id) : '';
+      const known = !!mine && !!maker && maker !== me.id && !/^self$/i.test(String(mine.relationship || ''));
+      const needName = fresh ? !known : !realName(me);
+      const needZip = !isZip(me.help_zip);
+      if (!fresh && !needName && !needZip) {
+        finish(false);
+        return;
+      }
+      homeArea().then((h) => { if (live) setHome(h); });
+      setPlan({
+        fresh,
+        needName,
+        nameGuess: needName ? guessName(me) : '',
+        selfProfileId: mine && !known ? mine.id : '',
+        needZip,
+        // The phone asks about notifications right after this (OneSignalInit
+        // waits for it), so new accounts get told it's coming.
+        needNotify: fresh && isNativeApp() && !wasAsked(),
+        // Just them so far, and it's their family: point them at inviting.
+        solo: fresh && family?.owner_user_id === me.id && (members || []).length <= 1,
+      });
+      setWelcomeState('open');
+      track('action', 'welcome chat shown', fresh ? 'new account' : 'asking what was missing');
+    })();
     return () => { live = false; };
   }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -107,9 +122,12 @@ export default function WelcomeDialog({ user: me }) {
   };
 
   return (
-    <Dialog open={!!plan} onOpenChange={(o) => { if (!o) close('closed early'); }}>
-      <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-2xl"
-        onOpenAutoFocus={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={!!plan} onOpenChange={(o) => { if (!o && plan?.preview) close(); }}>
+      {/* No X: the questions each have their own way on (the name is
+          required; the ZIP has Skip). The owner's preview keeps its X. */}
+      <DialogContent className={`max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-2xl ${plan?.preview ? '' : '[&>button]:hidden'}`}
+        onOpenAutoFocus={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => { if (!plan?.preview) e.preventDefault(); }}>
         <DialogTitle className="sr-only">Welcome to GenCare</DialogTitle>
         <DialogDescription className="sr-only">A few quick questions to set GenCare up for you.</DialogDescription>
         <div className="pt-2">
