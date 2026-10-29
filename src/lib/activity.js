@@ -23,6 +23,9 @@ const seenErrors = new Set();
 export function osName() {
   try {
     const ua = navigator.userAgent || '';
+    // The iPhone app sends a fixed Safari user agent ending in "GenCare"
+    // (capacitor.config overrideUserAgent), so its iOS version isn't real.
+    if (/ GenCare$/.test(ua)) return 'iOS';
     let m = ua.match(/(?:iPhone|CPU) OS (\d+)[._](\d+)/);
     if (m) return `iOS ${m[1]}.${m[2]}`;
     m = ua.match(/Android (\d+(?:\.\d+)?)/);
