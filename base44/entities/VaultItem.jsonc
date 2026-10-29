@@ -1,0 +1,49 @@
+{
+  "description": "One entry in a family's locked Legal & financial folder. Everything about it (who it's for, what it is, numbers, notes) is in `data`, scrambled on the phone with the folder key, so the database only holds ciphertext.",
+  "name": "VaultItem",
+  "properties": {
+    "created_by_name": {
+      "type": "string"
+    },
+    "created_by_user_id": {
+      "type": "string"
+    },
+    "data": {
+      "description": "Base64 AES-GCM ciphertext of the entry's JSON",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "iv": {
+      "description": "Base64 AES-GCM nonce",
+      "type": "string"
+    },
+    "vault_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "family_id",
+    "iv",
+    "data"
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
+}

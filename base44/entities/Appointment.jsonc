@@ -97,6 +97,14 @@
       "description": "NoteRecording made for this appointment",
       "type": "string"
     },
+    "phone_location": {
+      "description": "The place as the phone calendar last had it (sync uses it to tell a phone change from one typed here)",
+      "type": "string"
+    },
+    "phone_notes": {
+      "description": "The notes as the phone calendar last had them",
+      "type": "string"
+    },
     "prep_questions": {
       "description": "Things to bring up at this appointment, written beforehand on the Record Notes page",
       "items": {

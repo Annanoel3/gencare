@@ -1,0 +1,75 @@
+{
+  "description": "A family's locked Legal & financial folder. Holds only the scrambled (AES-GCM wrapped) key: the password and the recovery code never leave the phone, so nothing in the folder can be read from the database. See src/lib/vault.js.",
+  "name": "Vault",
+  "properties": {
+    "created_by_name": {
+      "type": "string"
+    },
+    "created_by_user_id": {
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "iterations": {
+      "type": "number"
+    },
+    "password_changed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "recovery_iv": {
+      "type": "string"
+    },
+    "recovery_salt": {
+      "type": "string"
+    },
+    "recovery_wrapped_key": {
+      "description": "The folder key, locked with the recovery code (base64)",
+      "type": "string"
+    },
+    "salt": {
+      "description": "Base64 salt for the password",
+      "type": "string"
+    },
+    "version": {
+      "description": "Format version (1 = PBKDF2-SHA256 + AES-GCM-256)",
+      "type": "number"
+    },
+    "wrapped_iv": {
+      "type": "string"
+    },
+    "wrapped_key": {
+      "description": "The folder key, locked with the password (base64)",
+      "type": "string"
+    }
+  },
+  "required": [
+    "family_id",
+    "salt",
+    "wrapped_key",
+    "wrapped_iv"
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  },
+  "type": "object"
+}
