@@ -16,9 +16,7 @@
         "Behavior",
         "Mood",
         "Milestone",
-        "General",
-        "Symptom",
-        "Doctor Note"
+        "General"
       ],
       "type": "string"
     },
