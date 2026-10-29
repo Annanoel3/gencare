@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, subDays, isValid } from 'date-fns';
@@ -110,6 +111,7 @@ export default function Wellness() {
               <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> Caregiver Action Network Help Desk: <a href="tel:+18552273640" className="text-primary underline">(855) 227-3640</a> · <a href="https://caregiveraction.org/helpdesk/" target="_blank" rel="noreferrer" className="text-primary underline inline-flex items-center gap-1">caregiveraction.org <ExternalLink className="w-3 h-3" /></a></li>
               <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-primary" /> If you're in crisis in the US, call or text <a href="tel:988" className="text-primary underline">988</a> any time.</li>
               <li className="flex items-center gap-2"><Heart className="w-4 h-4 text-primary" /> Post in Messages asking someone to take a shift. People usually want to help and don't know how.</li>
+              <li className="flex items-center gap-2"><Heart className="w-4 h-4 text-primary" /> <Link to="/resources" className="text-primary underline">More places that help caregivers</Link></li>
             </ul>
           </CardContent>
         </Card>

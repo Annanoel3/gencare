@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, BellRing, CalendarDays,
   ClipboardList, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic,
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic, LifeBuoy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -35,6 +35,7 @@ function buildNavStructure(members, canRecord, unread = 0) {
       { path: '/notes', icon: Mic, label: canRecord ? 'Record Notes' : 'Notes' },
     ]},
     { type: 'link', path: '/wellness', icon: Heart, label: 'Wellness' },
+    { type: 'link', path: '/resources', icon: LifeBuoy, label: 'Resources' },
     { type: 'link', path: '/settings', icon: SettingsIcon, label: 'Settings' },
   ];
 }
