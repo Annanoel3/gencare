@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { track } from '@/lib/activity';
 import { useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { BellRing, Check, X, Loader2, Lock } from 'lucide-react';
@@ -25,7 +26,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen }) {
 
   const mark = async (status) => {
     setBusy(true);
-    try { await markSlot(s, status, me); } catch (e) { toast({ title: "Couldn't save", description: e?.message, variant: 'destructive' }); }
+    try { await markSlot(s, status, me); track('action', status === 'taken' ? 'done:reminder' : status === 'skipped' ? 'skip:reminder' : 'undo:reminder', s.med.frequency === 'Once' ? 'until done' : ''); } catch (e) { toast({ title: "Couldn't save", description: e?.message, variant: 'destructive' }); }
     finally { setBusy(false); }
     queryClient.invalidateQueries({ queryKey: ['reminderLogs'] });
     if (s.med.frequency === 'Once') queryClient.invalidateQueries({ queryKey: REMINDERS_KEY });

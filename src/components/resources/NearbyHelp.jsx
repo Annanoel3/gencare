@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { track } from '@/lib/activity';
 import { format } from 'date-fns';
 import { Loader2, MapPin, Search } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -47,6 +48,7 @@ export default function NearbyHelp({ Entry }) {
     try {
       const d = await call({ zip: z });
       setResult(d); setEditing(false);
+      track('action', 'search:local help', `${d.saved ? 'saved list' : 'new search'}, ${d.places?.length || 0} places`);
       if (!d.places?.length) setError("We couldn't find local places for that ZIP code. The numbers below still work anywhere.");
     } catch (err) {
       setError(err?.message || "Couldn't search right now. Try again in a bit.");

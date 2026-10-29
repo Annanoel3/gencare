@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { track } from '@/lib/activity';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
@@ -29,7 +30,7 @@ export default function useReminderEditor(members = []) {
       if (dialog.med?.id) return base44.entities.Medication.update(dialog.med.id, data);
       return base44.entities.Medication.create(withFamily(data));
     },
-    onSuccess: () => { refresh(); close(); },
+    onSuccess: (_r, form) => { track('action', dialog.med?.id ? 'edit:reminder' : 'add:reminder', `${form.how || form.frequency || ''} ${form.visibility === 'private' ? 'just me' : 'everyone'}`); refresh(); close(); },
     onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
   });
   const remove = useMutation({
@@ -38,7 +39,7 @@ export default function useReminderEditor(members = []) {
       for (const l of mine) await base44.entities.MedicationLog.delete(l.id);
       return base44.entities.Medication.delete(med.id);
     },
-    onSuccess: () => { refresh(); close(); },
+    onSuccess: () => { track('action', 'delete:reminder'); refresh(); close(); },
   });
 
   const editor = (

@@ -1,4 +1,5 @@
 import { externalClick } from '@/lib/phone';
+import { track } from '@/lib/activity';
 import { Link } from 'react-router-dom';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -64,7 +65,7 @@ export default function Wellness() {
       if (todays) return base44.entities.WellnessCheckin.update(todays.id, row);
       return base44.entities.WellnessCheckin.create({ ...row, user_id: me.id, family_id: me.family_id || family?.id || null, day: today });
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['wellnessCheckins'] }); toast({ title: 'Saved', description: 'Just for you. The family never sees this.' }); },
+    onSuccess: () => { track('action', 'save:wellness check-in'); queryClient.invalidateQueries({ queryKey: ['wellnessCheckins'] }); toast({ title: 'Saved', description: 'Just for you. The family never sees this.' }); },
     onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
   });
   const remove = useMutation({

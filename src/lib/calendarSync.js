@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { track } from '@/lib/activity';
 import { plugin } from '@/lib/phone';
 import { queryClientInstance } from '@/lib/query-client';
 
@@ -60,6 +61,7 @@ export async function requestReadPermission() {
   if (!B?.requestPermissions) return false;
   try {
     const res = await B.requestPermissions({ permissions: ['calendar'] });
+    track('permission', 'phone calendar (read)', String(res?.calendar || 'unknown'));
     return res?.calendar === 'granted';
   } catch (e) {
     return false;
@@ -71,6 +73,7 @@ export async function requestWritePermission() {
   if (!B?.requestPermissions) return false;
   try {
     const res = await B.requestPermissions({ permissions: ['calendarWrite'] });
+    track('permission', 'phone calendar (write)', String(res?.calendarWrite || 'unknown'));
     return res?.calendarWrite === 'granted';
   } catch (e) {
     return false;
@@ -115,6 +118,7 @@ export function runImport(calendarIds, { force = false } = {}) {
   importInFlight = (async () => {
     const read = await B.listEvents({ calendarIds: ids, days: DEVICE_DAYS });
     if (!read?.granted) {
+      track('error', 'phone calendar import', 'calendar permission missing');
       localStorage.setItem(PERMISSION_LOST_KEY, '1');
       const err = new Error('calendar_permission');
       err.code = 'calendar_permission';
@@ -123,6 +127,7 @@ export function runImport(calendarIds, { force = false } = {}) {
     localStorage.removeItem(PERMISSION_LOST_KEY);
     const res = await base44.functions.invoke('phoneCalendar', { mode: 'import', source: 'device', calendarIds: ids, rows: read.events || [] });
     const out = res?.data || res;
+    track(out?.ok ? 'action' : 'error', 'phone calendar import', out?.ok ? `${(read.events || []).length} events from ${ids.length} calendar(s)` : String(out?.error || 'failed'));
     // Whatever page is open shows the new events now, not on the next visit.
     if (out?.ok) refreshEvents();
     return out;
@@ -134,6 +139,7 @@ export function runImport(calendarIds, { force = false } = {}) {
 // that GenCare (not they) set the sharing on, then their unsorted imports get
 // sorted in the background.
 export async function saveSharingDefault(value) {
+  track('action', 'choose:event sharing', value);
   const settings = await saveCalendarSettings({ event_sharing_default: value });
   refreshEvents();
   base44.functions.invoke('phoneCalendar', { mode: 'sort_imports' }).then(() => refreshEvents()).catch(() => {});

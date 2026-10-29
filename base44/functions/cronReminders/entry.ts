@@ -70,6 +70,16 @@ Deno.serve(async (req) => {
   const out: Record<string, number> = { families: 0, appointment_reminders: 0, task_pushes: 0, digests: 0, reminder_pushes: 0, missed_pushes: 0, runs_out_pushes: 0 };
 const MISSED_AFTER_MS = 90 * 60_000;
   try {
+    // Record keeping is kept 90 days (AppActivity), cleared once a day.
+    const nowUtc = new Date(now);
+    if (nowUtc.getUTCHours() === 9 && nowUtc.getUTCMinutes() < 15) {
+      try {
+        const cutoff = new Date(now - 90 * 86_400_000).toISOString();
+        const old = (await db.AppActivity.filter({ at: { $lt: cutoff } }, 'at', 500)) || [];
+        for (const r of old) await db.AppActivity.delete(r.id);
+        out.activity_cleared = old.length;
+      } catch (e) { console.warn('[cronReminders] activity cleanup:', (e as Error).message); }
+    }
     const families = (await db.Family.list()) || [];
     for (const fam of families) {
       out.families++;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { track } from '@/lib/activity';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
@@ -105,6 +106,7 @@ export default function CalendarPage() {
   const createMutation = useMutation({
     mutationFn: ({ data }) => base44.entities.Appointment.create(withFamily(data)),
     onSuccess: (created, { left }) => {
+      track('action', 'add:event');
       if (created?.id && created.visibility !== 'private') notify('added', created.id);
       afterChange();
       setDialogOpen(false);
@@ -161,7 +163,7 @@ export default function CalendarPage() {
       }
       return base44.entities.Appointment.delete(appt.id);
     },
-    onSuccess: () => { editSession.current = null; afterChange(); setDialogOpen(false); setEditing(null); },
+    onSuccess: () => { track('action', 'delete:event'); editSession.current = null; afterChange(); setDialogOpen(false); setEditing(null); },
     onError: (e) => toast({ title: 'Could not delete', description: e?.message || 'Try again', variant: 'destructive' }),
   });
 

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { track } from '@/lib/activity';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { isNativeApp, waitForPlugin } from '@/lib/phone';
@@ -82,8 +83,10 @@ export default function OneSignalInit({ user }) {
         let permission = null;
         try { permission = await NotifyBridge.requestPermission(); } catch (permErr) { /* they said no, or an old build */ }
         markPermissionAnswered(permission?.granted);
+        track('permission', 'notifications (asked)', permission?.granted ? 'granted' : 'not granted');
         const loginResult = await NotifyBridge.login({ externalId });
         if (loginResult?.playerId) await savePlayerId(loginResult.playerId);
+        track(loginResult?.playerId ? 'action' : 'error', 'push sign-up', loginResult?.playerId ? 'push id saved' : 'no push id yet');
         // On a fresh install the push token lands a moment after login; save
         // the id again when it does, so the first pushes aren't lost.
         try {

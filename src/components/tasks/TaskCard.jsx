@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { track } from '@/lib/activity';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Loader2, Repeat, ChevronDown, ChevronUp, User, ListChecks } from 'lucide-react';
 import { format } from 'date-fns';
@@ -38,7 +39,7 @@ export default function TaskCard({ task, members = [], onOpen, stepsPreloaded })
     e.stopPropagation();
     if (busy) return;
     setBusy(true);
-    try { if (done) await uncompleteTask(task); else await completeTask(task, me); } finally { setBusy(false); }
+    try { if (done) await uncompleteTask(task); else await completeTask(task, me); track('action', done ? 'undo:task' : `done:${task.kind || 'task'}`); } finally { setBusy(false); }
     refresh();
   };
   const onToggleStep = async (s) => {

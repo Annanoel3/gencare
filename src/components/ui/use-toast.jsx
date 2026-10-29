@@ -116,6 +116,10 @@ function dispatch(action) {
 
 function toast({ ...props }) {
   const id = genId();
+  // Every "Couldn't save" style message is an error worth knowing about.
+  if (props.variant === 'destructive') {
+    import('@/lib/activity').then(({ track }) => track('error', String(props.title || 'error'), typeof props.description === 'string' ? props.description : '')).catch(() => {});
+  }
 
   const update = (props) =>
     dispatch({

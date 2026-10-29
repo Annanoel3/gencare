@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { track } from '@/lib/activity';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Send, Pin, ImagePlus, Loader2, X, RefreshCw, Reply, Trash2, Pencil, Check, ClipboardList } from 'lucide-react';
@@ -50,7 +51,7 @@ export default function Messages() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: MESSAGES_KEY });
   const post = useMutation({
     mutationFn: () => postMessage({ content, category, member: members.find((m) => m.id === aboutId), photos, parentId: replyTo?.id }, me),
-    onSuccess: () => { refresh(); setContent(''); setCategory('General'); setAboutId(''); setPhotos([]); setReplyTo(null); },
+    onSuccess: () => { track('action', replyTo ? 'reply:message' : 'post:message', photos.length ? 'with photos' : ''); refresh(); setContent(''); setCategory('General'); setAboutId(''); setPhotos([]); setReplyTo(null); },
     onError: (e) => toast({ title: "Couldn't post", description: e?.message || 'Try again', variant: 'destructive' }),
   });
   const pin = useMutation({ mutationFn: togglePin, onSuccess: refresh });

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { track } from '@/lib/activity';
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { listEvents } from "@/lib/events";
@@ -318,6 +319,7 @@ export default function Notes() {
       setProgress({ recordId: record.id, step: "notes", done, total: parts.length });
       const made = await base44.functions.invoke("transcribeAudioNew", { mode: "notes_make", record_id: record.id });
       if (!made?.data?.ok) throw new Error(made?.data?.error || "notes failed");
+      track("action", "record notes: notes made", `${parts.length} part(s)`);
 
       if (overLimit) {
         await base44.entities.NoteRecording.update(record.id, { status: "over_limit" });
@@ -330,6 +332,7 @@ export default function Notes() {
       setTab("notes");
     } catch (e) {
       console.error("[Notes] processing stopped", e);
+      track("error", "record notes: notes not made", String(e?.message || e).slice(0, 200));
       toast({
         title: "Your notes aren't finished yet",
         description: "Nothing's lost. They'll pick up where they left off the next time you open Record Notes.",
@@ -516,6 +519,7 @@ export default function Notes() {
     const now = await refreshUsage();
     if (!now || now.left_seconds < 60) { setCapOpen(true); return; }
     setBusy(true);
+    track('action', 'record notes: start');
     try {
       const res = await R.start({ title: name, maxMinutes: Math.max(1, Math.floor(now.left_seconds / 60)) });
       if (!res?.ok) {

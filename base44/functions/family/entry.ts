@@ -230,6 +230,22 @@ Deno.serve(async (req) => {
       if (typeof body.app_build === 'number' && body.app_build > 0 && body.app_build !== after.app_build) {
         try { await db.User.update(me.id, { app_build: body.app_build }); after.app_build = body.app_build; } catch (_) { /* fine */ }
       }
+      // Record keeping (Anna, Oct 29 2026: "good record keeping for iPhone
+      // users especially, to see what's working"): where they last opened it.
+      const seen: Record<string, unknown> = { last_seen_at: new Date().toISOString() };
+      if (['ios', 'android', 'web'].includes(body.platform)) seen.last_platform = body.platform;
+      if (typeof body.os === 'string' && body.os) seen.last_os = body.os.slice(0, 40);
+      // Someone whose account name is just their email (dancinagainyeah) shows
+      // to the family by the name on their profile instead.
+      if (!after.display_name) {
+        const local = String(after.email || '').split('@')[0].toLowerCase();
+        const nameIsEmail = !after.full_name || String(after.full_name).trim().toLowerCase() === local;
+        if (nameIsEmail) {
+          const mine = ((await db.FamilyMember.filter({ family_id: family.id, linked_user_id: me.id })) || [])[0];
+          if (mine?.name) { seen.display_name = mine.name; after.display_name = mine.name; }
+        }
+      }
+      try { await db.User.update(me.id, seen); } catch (_) { /* fine */ }
       return Response.json({ ok: true, family, me: publicUser(after), members: await membersOf(db, family.id), access: accessOf(family, after) });
     }
 

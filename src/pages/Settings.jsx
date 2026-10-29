@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug } from 'lucide-react';
+import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon } from 'lucide-react';
 import SupportDialog from '@/components/shared/SupportDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,17 @@ export default function Settings() {
             <p className="text-xs text-muted-foreground">Who's in it, invites, your plan, notifications and phone calendar.</p>
           </div>
         </Link>
+
+        {/* The owner's record keeping (admins only). */}
+        {user?.role === 'admin' && (
+          <Link to="/activity" className="flex items-center gap-3 bg-card rounded-2xl border border-border/50 p-5 md:p-6 hover:bg-muted/40 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><ActivityIcon className="w-5 h-5 text-primary" /></div>
+            <div className="flex-1">
+              <h2 className="font-heading text-lg font-semibold">App activity</h2>
+              <p className="text-xs text-muted-foreground">Only you see this: who uses GenCare where, what works and what breaks.</p>
+            </div>
+          </Link>
+        )}
 
         {/* Account / Email */}
         <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">

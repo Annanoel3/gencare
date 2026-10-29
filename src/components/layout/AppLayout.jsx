@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import QuickCaptureButton from '@/components/shared/QuickCaptureButton';
+import { startActivity, track } from '@/lib/activity';
 import OneSignalInit from '@/components/shared/OneSignalInit';
 import RecordingBar from '@/components/shared/RecordingBar';
 import AppUpdateCard from '@/components/shared/AppUpdateCard';
@@ -143,6 +144,10 @@ function AppShell() {
   const navStructure = useMemo(() => buildNavStructure(members, canRecord, unread), [members, canRecord, unread]);
 
   useEffect(() => { base44.auth.me().then(u => setCurrentUser(u)).catch(() => {}); }, []);
+
+  // Record keeping: the session, then each screen opened (path only).
+  useEffect(() => { if (me?.id) startActivity(me); }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { track('screen', location.pathname); }, [location.pathname]);
 
   // Record Notes only exists on app builds with the recorder.
   useEffect(() => {

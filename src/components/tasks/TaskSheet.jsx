@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { track } from '@/lib/activity';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, RotateCcw, Check, Repeat, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -89,10 +90,10 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
       }
       return updateTask(task.id, patch, { before: task });
     },
-    onSuccess: () => { refresh(); onOpenChange(false); },
+    onSuccess: () => { track('action', isNew ? `add:${form.kind || 'task'}` : 'edit:task', [form.due_date ? 'dated' : '', form.due_time ? 'timed' : '', form.recurrence !== 'none' ? 'repeats' : ''].filter(Boolean).join(' ')); refresh(); onOpenChange(false); },
   });
 
-  const remove = useMutation({ mutationFn: () => deleteTask(task), onSuccess: () => { refresh(); setConfirmDelete(false); onOpenChange(false); } });
+  const remove = useMutation({ mutationFn: () => deleteTask(task), onSuccess: () => { track('action', 'delete:task'); refresh(); setConfirmDelete(false); onOpenChange(false); } });
   const finish = useMutation({ mutationFn: () => completeTask(task, me), onSuccess: () => { refresh(); onOpenChange(false); } });
   const reopen = useMutation({ mutationFn: () => uncompleteTask(task), onSuccess: () => { refresh(); onOpenChange(false); } });
 

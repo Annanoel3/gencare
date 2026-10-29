@@ -24,6 +24,7 @@ import Messages from '@/pages/Messages';
 import Wellness from '@/pages/Wellness';
 import Resources from '@/pages/Resources';
 import JoinPage from '@/pages/JoinPage';
+import Activity from '@/pages/Activity';
 import Settings from '@/pages/Settings';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import AccountManagement from '@/pages/AccountManagement';
@@ -95,6 +96,7 @@ const AuthenticatedApp = () => {
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/family-settings" element={<FamilySettings />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/activity" element={<Activity />} />
           <Route path="/account-management" element={<AccountManagement />} />
         </Route>
       </Route>

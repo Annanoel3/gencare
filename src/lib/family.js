@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { appBuild } from '@/lib/phone';
+import { appBuild, phonePlatform } from '@/lib/phone';
+import { osName } from '@/lib/activity';
 
 // The family this account belongs to, loaded once per app open from the
 // `family` backend function, and the family_id every new record must carry
@@ -39,7 +40,7 @@ export function FamilyProvider({ children }) {
       let timezone = '';
       try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { timezone = ''; }
       const build = await appBuild();
-      const res = await base44.functions.invoke('family', { mode: 'ensure', pending_invite: pending || undefined, timezone: timezone || undefined, app_build: build || undefined });
+      const res = await base44.functions.invoke('family', { mode: 'ensure', pending_invite: pending || undefined, timezone: timezone || undefined, app_build: build || undefined, platform: phonePlatform(), os: osName() || undefined });
       const data = res?.data || res;
       if (!data?.ok) throw new Error(data?.error || 'Could not load your family');
       if (pending) { try { localStorage.removeItem(PENDING_INVITE_KEY); } catch (e) { /* fine */ } }

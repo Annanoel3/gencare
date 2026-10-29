@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { track } from '@/lib/activity';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -19,6 +20,7 @@ export default function QuickAddTask({ placeholder = 'Add a task…', autoFocus 
     mutationFn: (t) => base44.entities.CareTask.create(withFamily({ title: t, priority: 'medium', category: 'Other', status: 'pending' })),
     onSuccess: (created) => {
       setTitle('');
+      track('action', 'add:task (quick)');
       queryClient.invalidateQueries({ queryKey: ['careTasks'] });
       if (created?.id) base44.functions.invoke('notifyFamily', { kind: 'task', action: 'added', task_id: created.id }).catch(() => {});
     },
