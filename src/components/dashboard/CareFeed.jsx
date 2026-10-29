@@ -39,8 +39,10 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
 
   let items = [];
   (logQ.data || []).forEach(e => items.push(normalizeLog(e)));
-  // Repeating / multi-day events count on each day they land on (today, or the last 30 days for 'recent').
-  const apptRows = scope === 'today' ? expandAppointments(apptQ.data || [], new Date(), new Date()) : expandAppointments(apptQ.data || [], new Date(Date.now() - 30 * 86400000), new Date(Date.now() + 30 * 86400000));
+  // Repeating / multi-day events count on each day they land on: today, or for
+  // 'recent' the last 30 days through today (what happened, not a weekly
+  // class repeated through next month).
+  const apptRows = scope === 'today' ? expandAppointments(apptQ.data || [], new Date(), new Date()) : expandAppointments(apptQ.data || [], new Date(Date.now() - 30 * 86400000), new Date());
   apptRows.forEach(a => {
     let when = a.date ? parseISO(a.date) : null;
     if (when && isValid(when) && a.time && !a.all_day) { const [h, m] = a.time.split(':'); when.setHours(+h, +(m || 0)); }
@@ -75,7 +77,10 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
   if (memberId) items = items.filter(i => i.memberId === memberId);
   if (scope === 'today') items = items.filter(i => i.when && isToday(i.when));
   items.sort((a, b) => (b.when ? b.when.getTime() : 0) - (a.when ? a.when.getTime() : 0));
-  if (scope === 'recent') items = items.slice(0, limit);
+  if (scope === 'recent') {
+    const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
+    items = items.filter(i => !i.when || i.when <= endOfToday).slice(0, limit);
+  }
 
   if (isLoading) {
     return <div className="py-8 text-center text-sm text-muted-foreground">Loading care activity…</div>;

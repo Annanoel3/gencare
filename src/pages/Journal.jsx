@@ -14,9 +14,9 @@ import EntryCard from '@/components/journal/EntryCard';
 import { CATEGORIES, createEntry, updateEntry, deleteEntry, groupByDay, dayLabel } from '@/lib/journal';
 
 /**
- * The care journal: what the family noticed about the people they look after,
- * day by day. Anyone in the family can write, edit and read; each entry says
- * who wrote it and who it's about. Caregiver self check-ins live on Wellness.
+ * The journal: what you noticed about the people you look after, day by day.
+ * Private: only the person who wrote an entry can see, edit or delete it
+ * (CareJournal RLS, Oct 29 2026). Caregiver self check-ins live on Wellness.
  */
 export default function Journal() {
   const [params, setParams] = useSearchParams();
@@ -69,7 +69,7 @@ export default function Journal() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><BookOpen className="w-7 h-7 text-primary" /> Care Journal</h1>
-          <p className="text-muted-foreground mt-1">What you noticed, what people said, the good days and the hard ones.</p>
+          <p className="text-muted-foreground mt-1">What you noticed, what people said, the good days and the hard ones. Only you can see what you write here.</p>
         </div>
         <Button onClick={() => setDialog({ open: true, entry: null })} className="rounded-xl gap-2"><Plus className="w-4 h-4" /><span className="hidden sm:inline">New entry</span></Button>
       </div>

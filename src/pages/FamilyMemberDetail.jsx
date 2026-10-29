@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { format, parseISO, isValid } from 'date-fns';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -17,6 +18,8 @@ import { getMemberColorClass, isPet, takenColors } from '@/utils/memberColors';
 import { frequencyLabel, fmtClock } from '@/lib/reminders';
 import InviteModal from '@/components/family/InviteModal';
 import { useFamily, relationshipLabel } from '@/lib/family';
+
+const TAB_LABELS = { overview: 'Overview', info: 'Info', contacts: 'Contacts', school: 'School', reminders: 'Reminders', journal: 'Journal' };
 
 export default function FamilyMemberDetail() {
   const { id } = useParams();
@@ -87,6 +90,12 @@ export default function FamilyMemberDetail() {
     </div>
   );
   const pet = isPet(member);
+  // School only for someone of school age (under 23), or, with no birthday, a
+  // child of the family; and always if school info was already filled in.
+  const years = member.birthdate ? (Date.now() - Date.parse(member.birthdate)) / (365.25 * 86400e3) : null;
+  const showSchool = !pet && (!!(member.school_name || member.school_phone || member.school_grade || member.school_teacher)
+    || (years !== null && !Number.isNaN(years) ? years < 23 : /^(son|daughter|foster child|grandchild)$/i.test(String(member.relationship || ''))));
+  const tabs = ['overview', 'info', 'contacts', showSchool && 'school', 'reminders', 'journal'].filter(Boolean);
 
   return (
     <div className="pb-24 lg:pb-8">
@@ -103,7 +112,7 @@ export default function FamilyMemberDetail() {
         </Avatar>
         <div className="flex-1">
           <h1 className="font-heading text-2xl font-bold">{member.name}</h1>
-          <p className="text-muted-foreground">{[relationshipLabel(member, me?.id), member.birthdate ? `Born ${member.birthdate}` : ''].filter(Boolean).join(' · ')}</p>
+          <p className="text-muted-foreground">{[relationshipLabel(member, me?.id), member.birthdate && isValid(parseISO(member.birthdate)) ? `Born ${format(parseISO(member.birthdate), 'MMM d, yyyy')}` : ''].filter(Boolean).join(' · ')}</p>
           {pet ? null : member.linked_user_id ? (
             <p className="text-xs text-primary font-medium mt-1">{member.linked_user_id === me?.id ? 'This is you' : 'Uses GenCare'}</p>
           ) : (
@@ -137,13 +146,12 @@ export default function FamilyMemberDetail() {
       <InviteModal open={inviteOpen} member={member} onClose={() => { setInviteOpen(false); queryClient.invalidateQueries({ queryKey: ['familyMember', id] }); }} />
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className={`bg-muted rounded-xl w-full grid ${pet ? 'grid-cols-5' : 'grid-cols-6'}`}>
-          <TabsTrigger value="overview" className="rounded-lg text-xs px-1">Overview</TabsTrigger>
-          <TabsTrigger value="info" className="rounded-lg text-xs px-1">Info</TabsTrigger>
-          <TabsTrigger value="contacts" className="rounded-lg text-xs px-1">Contacts</TabsTrigger>
-          {!pet && <TabsTrigger value="school" className="rounded-lg text-xs px-1">School</TabsTrigger>}
-          <TabsTrigger value="reminders" className="rounded-lg text-xs px-1">Reminders</TabsTrigger>
-          <TabsTrigger value="journal" className="rounded-lg text-xs px-1">Journal</TabsTrigger>
+        {/* Two rows of three on a phone, so every tab gets room and its whole
+            word sits inside the highlight. */}
+        <TabsList className="bg-muted rounded-xl w-full h-auto grid grid-cols-3 sm:grid-cols-6 gap-1 p-1">
+          {tabs.map((t) => (
+            <TabsTrigger key={t} value={t} className="rounded-lg text-sm py-1.5 px-2 w-full">{TAB_LABELS[t]}</TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="overview">
@@ -196,7 +204,7 @@ export default function FamilyMemberDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="school">
+        {showSchool && <TabsContent value="school">
           <Card className="border-border/50">
             <CardHeader><CardTitle className="font-heading flex items-center gap-2"><School className="w-5 h-5 text-purple-500" /> School Info</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -217,7 +225,7 @@ export default function FamilyMemberDetail() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
 
         <TabsContent value="reminders">
           <Card className="border-border/50">
