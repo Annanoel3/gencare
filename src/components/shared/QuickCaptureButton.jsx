@@ -9,6 +9,9 @@ import { base44 } from '@/api/base44Client';
 import { withFamily, useFamily } from '@/lib/family';
 import { authorOf, todayStr } from '@/lib/journal';
 import { createTask } from '@/lib/tasks';
+import { sharingDefaultOf, startingVisibility, sortNewEvent, sortedLine } from '@/lib/events';
+import { exportSoon } from '@/lib/calendarSync';
+import { toast } from '@/components/ui/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -50,8 +53,26 @@ export default function QuickCaptureButton() {
       } else if (captureType === 'task') {
         await createTask({ title: (title || content).trim(), description: title ? content : undefined, due_date: date || undefined });
       } else if (captureType === 'appointment') {
-        await base44.entities.Appointment.create(withFamily({ title: (title || content).trim(), date, notes: title ? content : undefined }));
+        // Same as adding on the Calendar: sharing follows the person's choice,
+        // then GenCare fills in who it's for, the category and (if they let it
+        // decide) the sharing.
+        const mode = sharingDefaultOf(me);
+        const created = await base44.entities.Appointment.create(withFamily({
+          title: (title || content).trim(), date, notes: title ? content : undefined,
+          visibility: startingVisibility(mode), auto_set: ['visibility', 'category'],
+        }));
+        const tell = (action) => base44.functions.invoke('notifyFamily', { kind: 'appointment', action, appointment_id: created.id }).catch(() => {});
+        if (created?.id && created.visibility !== 'private') tell('added');
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        exportSoon();
+        sortNewEvent(created, { visibility: true, member: true, category: true }, mode).then((r) => {
+          if (!r) return;
+          if (r.becameShared) tell('added');
+          queryClient.invalidateQueries({ queryKey: ['appointments'] });
+          exportSoon();
+          const line = sortedLine(r);
+          if (line) toast({ title: 'Added', description: line });
+        }).catch(() => {});
       }
       queryClient.invalidateQueries();
       setDialogOpen(false);

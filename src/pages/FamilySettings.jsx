@@ -9,6 +9,8 @@ import { base44 } from '@/api/base44Client';
 import { useFamily, renameFamily, removeMember, leaveFamily } from '@/lib/family';
 import InviteModal from '@/components/family/InviteModal';
 import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
+import { SharingOptions, useSharingChoice } from '@/components/calendar/SharingChoice';
+import { sharingDefaultOf } from '@/lib/events';
 import { useQuery } from '@tanstack/react-query';
 import { isNativeApp } from '@/lib/phone';
 
@@ -18,6 +20,7 @@ export default function FamilySettings() {
   const { family, me, members, access, refresh, apply } = useFamily();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const sharing = useSharingChoice(() => refresh?.());
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(family?.name || '');
   const [busy, setBusy] = useState('');
@@ -160,6 +163,13 @@ export default function FamilySettings() {
             </label>
             <Button variant="outline" size="sm" onClick={testPush} disabled={busy === 'test'} className="gap-2 mt-1"><Send className="w-4 h-4" /> Send me a test notification</Button>
           </div>
+        </div>
+
+        {/* Who sees the events you add */}
+        <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
+          <h2 className="font-heading text-lg font-semibold">Who sees the events you add</h2>
+          <p className="text-xs text-muted-foreground mb-3">For events you add and ones from your phone calendar. You can still change any single event.</p>
+          <SharingOptions value={sharingDefaultOf(me)} onPick={sharing.pick} busy={sharing.busy} />
         </div>
 
         {/* Phone calendar */}

@@ -2,12 +2,14 @@ import React from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, parseISO, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getMemberColorByMemberId } from '@/utils/memberColors';
+import { getEventColorClass } from '@/utils/memberColors';
+import { useFamily } from '@/lib/family';
 
 // Month grid with WORDS in the cells (the event titles), not dots — the same
 // call Anna made for ADHDone (Oct 27, 2026): a phone calendar widget fits
 // words and is easier to read. Two titles a day, then "+N".
 export default function MonthView({ currentMonth, setCurrentMonth, selectedDate, setSelectedDate, appointments, members }) {
+  const { members: accounts } = useFamily();
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -50,7 +52,7 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
                 {shown.map(a => (
                   <span
                     key={a.id}
-                    className={`block truncate rounded px-1 text-[10px] md:text-[11px] leading-4 text-white ${getMemberColorByMemberId(a.family_member_id, members)}`}
+                    className={`block truncate rounded px-1 text-[10px] md:text-[11px] leading-4 text-white ${getEventColorClass(a, members, accounts)}`}
                     title={a.title}
                   >
                     {a.title}

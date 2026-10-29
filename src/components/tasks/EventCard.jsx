@@ -2,7 +2,8 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, parseISO, isValid } from 'date-fns';
 import { CalendarDays, Lock, Users, Repeat, Mic } from 'lucide-react';
-import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
+import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass } from '@/utils/memberColors';
+import { useFamily } from '@/lib/family';
 import { rowIdOf, repeatLabel } from '@/lib/occurrences';
 import { categoryOf, isRecordable } from '@/components/calendar/EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
@@ -22,8 +23,10 @@ export default function EventCard({ appt, members = [], showDay = false }) {
   const navigate = useNavigate();
   const canRecord = usePluginPresent('RecorderBridge');
   const id = rowIdOf(appt);
-  const color = appt.family_member_id ? getMemberColorByMemberId(appt.family_member_id, members) : null;
-  const tint = appt.family_member_id ? getMemberLightColorByMemberId(appt.family_member_id, members) : 'bg-card';
+  const { members: accounts } = useFamily();
+  const color = getEventColorClass(appt, members, accounts);
+  const tint = appt.visibility === 'private' ? 'bg-card' : getEventLightColorClass(appt, members, accounts);
+  const memberDot = getMemberColorByMemberId(appt.family_member_id, members);
   const day = appt.date ? parseISO(appt.date) : null;
   const clock = appt.all_day || !appt.time ? 'All day' : `${fmtTime(appt.time)}${appt.end_time ? ` – ${fmtTime(appt.end_time)}` : ''}`;
   const when = [showDay && day && isValid(day) ? format(day, 'EEE, MMM d') : '', clock].filter(Boolean).join(' · ');
@@ -45,7 +48,7 @@ export default function EventCard({ appt, members = [], showDay = false }) {
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm leading-snug">{appt.title}</p>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-            {appt.family_member_name && <span className="inline-flex items-center gap-1">{color && <span className={`w-2 h-2 rounded-full ${color}`} />}{appt.family_member_name}</span>}
+            {appt.family_member_name && <span className="inline-flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${memberDot}`} />{appt.family_member_name}</span>}
             <span>{when}</span>
             {appt.span_days > 1 && <span>Day {appt.span_index + 1} of {appt.span_days}</span>}
             {cat && cat !== 'Other' && <span>{cat}</span>}

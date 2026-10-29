@@ -34,7 +34,8 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: false,
-    captureInput: true,
+    // No captureInput: it swaps the keyboard connection for a bare one that
+    // can't paste from the keyboard's clipboard (and loses suggestions).
     webContentsDebuggingEnabled: false,
   },
   ios: {

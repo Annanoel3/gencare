@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, Smartphone, Mic, Repeat, Users } from 'lucide-react';
-import { getMemberColorByMemberId } from '@/utils/memberColors';
+import { getMemberColorByMemberId, getEventColorClass } from '@/utils/memberColors';
+import { useFamily } from '@/lib/family';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 
 // Event categories. 'Doctor' and 'Therapy' were categories before Oct 2026;
@@ -27,7 +28,9 @@ function fmtTime(t) {
 
 export default function EventRow({ appt, members, onClick }) {
   const canRecord = usePluginPresent('RecorderBridge');
-  const color = getMemberColorByMemberId(appt.family_member_id, members);
+  const { members: accounts } = useFamily();
+  const color = getEventColorClass(appt, members, accounts);
+  const memberDot = getMemberColorByMemberId(appt.family_member_id, members);
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -54,7 +57,7 @@ export default function EventRow({ appt, members, onClick }) {
           ) : null}
           {appt.family_member_name && (
             <span className="inline-flex items-center gap-1 text-xs">
-              <span className={`w-2 h-2 rounded-full ${color}`} />
+              <span className={`w-2 h-2 rounded-full ${memberDot}`} />
               {appt.family_member_name}
             </span>
           )}

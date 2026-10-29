@@ -66,6 +66,7 @@ function publicUser(u: any) {
     export_member_ids: u.export_member_ids || [],
     export_categories: u.export_categories || [],
     export_reminder_minutes: typeof u.export_reminder_minutes === 'number' ? u.export_reminder_minutes : 30,
+    event_sharing_default: ['auto', 'family', 'private'].includes(u.event_sharing_default) ? u.event_sharing_default : '',
     app_build: u.app_build || 0,
   };
 }

@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
           <Shield className="w-7 h-7 text-primary" />
           Privacy Policy
         </h1>
-        <p className="text-muted-foreground mt-1 text-sm">Last updated: June 2026</p>
+        <p className="text-muted-foreground mt-1 text-sm">Last updated: October 2026</p>
       </div>
 
       <div className="prose prose-sm max-w-none space-y-6 text-foreground">
@@ -28,7 +28,8 @@ export default function PrivacyPolicy() {
           <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
             <li><strong>Account Information:</strong> Your name, email address, and authentication credentials.</li>
             <li><strong>Family Data:</strong> Profiles, appointments, reminders, tasks, care logs, journal entries, messages, and notes you create. These can include personal details you choose to write down, including health details.</li>
-            <li><strong>Integration Data:</strong> If you connect Google Calendar, we access your calendar events to display them in the app.</li>
+            <li><strong>Phone Calendar Data:</strong> If you choose phone calendars to bring into GenCare, we read the events in those calendars (title, time, place and notes) to show them in the app. If you turn on sending events to your phone, we write the family's events into the phone calendar you pick.</li>
+            <li><strong>Recordings:</strong> If you use Record Notes, the audio you record is turned into a transcript and notes.</li>
             <li><strong>Usage Data:</strong> How you interact with the app, device information, and crash reports.</li>
           </ul>
         </section>
@@ -39,6 +40,7 @@ export default function PrivacyPolicy() {
             <li>To provide and maintain the GenCare service.</li>
             <li>To send you care reminders and notifications about tasks and appointments.</li>
             <li>To allow family members you invite to collaborate on shared care information.</li>
+            <li>To sort calendar events: who in the family an event is about, its category, and, if you choose "Let GenCare decide", whether the family sees it.</li>
             <li>To improve our features and user experience.</li>
             <li>To comply with legal obligations.</li>
           </ul>
@@ -46,7 +48,7 @@ export default function PrivacyPolicy() {
 
         <section>
           <h2 className="font-heading text-lg font-semibold mb-2">4. Data Sharing</h2>
-          <p className="text-muted-foreground">We do not sell your data. Your family care information is only visible to you and family members you explicitly invite. We share data with third-party providers only as necessary to provide the service (e.g., Google Calendar API, push notification services) and only with your consent.</p>
+          <p className="text-muted-foreground">We do not sell your data. Your family care information is only visible to you and family members you explicitly invite. We share data with third-party providers only as necessary to provide the service: push notification services, and OpenAI, which processes Record Notes audio and transcripts and the calendar event details and family profile names used to sort events. These providers process the data only to provide those features for you.</p>
         </section>
 
         <section>

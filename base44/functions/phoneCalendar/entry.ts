@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { canSee } from '../../shared/sharing.ts';
+import { sortEvents, sortMembers } from '../../shared/eventSort.ts';
 
 // The phone's calendars and the family calendar, both ways. Called by the web
 // app (on open, after edits, from the Phone calendar settings) and by the
@@ -15,7 +16,12 @@ import { canSee } from '../../shared/sharing.ts';
 //        the event), never for a whole calendar at once, and a share they set
 //        stays when the phone changes the event. Birthdays are not brought in.
 //        Events that already happened stay (the phone only reports from now
-//        on). A calendar the person unticked takes its events with it, except
+//        on). Who sees a new import follows the person's "Who sees the events
+//        you add" choice (event_sharing_default): everyone, just them, or
+//        GenCare decides; then GenCare sorts the next 60 days' worth (who each
+//        is about, shared or not, category — see shared/eventSort.ts), filling
+//        only what the person hasn't set themselves (auto_set lists what it
+//        filled). A calendar the person unticked takes its events with it, except
 //        ones they shared or gave a "For": those stay as ordinary events.
 //        Two imports can run at once (the app and the phone's background sync):
 //        each one checks for the event again right before saving it, and the
@@ -30,6 +36,10 @@ import { canSee } from '../../shared/sharing.ts';
 //        same phone row is updated next time instead of duplicated.
 //   { mode: "prune" } -> the unticking half of the above, on its own (the
 //        app calls it when a calendar is unticked, even the last one).
+//   { mode: "sort_imports" } -> the sorting half on its own (after the person
+//        picks or changes their sharing choice).
+//   { mode: "sort", event } -> sort one new event added in the app: who it's
+//        about, shared or not, category. Saves nothing; the app applies it.
 //   { mode: "status" } -> counts for the settings screen.
 
 const DAYS_AHEAD = 365;
@@ -130,10 +140,104 @@ function guessCategory(title: string) {
   return 'Other';
 }
 
+// The fields GenCare filled in itself (sharing, who it's for, category), as
+// opposed to ones a person picked. A person's pick is never overridden.
+function autoSetOf(a: any): string[] { return Array.isArray(a?.auto_set) ? a.auto_set.map(String) : []; }
+function visibilityIsAuto(a: any, auto: Set<string>) {
+  // Imports from before auto_set existed all came in "Only me" by rule, so a
+  // private one of those was never anyone's choice.
+  return auto.has('visibility') || (!Array.isArray(a?.auto_set) && a?.source === 'phone' && (a?.visibility || 'private') === 'private');
+}
+function categoryIsAuto(a: any, auto: Set<string>) {
+  return auto.has('category') || !a?.category || a.category === 'Other' || a.category === guessCategory(a.title || '');
+}
+type SharingMode = 'auto' | 'family' | 'private' | '';
+function sharingMode(u: any): SharingMode {
+  const v = String(u?.event_sharing_default || '');
+  return v === 'auto' || v === 'family' || v === 'private' ? v : '';
+}
+// No choice made yet = "Only me", as before the choice existed.
+function visibilityFor(mode: SharingMode, share: boolean) {
+  return mode === 'family' ? 'family' : mode === 'auto' && share ? 'family' : 'private';
+}
+
 // Someone shared it, said who it's for, or changed its category: the family
 // relies on it, so it's kept when its phone calendar is unticked.
 function touched(a: any) {
-  return (a.visibility && a.visibility !== 'private') || a.family_member_id || (a.category && a.category !== 'Other' && a.category !== guessCategory(a.title || ''));
+  const auto = new Set(autoSetOf(a));
+  return (a.visibility && a.visibility !== 'private' && !auto.has('visibility'))
+    || (a.family_member_id && !auto.has('member'))
+    || (a.category && !categoryIsAuto(a, auto));
+}
+
+// Updates in small parallel groups (hundreds one by one is slow).
+async function inGroups<T>(list: T[], fn: (x: T) => Promise<unknown>, size = 8) {
+  let done = 0;
+  for (let i = 0; i < list.length; i += size) {
+    const r = await Promise.allSettled(list.slice(i, i + size).map(fn));
+    done += r.filter((x) => x.status === 'fulfilled').length;
+  }
+  return done;
+}
+
+// What one sorting answer changes on an event: only the fields nobody picked.
+function decisionPatch(a: any, r: { who: string; share: boolean; category: string }, mode: SharingMode, members: any[], now: string) {
+  const auto = new Set(autoSetOf(a));
+  const patch: Record<string, unknown> = { ai_checked_at: now, ai_share: !!r.share };
+  if (!a.family_member_id || auto.has('member')) {
+    const m = members.find((x: any) => x.id === r.who);
+    if (m) { patch.family_member_id = m.id; patch.family_member_name = m.name; auto.add('member'); }
+  }
+  if (r.category && categoryIsAuto(a, auto)) { patch.category = r.category; auto.add('category'); }
+  if (visibilityIsAuto(a, auto)) { patch.visibility = visibilityFor(mode, !!r.share); auto.add('visibility'); }
+  patch.auto_set = [...auto];
+  return patch;
+}
+
+const SORT_DAYS = 60;
+const SORT_BATCH = 40;
+// Sort this person's imports in the next 60 days that haven't been sorted yet
+// (or that matched nobody, when a profile has been added since). A batch per
+// run keeps each sync quick; the rest go on the next sync.
+async function sortImports(db: any, user: any, familyId: string, tz: string) {
+  const today = todayIn(tz);
+  const until = addDays(today, SORT_DAYS);
+  const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
+  const { members, newest } = await sortMembers(db, familyId, user.id);
+  const due = mine.filter((a: any) => {
+    const near = !!a.recurrence || (String(a.end_date || a.date || '') >= today && String(a.date || '') <= until);
+    if (!near) return false;
+    if (!a.ai_checked_at) return true;
+    return !a.family_member_id && !!newest && String(a.ai_checked_at) < newest;
+  }).sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || ''))).slice(0, SORT_BATCH);
+  if (!due.length) return 0;
+  const results = await sortEvents(
+    due.map((a: any) => ({ key: a.id, title: a.title, notes: a.notes, location: a.location, with: a.doctor_name, date: a.date, time: a.time })),
+    { poster: user.display_name || user.full_name || '', members },
+  );
+  if (!results.size) return 0;
+  const mode = sharingMode(user);
+  const now = new Date().toISOString();
+  return inGroups(due.filter((a: any) => results.has(a.id)), (a: any) => db.Appointment.update(a.id, decisionPatch(a, results.get(a.id)!, mode, members, now)));
+}
+
+// The person changed their sharing choice: their imports that GenCare (not
+// they) set the sharing on follow it, from a week ago on.
+async function applySharing(db: any, user: any, familyId: string, tz: string) {
+  const mode = sharingMode(user);
+  const from = addDays(todayIn(tz), -7);
+  const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
+  const change = mine.filter((a: any) => {
+    if (!a.recurrence && String(a.end_date || a.date || '') < from) return false;
+    const auto = new Set(autoSetOf(a));
+    if (!visibilityIsAuto(a, auto)) return false;
+    return visibilityFor(mode, a.ai_share === true) !== (a.visibility || 'private') || !auto.has('visibility');
+  });
+  return inGroups(change, (a: any) => {
+    const auto = new Set(autoSetOf(a));
+    auto.add('visibility');
+    return db.Appointment.update(a.id, { visibility: visibilityFor(mode, a.ai_share === true), auto_set: [...auto] });
+  });
 }
 
 // Over already (or today and all-day)? The phone only reports events from now
@@ -164,7 +268,8 @@ async function pruneUnticked(db: any, user: any, familyId: string) {
 }
 
 function fieldsMatch(a: any, b: any) {
-  return ['title', 'date', 'time', 'end_time', 'end_date', 'all_day', 'location', 'notes', 'recurrence', 'visibility'].every((k) => (a?.[k] ?? '') === (b?.[k] ?? ''));
+  // Not sharing: that's set once when it comes in, then it's the family's.
+  return ['title', 'date', 'time', 'end_time', 'end_date', 'all_day', 'location', 'notes', 'recurrence'].every((k) => (a?.[k] ?? '') === (b?.[k] ?? ''));
 }
 
 Deno.serve(async (req) => {
@@ -189,9 +294,30 @@ Deno.serve(async (req) => {
       if (typeof body.export_enabled === 'boolean') patch.export_enabled = body.export_enabled;
       if (typeof body.export_calendar_id === 'string') patch.export_calendar_id = body.export_calendar_id;
       if (typeof body.export_reminder_minutes === 'number') patch.export_reminder_minutes = Math.max(-1, Math.min(1440, Math.round(body.export_reminder_minutes)));
+      if (['auto', 'family', 'private'].includes(String(body.event_sharing_default))) patch.event_sharing_default = String(body.event_sharing_default);
       if (Object.keys(patch).length) await db.User.update(user.id, patch);
-      const after = (await db.User.filter({ id: user.id }))?.[0] || user;
-      return Response.json({ ok: true, settings: pick(after) });
+      const after = (await db.User.filter({ id: user.id }))?.[0] || { ...user, ...patch };
+      let applied = 0;
+      if (patch.event_sharing_default && patch.event_sharing_default !== user.event_sharing_default) {
+        applied = await applySharing(db, after, familyId, tz);
+      }
+      return Response.json({ ok: true, settings: pick(after), applied });
+    }
+
+    if (mode === 'sort_imports') {
+      const sorted = await sortImports(db, user, familyId, tz);
+      return Response.json({ ok: true, sorted });
+    }
+
+    if (mode === 'sort') {
+      const e = body.event || {};
+      const title = String(e.title || '').trim();
+      if (!title) return Response.json({ ok: false, error: 'No title' }, { status: 400 });
+      const { members } = await sortMembers(db, familyId, user.id);
+      const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time }], { poster: user.display_name || user.full_name || '', members })).get('e');
+      if (!r) return Response.json({ ok: false, error: 'Could not sort' });
+      const m = members.find((x) => x.id === r.who);
+      return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, category: r.category });
     }
 
     if (mode === 'prune') {
@@ -252,7 +378,9 @@ Deno.serve(async (req) => {
             // Another import (the phone's background sync) may have saved it a moment ago.
             const already = ((await db.Appointment.filter({ family_id: familyId, device_key: key })) || []).length > 0;
             if (!already) {
-              await db.Appointment.create({ ...fields, family_id: familyId, device_key: key });
+              // Sharing follows the person's choice ("GenCare decides" starts
+              // it at Only me until it's sorted, a moment later).
+              await db.Appointment.create({ ...fields, visibility: sharingMode(user) === 'family' ? 'family' : 'private', auto_set: ['visibility', 'category'], family_id: familyId, device_key: key });
               created++;
             }
           }
@@ -283,7 +411,9 @@ Deno.serve(async (req) => {
           try { await db.Appointment.delete(extra.id); duplicates++; } catch (_) { /* the other run got it */ }
         }
       }
-      return Response.json({ ok: true, created, updated, removed, duplicates, total: seen.size, synced_at: new Date().toISOString() });
+      let sorted = 0;
+      try { sorted = await sortImports(db, user, familyId, tz); } catch (e) { console.error('[phoneCalendar] sort', (e as Error).message); }
+      return Response.json({ ok: true, created, updated, removed, duplicates, sorted, total: seen.size, synced_at: new Date().toISOString() });
     }
 
     if (mode === 'export_pull') {
@@ -411,5 +541,6 @@ function pick(u: any) {
     export_enabled: !!u.export_enabled,
     export_calendar_id: u.export_calendar_id || '',
     export_reminder_minutes: typeof u.export_reminder_minutes === 'number' ? u.export_reminder_minutes : 30,
+    event_sharing_default: sharingMode(u),
   };
 }

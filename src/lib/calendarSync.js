@@ -130,6 +130,16 @@ export function runImport(calendarIds, { force = false } = {}) {
   return importInFlight;
 }
 
+// "Who sees the events you add": saved, applied to this person's imports
+// that GenCare (not they) set the sharing on, then their unsorted imports get
+// sorted in the background.
+export async function saveSharingDefault(value) {
+  const settings = await saveCalendarSettings({ event_sharing_default: value });
+  refreshEvents();
+  base44.functions.invoke('phoneCalendar', { mode: 'sort_imports' }).then(() => refreshEvents()).catch(() => {});
+  return settings;
+}
+
 export function refreshEvents() {
   try { queryClientInstance.invalidateQueries({ queryKey: ['appointments'] }); } catch (e) { /* no cache yet */ }
 }

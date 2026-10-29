@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
@@ -6,7 +6,8 @@ import { withFamily } from '@/lib/family';
 import { exportSoon } from '@/lib/calendarSync';
 import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isValid, startOfMonth, endOfMonth, min as minDate, max as maxDate } from 'date-fns';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
-import { listEvents } from '@/lib/events';
+import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/events';
+import SharingChoiceDialog from '@/components/calendar/SharingChoice';
 import { CalendarDays, Plus, Smartphone } from 'lucide-react';
 import MonthView from '@/components/calendar/MonthView';
 import WeekView from '@/components/calendar/WeekView';
@@ -16,7 +17,8 @@ import EventDialog from '@/components/calendar/EventDialog';
 import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { getMemberColorClass } from '@/utils/memberColors';
+import { getMemberColorClass, getUserColorClass, PRIVATE_COLOR } from '@/utils/memberColors';
+import { useFamily } from '@/lib/family';
 import { toast } from '@/components/ui/use-toast';
 
 // The family calendar. Everyone in the family sees shared events; private
@@ -39,6 +41,7 @@ export default function CalendarPage() {
   const [editing, setEditing] = useState(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { me, members: accounts, refresh: refreshFamily } = useFamily();
 
   useEffect(() => {
     try { localStorage.setItem('gencare_calendar_view', view); } catch {}
@@ -89,32 +92,59 @@ export default function CalendarPage() {
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
     exportSoon();
   };
+  const notify = (action, id) => base44.functions.invoke('notifyFamily', { kind: 'appointment', action, appointment_id: id }).catch(() => {});
+  const sharingDefault = sharingDefaultOf(me);
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Appointment.create(withFamily(data)),
-    onSuccess: (created) => {
-      if (created?.id && created.visibility !== 'private') {
-        base44.functions.invoke('notifyFamily', { kind: 'appointment', action: 'added', appointment_id: created.id }).catch(() => {});
-      }
+    mutationFn: ({ data }) => base44.entities.Appointment.create(withFamily(data)),
+    onSuccess: (created, { left }) => {
+      if (created?.id && created.visibility !== 'private') notify('added', created.id);
       afterChange();
       setDialogOpen(false);
       setEditing(null);
+      // GenCare fills in what was left to it (who it's for, category, and
+      // with "GenCare decides", sharing) a moment later.
+      sortNewEvent(created, left, sharingDefault).then((r) => {
+        if (!r) {
+          if (left?.visibility && sharingDefault === 'auto') toast({ title: 'Added', description: 'Kept just for you for now. Tap the event to share it.' });
+          return;
+        }
+        if (r.becameShared) notify('added', created.id);
+        afterChange();
+        const line = sortedLine(r);
+        if (line) toast({ title: 'Added', description: line });
+      }).catch(() => {});
     },
     onError: (e) => toast({ title: 'Could not save the event', description: e?.message || 'Try again', variant: 'destructive' }),
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Appointment.update(id, data),
-    onSuccess: (_r, { id, data, wasPrivate }) => {
-      if (data.visibility !== 'private' || !wasPrivate) {
-        base44.functions.invoke('notifyFamily', { kind: 'appointment', action: data.visibility === 'private' ? 'removed' : 'changed', appointment_id: id }).catch(() => {});
-      }
-      afterChange();
-      setDialogOpen(false);
-      setEditing(null);
-    },
-    onError: (e) => toast({ title: 'Could not save the change', description: e?.message || 'Try again', variant: 'destructive' }),
-  });
+  // Editing saves as you go; the family is told once, when the event closes.
+  const editSession = useRef(null);
+  useEffect(() => {
+    if (dialogOpen && editing?.id && editSession.current?.id !== editing.id) {
+      const v = editing.visibility || 'family';
+      editSession.current = { id: editing.id, startVisibility: v, visibility: v, changed: false };
+    }
+  }, [dialogOpen, editing]);
+  const autoSave = async (data) => {
+    const id = editing?.id;
+    if (!id) return;
+    await base44.entities.Appointment.update(id, data);
+    const s = editSession.current;
+    if (s && s.id === id) { s.changed = true; s.visibility = data.visibility; }
+    queryClient.invalidateQueries({ queryKey: ['appointments'] });
+  };
+  const closeDialog = () => {
+    const s = editSession.current;
+    editSession.current = null;
+    setDialogOpen(false);
+    setEditing(null);
+    if (!s?.changed) return;
+    if (!(s.startVisibility === 'private' && s.visibility === 'private')) {
+      notify(s.visibility === 'private' ? 'removed' : s.startVisibility === 'private' ? 'added' : 'changed', s.id);
+    }
+    afterChange();
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (appt) => {
@@ -124,11 +154,16 @@ export default function CalendarPage() {
       }
       return base44.entities.Appointment.delete(appt.id);
     },
-    onSuccess: () => { afterChange(); setDialogOpen(false); setEditing(null); },
+    onSuccess: () => { editSession.current = null; afterChange(); setDialogOpen(false); setEditing(null); },
     onError: (e) => toast({ title: 'Could not delete', description: e?.message || 'Try again', variant: 'destructive' }),
   });
 
-  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const saving = createMutation.isPending || deleteMutation.isPending;
+
+  // "Who sees the events you add?", asked the first time (closed without an
+  // answer: asked again next visit). Never on top of another popup.
+  const [askClosed, setAskClosed] = useState(false);
+  const askSharing = !!me?.id && !sharingDefault && !askClosed && !dialogOpen && !phoneOpen && !params.get('open');
 
   // Repeating and multi-day events, one entry per day, for the days in view.
   const occurrences = useMemo(() => expandAppointments(appointments, range.from, range.to), [appointments, range]);
@@ -141,10 +176,7 @@ export default function CalendarPage() {
   // An occurrence of a series opens the series itself.
   const openEdit = (occ) => { setEditing(appointments.find((a) => a.id === rowIdOf(occ)) || occ); setDialogOpen(true); };
 
-  const onSave = (data) => {
-    if (editing?.id) updateMutation.mutate({ id: editing.id, data, wasPrivate: editing.visibility === 'private' });
-    else createMutation.mutate(data);
-  };
+  const onSave = (data, left) => { if (!editing?.id) createMutation.mutate({ data, left }); };
 
   return (
     <div className="pb-24 lg:pb-8">
@@ -162,16 +194,26 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {members.length > 0 && (
-        <div className="flex flex-wrap gap-3 mb-4 px-1">
-          {members.map(m => (
-            <div key={m.id} className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${getMemberColorClass(m, members)}`} />
-              <span className="text-xs text-muted-foreground">{m.name}</span>
-            </div>
-          ))}
+      {/* What the colors mean: whose event it is (about them, or from their
+          calendar when it's about nobody the app knows); gray is only you. */}
+      <div className="flex flex-wrap gap-3 mb-4 px-1">
+        {members.map(m => (
+          <div key={m.id} className="flex items-center gap-1.5">
+            <span className={`w-2.5 h-2.5 rounded-full ${getMemberColorClass(m, members)}`} />
+            <span className="text-xs text-muted-foreground">{m.name}</span>
+          </div>
+        ))}
+        {(accounts || []).filter((u) => !members.some((m) => m.linked_user_id === u.id)).map((u) => (
+          <div key={u.id} className="flex items-center gap-1.5">
+            <span className={`w-2.5 h-2.5 rounded-full ${getUserColorClass(u.id, members, accounts)}`} />
+            <span className="text-xs text-muted-foreground">{(u.full_name || u.email || '?').split(' ')[0]}</span>
+          </div>
+        ))}
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2.5 h-2.5 rounded-full ${PRIVATE_COLOR}`} />
+          <span className="text-xs text-muted-foreground">Only you</span>
         </div>
-      )}
+      </div>
 
       <Tabs value={view} onValueChange={setView} className="mb-6">
         <TabsList className="bg-muted rounded-xl mb-4">
@@ -233,15 +275,18 @@ export default function CalendarPage() {
 
       <EventDialog
         open={dialogOpen}
-        onClose={() => { setDialogOpen(false); setEditing(null); }}
+        onClose={closeDialog}
         appt={editing}
         defaultDate={selectedDate}
         members={members}
         onSave={onSave}
+        onAutoSave={autoSave}
         onDelete={(appt) => deleteMutation.mutate(appt)}
         saving={saving}
+        sharingDefault={sharingDefault}
       />
       <PhoneCalendarSheet open={phoneOpen} onClose={() => setPhoneOpen(false)} members={members} />
+      <SharingChoiceDialog open={askSharing} onClose={() => setAskClosed(true)} onSaved={() => { setAskClosed(true); refreshFamily?.(); }} />
     </div>
   );
 }

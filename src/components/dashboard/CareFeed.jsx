@@ -2,7 +2,8 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { parseISO, isToday, format, isValid } from 'date-fns';
-import { getMemberLightColorByMemberId } from '@/utils/memberColors';
+import { getMemberLightColorByMemberId, getEventLightColorClass } from '@/utils/memberColors';
+import { useFamily } from '@/lib/family';
 import { expandAppointments } from '@/lib/occurrences';
 import { summarize } from '@/lib/careLog';
 import { aroundKey, listEventsAround } from '@/lib/events';
@@ -28,6 +29,7 @@ function normalizeLog(entry) {
 }
 
 export default function CareFeed({ members = [], memberId, scope = 'today', limit = 15, title }) {
+  const { members: accounts } = useFamily();
   const logQ = useQuery({ queryKey: ['careLog', 'feed'], queryFn: () => base44.entities.CareLog.list('-timestamp', 300) });
   const apptQ = useQuery({ queryKey: aroundKey(), queryFn: listEventsAround });
 
@@ -49,6 +51,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       // An event only you can see isn't the whole family's.
       memberName: a.family_member_name || (a.visibility === 'private' ? 'You' : ''),
       label: cat && cat !== 'Other' ? cat : 'Event',
+      tint: a.visibility === 'private' ? 'bg-muted/40' : getEventLightColorClass(a, members, accounts),
       detail: [a.title, a.all_day ? 'All day' : ''].filter(Boolean).join(' · '),
       allDay: !!a.all_day || !a.time,
       when,
@@ -94,7 +97,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       {title && <h3 className="font-heading text-lg font-semibold mb-4">{title}</h3>}
       <div className="space-y-2">
         {items.map(i => (
-          <div key={i.id} className={`flex items-center gap-3 p-2.5 rounded-xl ${getMemberLightColorByMemberId(i.memberId, members)}`}>
+          <div key={i.id} className={`flex items-center gap-3 p-2.5 rounded-xl ${i.tint || getMemberLightColorByMemberId(i.memberId, members)}`}>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
                 {i.memberName || 'Family'} <span className="text-muted-foreground font-normal">· {i.label}</span>
