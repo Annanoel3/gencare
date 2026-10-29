@@ -156,7 +156,7 @@ export async function removeMember(userId) {
 }
 
 export async function leaveFamily() {
-  const res = await base44.functions.invoke('family', { mode: 'leave' });
+  const res = await base44.functions.invoke('family', { mode: 'leave', platform: phonePlatform() });
   const data = res?.data || res;
   if (!data?.ok) throw new Error(data?.error || 'Could not leave');
   return data;

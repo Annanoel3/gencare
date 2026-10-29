@@ -32,6 +32,12 @@ const SCOPED = [
 ];
 
 const TRIAL_DAYS = 7;
+// Where the free week is the store's own (App Store introductory offer: the
+// person starts it from the paywall and Apple charges after 7 days unless they
+// cancel). Anna chose that on Oct 29 2026. Families made anywhere else (Android
+// until Google Play billing is live in the app, the website) still get
+// GenCare's own free week with no card. Add 'android' once its build sells plans.
+const STORE_TRIAL_PLATFORMS = new Set(['ios']);
 
 function code6() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -89,12 +95,13 @@ async function backfill(db: any, userId: string, familyId: string) {
   return stamped;
 }
 
-async function createFamilyFor(db: any, user: any) {
+async function createFamilyFor(db: any, user: any, platform = '') {
   const name = user.full_name ? `${user.full_name.split(' ')[0]}'s Family` : 'My Family';
+  const storeTrial = STORE_TRIAL_PLATFORMS.has(String(platform || '').toLowerCase());
   const family = await db.Family.create({
     name,
     owner_user_id: user.id,
-    trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 86400e3).toISOString(),
+    ...(storeTrial ? {} : { trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 86400e3).toISOString() }),
     subscription_active: false,
   });
   await db.User.update(user.id, { family_id: family.id, family_role: 'owner' });
@@ -221,7 +228,7 @@ Deno.serve(async (req) => {
       if (!family && me.invite_code_used) {
         try { family = await joinByCode(db, me, me.invite_code_used); } catch (_) { family = null; }
       }
-      if (!family) family = await createFamilyFor(db, me);
+      if (!family) family = await createFamilyFor(db, me, body.platform);
       const after = (await db.User.filter({ id: me.id }))?.[0] || me;
       try { await ensureOwnProfile(db, after, family.id); } catch (e) { console.warn('[family] own profile:', (e as Error).message); }
       if (body.timezone && typeof body.timezone === 'string' && body.timezone !== after.timezone) {
@@ -329,7 +336,7 @@ Deno.serve(async (req) => {
 
     if (mode === 'leave') {
       try { await unlinkProfiles(db, me.id, family.id); } catch (_) { /* fine */ }
-      const fresh2 = await createFamilyFor(db, { ...me, family_id: null });
+      const fresh2 = await createFamilyFor(db, { ...me, family_id: null }, body.platform);
       const after = (await db.User.filter({ id: me.id }))?.[0] || me;
       return Response.json({ ok: true, family: fresh2, me: publicUser(after), members: await membersOf(db, fresh2.id), access: accessOf(fresh2, after) });
     }

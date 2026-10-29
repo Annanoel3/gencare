@@ -74,11 +74,13 @@ async function applyToFamily(db: any, user: any, info: any, event: string) {
     subscription_will_renew: !!info.will_renew,
     subscription_store: info.store,
     subscription_sandbox: !!info.sandbox,
+    subscription_trial: !!info.trial,
     subscription_synced_at: new Date().toISOString(),
     subscription_last_event: event,
   } : (family.subscription_user_id === user.id || !family.subscription_user_id) ? {
     subscription_active: false,
     subscription_will_renew: false,
+    subscription_trial: false,
     subscription_synced_at: new Date().toISOString(),
     subscription_last_event: event,
   } : null;
@@ -170,6 +172,8 @@ Deno.serve(async (req) => {
       will_renew: !!family.subscription_will_renew,
       store: family.subscription_store,
       sandbox: !!family.subscription_sandbox,
+      // Still in the store's free week: it starts charging at expires_at unless cancelled.
+      trial: !!family.subscription_trial,
     } : null,
   });
 });
