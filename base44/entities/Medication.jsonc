@@ -25,6 +25,7 @@
     },
     "frequency": {
       "enum": [
+        "Once",
         "Once daily",
         "Twice daily",
         "Three times daily",
@@ -45,6 +46,15 @@
       "type": "string"
     },
     "notes": {
+      "type": "string"
+    },
+    "once_date": {
+      "description": "For a one-time reminder (frequency Once): the day it happens",
+      "format": "date",
+      "type": "string"
+    },
+    "owner_user_id": {
+      "description": "Account that added it; for a private reminder, the only person who sees it and gets its push",
       "type": "string"
     },
     "refill_date": {
@@ -76,6 +86,15 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "visibility": {
+      "default": "family",
+      "description": "family = everyone in the family sees it and gets the push; private = only owner_user_id (\"Just me\")",
+      "enum": [
+        "family",
+        "private"
+      ],
+      "type": "string"
     }
   },
   "required": [
