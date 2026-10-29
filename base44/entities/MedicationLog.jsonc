@@ -78,19 +78,82 @@
     "day",
     "time"
   ],
-  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
     },
     "delete": {
-      "data.family_id": "{{user.data.family_id}}"
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.visibility": {
+                "$nin": [
+                  "private"
+                ]
+              }
+            },
+            {
+              "data.owner_user_id": "{{user.id}}"
+            },
+            {
+              "created_by_id": "{{user.id}}"
+            }
+          ]
+        }
+      ]
     },
     "read": {
-      "data.family_id": "{{user.data.family_id}}"
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.visibility": {
+                "$nin": [
+                  "private"
+                ]
+              }
+            },
+            {
+              "data.owner_user_id": "{{user.id}}"
+            },
+            {
+              "created_by_id": "{{user.id}}"
+            }
+          ]
+        }
+      ]
     },
     "update": {
-      "data.family_id": "{{user.data.family_id}}"
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.visibility": {
+                "$nin": [
+                  "private"
+                ]
+              }
+            },
+            {
+              "data.owner_user_id": "{{user.id}}"
+            },
+            {
+              "created_by_id": "{{user.id}}"
+            }
+          ]
+        }
+      ]
     }
-  }
+  },
+  "type": "object"
 }
