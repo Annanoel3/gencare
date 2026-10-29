@@ -1,0 +1,84 @@
+{
+  "description": "What people do in the app, for the owner's record keeping: app opens, screens, actions and errors, with the phone (iPhone, Android, website), app build and OS. Never the words people type. Only admins can read it; rows older than 90 days are cleared by the reminder job.",
+  "name": "AppActivity",
+  "properties": {
+    "at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "build": {
+      "description": "App build number (TestFlight / Play build), 0 on the website",
+      "type": "number"
+    },
+    "detail": {
+      "description": "Short technical detail (an error message, a permission state); never what someone wrote",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "open",
+        "screen",
+        "action",
+        "error",
+        "permission"
+      ],
+      "type": "string"
+    },
+    "name": {
+      "description": "Screen path, action name (add:task) or error title",
+      "type": "string"
+    },
+    "os": {
+      "description": "Phone system and version, e.g. iOS 18.1, Android 14",
+      "type": "string"
+    },
+    "platform": {
+      "enum": [
+        "ios",
+        "android",
+        "web"
+      ],
+      "type": "string"
+    },
+    "session": {
+      "description": "One app session (from opening the app until it's closed)",
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "kind",
+    "name",
+    "at"
+  ],
+  "rls": {
+    "create": {
+      "data.user_id": "{{user.id}}"
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object"
+}
