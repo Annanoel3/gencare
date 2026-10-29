@@ -48,7 +48,7 @@ export default function Subscribe({ gate = false }) {
     try {
       const r = await buyPlan(pkg.id);
       if (r.cancelled) return;
-      if (r.pending) { toast({ title: 'Payment pending', description: 'Google Play is still confirming it. The plan switches on as soon as it goes through.' }); return; }
+      if (r.pending) { toast({ title: 'Payment pending', description: `${isAndroidApp() ? 'Google Play' : 'The App Store'} is still confirming it. The plan switches on as soon as it goes through.` }); return; }
       if (r.active) {
         toast({ title: 'Welcome to GenCare Family', description: `Everyone in ${family?.name || 'your family'} is covered.` });
         await refresh();
@@ -65,7 +65,7 @@ export default function Subscribe({ gate = false }) {
     try {
       const r = await restorePurchases();
       if (r.active) { toast({ title: 'Subscription restored' }); await refresh(); }
-      else toast({ title: 'Nothing to restore', description: 'No active GenCare subscription on this Google account.' });
+      else toast({ title: 'Nothing to restore', description: `No active GenCare subscription on this ${isAndroidApp() ? 'Google' : 'Apple'} account.` });
     } catch (e) {
       toast({ title: 'Could not restore', description: e?.message || 'Try again', variant: 'destructive' });
     } finally { setBusy(''); }

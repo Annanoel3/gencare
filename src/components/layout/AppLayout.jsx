@@ -295,7 +295,8 @@ function AppShell() {
         })}
       </div>
 
-      <QuickCaptureButton />
+      {/* Not on the plan screen, where it would sit on the Terms and Privacy links. */}
+      {location.pathname !== '/subscribe' && <QuickCaptureButton />}
     </div>
   );
 }
