@@ -120,6 +120,11 @@
       "format": "date-time",
       "type": "string"
     },
+    "repeat_until": {
+      "description": "A repeating task's last day: finishing it makes no next copy after this day. Empty = no end picked (\"I don't know\")",
+      "format": "date",
+      "type": "string"
+    },
     "status": {
       "default": "pending",
       "enum": [
