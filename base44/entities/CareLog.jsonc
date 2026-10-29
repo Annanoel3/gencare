@@ -17,7 +17,7 @@
       "type": "string"
     },
     "date": {
-      "description": "A date the entry points at (pickup, deadline, cycle start)",
+      "description": "A date the entry points at (pickup, deadline, paperwork due)",
       "format": "date",
       "type": "string"
     },
