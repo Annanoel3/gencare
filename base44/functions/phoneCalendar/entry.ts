@@ -193,9 +193,9 @@ async function inGroups<T>(list: T[], fn: (x: T) => Promise<unknown>, size = 8) 
 }
 
 // What one sorting answer changes on an event: only the fields nobody picked.
-function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean; category: string }, mode: SharingMode, members: any[], now: string) {
+function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean; cover?: string; category: string }, mode: SharingMode, members: any[], now: string) {
   const auto = new Set(autoSetOf(a));
-  const patch: Record<string, unknown> = { ai_checked_at: now, ai_share: !!r.share, ai_trip: !!r.trip };
+  const patch: Record<string, unknown> = { ai_checked_at: now, ai_share: !!r.share, ai_trip: !!r.trip, ai_cover: r.cover || '' };
   if (!a.family_member_id || auto.has('member')) {
     const m = members.find((x: any) => x.id === r.who);
     if (m) { patch.family_member_id = m.id; patch.family_member_name = m.name; auto.add('member'); }
@@ -231,15 +231,31 @@ async function sortRows(db: any, user: any, familyId: string, rows: any[], membe
   return counts.reduce((x, y) => x + y, 0);
 }
 
-// "<Name> traveling": the family sees one all-day event per trip (from the
-// first to the last day of the person's own trip events, a day's gap still
-// counting as one trip), never the flights or hotels themselves. Kept in step
-// with the trip events every time they're sorted or imported: dates follow,
-// one that no longer matches a trip is removed.
+// Stand-ins the family sees in place of a person's private events:
+//   "<Name> traveling": one all-day event per trip (from the first to the last
+//     day of their own trip events, a day's gap still one trip), never the
+//     hotels or plans while away (away_of = their user id).
+//   "<Name>: doctor": for a private appointment the family would still want
+//     to know is happening (ai_cover), the time and that plain label only;
+//     overlapping ones on a day become one (cover_of = the private event).
+// Kept in step every time events are sorted or imported: times follow, one
+// that no longer matches is removed, and an event the person shares itself
+// needs no stand-in.
 async function syncAway(db: any, user: any, familyId: string) {
   const mine = (await db.Appointment.filter({ family_id: familyId, created_by_user_id: user.id })) || [];
-  const trips = mine
-    .filter((a: any) => a.ai_trip === true && !a.away_of && a.date)
+  const real = mine.filter((a: any) => !a.away_of && !a.cover_of && a.date);
+  const profile = ((await db.FamilyMember.filter({ family_id: familyId, linked_user_id: user.id })) || [])[0];
+  const first = String(user.display_name || user.full_name || '').split(' ')[0] || 'Someone';
+  const base = {
+    shared_with: [], notes: '', location: '', doctor_name: '', reminder_minutes: -1, visibility: 'family',
+    family_member_id: profile?.id || '', family_member_name: profile?.name || '',
+  };
+  const make = (extra: Record<string, unknown>) => db.Appointment.create({ ...base, ...extra, family_id: familyId, source: 'app', created_by_user_id: user.id, created_by_name: user.display_name || user.full_name || '', auto_set: ['visibility'] });
+  const differs = (m: any, f: Record<string, unknown>) => Object.keys(f).some((k) => String(m[k] ?? '') !== String(f[k] ?? ''));
+
+  // Trips
+  const trips = real
+    .filter((a: any) => a.ai_trip === true)
     .map((a: any) => ({ s: String(a.date), e: a.end_date && a.end_date > a.date ? String(a.end_date) : String(a.date) }))
     .sort((x: any, y: any) => x.s.localeCompare(y.s));
   const spans: { s: string; e: string }[] = [];
@@ -247,27 +263,44 @@ async function syncAway(db: any, user: any, familyId: string) {
     const last = spans[spans.length - 1];
     if (last && t.s <= addDays(last.e, 1)) { if (t.e > last.e) last.e = t.e; } else spans.push({ ...t });
   }
-  const markers = mine.filter((a: any) => a.away_of === user.id);
-  const profile = ((await db.FamilyMember.filter({ family_id: familyId, linked_user_id: user.id })) || [])[0];
-  const first = String(user.display_name || user.full_name || '').split(' ')[0] || 'Someone';
-  const used = new Set<string>();
+  const awayMarkers = mine.filter((a: any) => a.away_of === user.id);
+  const usedAway = new Set<string>();
   for (const sp of spans) {
-    const fields = {
-      title: `${first} traveling`, date: sp.s, end_date: sp.e > sp.s ? sp.e : '', all_day: true, time: '', end_time: '',
-      visibility: 'family', shared_with: [], category: 'Other', notes: '', location: '', reminder_minutes: -1,
-      family_member_id: profile?.id || '', family_member_name: profile?.name || '',
-    };
-    const m = markers.find((x: any) => !used.has(x.id) && String(x.date) <= sp.e && String(x.end_date || x.date) >= sp.s);
-    if (m) {
-      used.add(m.id);
-      if (m.date !== fields.date || String(m.end_date || '') !== fields.end_date || m.title !== fields.title || m.family_member_id !== fields.family_member_id) {
-        await db.Appointment.update(m.id, fields);
-      }
-    } else {
-      await db.Appointment.create({ ...fields, family_id: familyId, source: 'app', away_of: user.id, created_by_user_id: user.id, created_by_name: user.display_name || user.full_name || '', auto_set: ['visibility'] });
-    }
+    const f = { title: `${first} traveling`, date: sp.s, end_date: sp.e > sp.s ? sp.e : '', all_day: true, time: '', end_time: '', category: 'Other', family_member_id: base.family_member_id };
+    const m = awayMarkers.find((x: any) => !usedAway.has(x.id) && String(x.date) <= sp.e && String(x.end_date || x.date) >= sp.s);
+    if (m) { usedAway.add(m.id); if (differs(m, f)) await db.Appointment.update(m.id, f); }
+    else await make({ ...f, away_of: user.id });
   }
-  for (const m of markers) if (!used.has(m.id)) { try { await db.Appointment.delete(m.id); } catch (_) { /* gone */ } }
+  for (const m of awayMarkers) if (!usedAway.has(m.id)) { try { await db.Appointment.delete(m.id); } catch (_) { /* gone */ } }
+
+  // Private appointments the family should know are happening
+  const covered = real
+    .filter((a: any) => a.visibility === 'private' && String(a.ai_cover || '').trim() && !a.recurrence)
+    .sort((x: any, y: any) => String(x.date).localeCompare(String(y.date)) || String(x.time || '').localeCompare(String(y.time || '')));
+  const groups: { ids: string[]; date: string; s: string; e: string; allDay: boolean; labels: Set<string> }[] = [];
+  for (const a of covered) {
+    const allDay = !!a.all_day || !a.time;
+    const s0 = allDay ? '' : String(a.time);
+    const e0 = allDay ? '' : String(a.end_time || a.time);
+    const g = groups.find((x) => x.date === a.date && (x.allDay || allDay || (s0 <= x.e && e0 >= x.s)));
+    if (g) {
+      g.ids.push(a.id); g.labels.add(String(a.ai_cover).trim().toLowerCase());
+      if (allDay) g.allDay = true;
+      if (s0 && (!g.s || s0 < g.s)) g.s = s0;
+      if (e0 > g.e) g.e = e0;
+    } else groups.push({ ids: [a.id], date: a.date, s: s0, e: e0, allDay, labels: new Set([String(a.ai_cover).trim().toLowerCase()]) });
+  }
+  const coverMarkers = mine.filter((a: any) => a.cover_of);
+  const usedCover = new Set<string>();
+  for (const g of groups) {
+    const label = g.labels.size === 1 ? [...g.labels][0] : 'appointment';
+    const f = { title: `${first}: ${label}`, date: g.date, end_date: '', all_day: g.allDay, time: g.allDay ? '' : g.s, end_time: g.allDay ? '' : (g.e > g.s ? g.e : ''), category: 'Appointment', family_member_id: base.family_member_id };
+    const m = coverMarkers.find((x: any) => !usedCover.has(x.id) && g.ids.includes(String(x.cover_of)))
+      || coverMarkers.find((x: any) => !usedCover.has(x.id) && x.date === g.date);
+    if (m) { usedCover.add(m.id); if (differs(m, { ...f, cover_of: g.ids[0] })) await db.Appointment.update(m.id, { ...f, cover_of: g.ids[0] }); }
+    else await make({ ...f, cover_of: g.ids[0] });
+  }
+  for (const m of coverMarkers) if (!usedCover.has(m.id)) { try { await db.Appointment.delete(m.id); } catch (_) { /* gone */ } }
 }
 
 // This person's events from a week ago through the next 60 days (and repeating ones).
@@ -295,7 +328,7 @@ async function sortImports(db: any, user: any, familyId: string, tz: string) {
 // sorted fresh. Still only touches what nobody picked by hand.
 async function resortAll(db: any, user: any, familyId: string, tz: string) {
   const mine = ((await db.Appointment.filter({ family_id: familyId, created_by_user_id: user.id })) || [])
-    .filter((a: any) => !a.away_of && inSortWindow(a, tz))
+    .filter((a: any) => !a.away_of && !a.cover_of && inSortWindow(a, tz))
     .sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || '')))
     .slice(0, SORT_BATCH * 5);
   const sorted = await sortRows(db, user, familyId, mine);
@@ -410,7 +443,7 @@ Deno.serve(async (req) => {
       const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time }], { poster: user.display_name || user.full_name || '', posterId: user.id, members })).get('e');
       if (!r) return Response.json({ ok: false, error: 'Could not sort' });
       const m = members.find((x) => x.id === r.who);
-      return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, category: r.category });
+      return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, cover: r.cover, category: r.category });
     }
 
     if (mode === 'prune') {
@@ -537,7 +570,7 @@ Deno.serve(async (req) => {
       for (const a of wanted.values()) {
         const link = byAppt.get(a.id);
         const poster = a.created_by_user_id && a.created_by_user_id !== user.id ? String(a.created_by_name || '').split(' ')[0] : '';
-        const forWhom = a.away_of ? '' : a.family_member_name ? `${a.family_member_name}: ` : poster ? `${poster}: ` : '';
+        const forWhom = a.away_of || a.cover_of ? '' : a.family_member_name ? `${a.family_member_name}: ` : poster ? `${poster}: ` : '';
         const title = `${forWhom}${a.title}`;
         const description = [a.notes || '', a.doctor_name ? `With ${a.doctor_name}` : '', 'Added from GenCare'].filter(Boolean).join('\n');
         const eventTz = a.timezone ? safeTz(a.timezone) : tz;

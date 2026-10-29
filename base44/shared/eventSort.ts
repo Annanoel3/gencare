@@ -22,15 +22,17 @@ who: the id of the family profile the event is about: the person or pet who has 
 
 share: be picky. The shared calendar is for what the rest of the family needs to know or plan around, not everything on someone's phone. Share (true): events about the people being cared for, the kids or the pets; family plans and gatherings the family takes part in; household matters; and the person's own flights (the family wants the flight numbers and times). Keep private (false): the person's own appointments and health, the rest of their own trips (hotels, Airbnbs, events while away), their own work, their own plans with friends, errands, bills and money, gifts or surprises, and anything sensitive. When unsure, keep it private: showing the family something private does more harm than keeping something to themselves.
 
-trip: true when the event is part of the person's own trip away from home: their flights, hotel or Airbnb stays, and things they do while away (a destination wedding). The family sees one "<name> traveling" note for the trip instead of the details. false for everything else, including someone else's travel.
+trip: true only when the event is clearly part of the person's own trip away from home: their flights, their hotel or Airbnb stay somewhere else, and things they do while away (a destination wedding). The family sees one "<name> traveling" note for the trip. A stay named for someone else or a guest coming to town ("Lorenzo Airbnb" when Lorenzo is visiting) is a visit, not their trip. When unsure, false.
+
+cover: when share is false because it's the person's own appointment that the family would still want to know is happening (a doctor, dentist or eye appointment), a plain label the family sees in its place, with the time and nothing else: "doctor", "dentist", "eye doctor". For anything sensitive (therapy, counseling, intimate health) use just "appointment". "" for everything else (work, friends, errands, money, gifts, trips).
 
 category: Appointment, School, Work, Sports, Social or Other.
 
-Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id, self, or empty>","share":false,"trip":false,"category":"Appointment"}]} with one entry for every event.`;
+Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id, self, or empty>","share":false,"trip":false,"cover":"","category":"Appointment"}]} with one entry for every event.`;
 
 export type SortMember = { id: string; name: string; relationship?: string; added_by?: string; added_by_id?: string; is_poster?: boolean; is_pet?: boolean };
 export type SortItem = { key: string; title: string; notes?: string; location?: string; with?: string; date?: string; time?: string };
-export type SortResult = { who: string; self: boolean; share: boolean; trip: boolean; category: string };
+export type SortResult = { who: string; self: boolean; share: boolean; trip: boolean; cover: string; category: string };
 
 // "Mom"/"Dad" in a title the model left without a profile: the one Mother /
 // Father profile the person who added it made themselves, if there's exactly one.
@@ -94,6 +96,7 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; poste
           self,
           share: r?.share === true,
           trip: r?.trip === true,
+          cover: r?.share === true ? "" : String(r?.cover || "").replace(/[^\p{L}\p{N} '-]/gu, "").trim().slice(0, 30),
           category: SORT_CATEGORIES.includes(String(r?.category)) ? String(r.category) : "",
         });
       }
