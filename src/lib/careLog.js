@@ -105,7 +105,7 @@ export const CATALOG = {
     { type: 'schoolwork', label: 'Schoolwork', icon: '📝', fields: [TITLE('Assignment', 'e.g. science project'), DUE, DONE, { key: 'grade', kind: 'text', label: 'Grade', placeholder: 'e.g. A-' }, NOTES] },
     { type: 'extracurricular', label: 'Activity', icon: '🎭', fields: [TITLE('Activity', 'e.g. band rehearsal'), DATE('When'), TIME(), { key: 'location', kind: 'text', label: 'Where' }, NOTES] },
     { type: 'chore', label: 'Chore', icon: '🧹', fields: [TITLE('Chore', 'e.g. take out trash'), AMOUNT('Points', 'pts'), DONE, NOTES] },
-    { type: 'puberty', label: 'Puberty', icon: '🌱', fields: [SUB('About', ['menstrual', 'acne', 'growth']), { key: 'date', kind: 'date', label: 'Cycle start', when: (f) => f.sub_type === 'menstrual' }, NOTES] },
+    { type: 'puberty', label: 'Puberty', icon: '🌱', fields: [SUB('About', ['growth', 'skin', 'voice', 'other']), NOTES] },
     { type: 'hygiene', label: 'Hygiene', icon: '🪥', fields: [SUB('Habit', ['shower', 'teeth', 'deodorant']), NOTES] },
     { type: 'mental', label: 'Feelings', icon: '💭', fields: [MOOD, { key: 'level', kind: 'level', label: 'Stress (1–5)' }, { key: 'title', kind: 'text', label: "What's on their mind", placeholder: 'e.g. test tomorrow' }, NOTES] },
     { type: 'screen_time', label: 'Screen time', icon: '📱', fields: [MIN(), NOTES] },
