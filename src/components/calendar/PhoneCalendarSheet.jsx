@@ -22,9 +22,9 @@ const REMINDERS = [
 ];
 
 // "Phone calendar": two independent halves.
-//   Bring in — tick phone calendars to import into GenCare. Each imported
-//     calendar starts PRIVATE (only you see those events); flip "Share with
-//     family" per calendar to put it on the family calendar.
+//   Bring in — tick phone calendars to import into GenCare. Imported events
+//     come in as "Only me"; you share them one event at a time (open the event,
+//     Share with). Never a whole calendar at once. Birthdays stay out.
 //   Send to my phone — pick ONE phone calendar GenCare writes into. What lands
 //     there is decided per event by whoever adds it ("Share with" on the
 //     event): the whole family, certain people, or only themselves.
@@ -44,7 +44,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
     const st = await calendarStatus().catch(() => null);
     if (st?.ok) { setSettings(st.settings); setStatus(st); }
     else if (me) setSettings({
-      device_calendar_ids: me.device_calendar_ids || [], import_share_calendar_ids: me.import_share_calendar_ids || [],
+      device_calendar_ids: me.device_calendar_ids || [],
       export_enabled: !!me.export_enabled, export_calendar_id: me.export_calendar_id || '',
       export_reminder_minutes: typeof me.export_reminder_minutes === 'number' ? me.export_reminder_minutes : 30,
     });
@@ -90,17 +90,14 @@ export default function PhoneCalendarSheet({ open, onClose }) {
       setBusy('import');
       try {
         const r = await runImport(next.device_calendar_ids, { force: true });
-        if (r?.ok) toast({ title: 'Calendar brought in', description: `${r.created} new, ${r.updated} updated.` });
+        if (r?.ok) {
+          const n = typeof r.total === 'number' ? r.total : r.created;
+          toast({ title: 'Calendar brought in', description: n ? `${n} upcoming event${n === 1 ? '' : 's'} from your phone. Only you see them until you open one and share it.` : 'No upcoming events in that calendar.' });
+        }
       } catch (e) {
         toast({ title: 'Could not read that calendar', description: 'Check that GenCare is allowed to read your calendar.', variant: 'destructive' });
       } finally { setBusy(''); }
     }
-  };
-
-  const toggleShare = async (id, on) => {
-    const ids = new Set(settings.import_share_calendar_ids || []);
-    if (on) ids.add(id); else ids.delete(id);
-    await save({ import_share_calendar_ids: [...ids] });
   };
 
   const setExport = async (patch) => {
@@ -166,7 +163,6 @@ export default function PhoneCalendarSheet({ open, onClose }) {
                 <div className="space-y-2">
                   {calendars.map((c) => {
                     const on = (settings.device_calendar_ids || []).includes(c.id);
-                    const shared = (settings.import_share_calendar_ids || []).includes(c.id);
                     return (
                       <div key={c.id} className="rounded-xl border border-border p-3">
                         <label className="flex items-center gap-3">
@@ -177,15 +173,10 @@ export default function PhoneCalendarSheet({ open, onClose }) {
                             <span className="block text-xs text-muted-foreground truncate">{c.account}</span>
                           </span>
                         </label>
-                        {on && (
-                          <label className="flex items-center justify-between gap-3 mt-2 pl-7 text-xs">
-                            <span className="text-muted-foreground">{shared ? 'Shared with the family' : 'Only you see these events'}</span>
-                            <Switch checked={shared} onCheckedChange={(v) => toggleShare(c.id, !!v)} />
-                          </label>
-                        )}
                       </div>
                     );
                   })}
+                  <p className="text-xs text-muted-foreground">Events from your phone come in as "Only me". To share one, open it on the calendar and pick who it's for under Share with. Birthdays aren't brought in.</p>
                   {status && <p className="text-xs text-muted-foreground">{status.imported} event{status.imported === 1 ? '' : 's'} from your phone. New ones come in on their own, even with GenCare closed.</p>}
                 </div>
               )}

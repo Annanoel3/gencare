@@ -6,14 +6,17 @@ import { canSee } from '../../shared/sharing.ts';
 // Android app's CalendarSyncWorker with the app closed.
 //
 //   { mode: "settings", ...fields }   -> saves the person's choices (which phone
-//        calendars to import, which of those to share with the family, whether
-//        and where to export, and the export filter) on their User row.
+//        calendars to import, whether and where to export) on their User row.
 //   { mode: "import", calendarIds, rows } -> rows as CalendarBridge.readEvents
 //        gives them. Each becomes an Appointment (source "phone") keyed by
 //        device_key so it's never imported twice; edits on the phone update it;
-//        an event gone from the phone is removed here. Imported events are
-//        PRIVATE unless the person shared that calendar (import_share_calendar_ids),
-//        so importing a personal Google calendar never floods the family.
+//        an event gone from the phone is removed here. Imported events come in
+//        as "Only me": sharing is decided per event by the person (Share with on
+//        the event), never for a whole calendar at once, and a share they set
+//        stays when the phone changes the event. Birthdays are not brought in.
+//        Two imports can run at once (the app and the phone's background sync):
+//        each one checks for the event again right before saving it, and the
+//        end of every run removes any copy that slipped through.
 //   { mode: "export_pull" }  -> what to write to THIS person's phone: every
 //        event that was shared with them (the whole family, or them by name)
 //        plus their own, with the calendar to write into, and the phone events
@@ -68,9 +71,13 @@ async function hashOf(s: string) {
 }
 
 function isHolidayFeed(name: string) { return /^holidays? in /i.test(String(name || '').trim()); }
+// Birthdays stay out of GenCare (a whole birthday calendar, or a birthday event).
+function isBirthday(row: any) {
+  return /birthday/i.test(String(row.calendarName || '')) || /\b(birthday|bday|b-day)\b/i.test(String(row.title || ''));
+}
 
 // One phone row -> appointment fields.
-function rowToAppointment(row: any, calendarId: string, tz: string, shared: boolean, user: any) {
+function rowToAppointment(row: any, calendarId: string, tz: string, user: any) {
   const begin = Number(row.nextBegin) || Number(row.dtstart) || 0;
   if (!begin) return null;
   let end = Number(row.nextEnd) || Number(row.dtend) || 0;
@@ -99,7 +106,7 @@ function rowToAppointment(row: any, calendarId: string, tz: string, shared: bool
     notes: String(row.description || '').slice(0, 4000),
     category: guessCategory(title),
     source: 'phone',
-    visibility: shared ? 'family' : 'private',
+    visibility: 'private',
     recurrence: row.rrule ? `RRULE:${row.rrule}` : '',
     created_by_user_id: user.id,
     created_by_name: user.display_name || user.full_name || '',
@@ -141,20 +148,10 @@ Deno.serve(async (req) => {
       const patch: Record<string, unknown> = {};
       const arr = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean) : null);
       if (arr(body.device_calendar_ids)) patch.device_calendar_ids = arr(body.device_calendar_ids);
-      if (arr(body.import_share_calendar_ids)) patch.import_share_calendar_ids = arr(body.import_share_calendar_ids);
       if (typeof body.export_enabled === 'boolean') patch.export_enabled = body.export_enabled;
       if (typeof body.export_calendar_id === 'string') patch.export_calendar_id = body.export_calendar_id;
       if (typeof body.export_reminder_minutes === 'number') patch.export_reminder_minutes = Math.max(-1, Math.min(1440, Math.round(body.export_reminder_minutes)));
       if (Object.keys(patch).length) await db.User.update(user.id, patch);
-      // Sharing changed: the imported events follow the calendar's setting.
-      if (patch.import_share_calendar_ids) {
-        const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
-        for (const a of mine) {
-          const cal = String(a.device_key || '').split(':')[1] || '';
-          const want = (patch.import_share_calendar_ids as string[]).includes(cal) ? 'family' : 'private';
-          if (a.visibility !== want) await db.Appointment.update(a.id, { visibility: want, last_changed_at: new Date().toISOString() });
-        }
-      }
       const after = (await db.User.filter({ id: user.id }))?.[0] || user;
       return Response.json({ ok: true, settings: pick(after) });
     }
@@ -163,7 +160,6 @@ Deno.serve(async (req) => {
       const calendarIds: string[] = (Array.isArray(body.calendarIds) ? body.calendarIds : []).map(String).filter(Boolean);
       const rows: any[] = Array.isArray(body.rows) ? body.rows : [];
       if (!calendarIds.length) return Response.json({ ok: true, created: 0, updated: 0, removed: 0, skipped: 'no_calendars' });
-      const shareIds: string[] = Array.isArray(user.import_share_calendar_ids) ? user.import_share_calendar_ids.map(String) : [];
       // Rows GenCare itself wrote to this phone (exports) must not come back as imports.
       const links = (await db.CalendarExportLink.filter({ user_id: user.id })) || [];
       const exportedIds = new Set(links.map((l: any) => String(l.device_event_id || '')).filter(Boolean));
@@ -177,10 +173,11 @@ Deno.serve(async (req) => {
         if (!calendarIds.includes(cal)) continue;
         if (exportedIds.has(String(row.id || ''))) continue;
         if (isHolidayFeed(row.calendarName || '')) continue;
+        if (isBirthday(row)) continue;
         const key = row.originalId
           ? `${user.id}:${cal}:${row.originalId}_${row.originalInstanceTime || row.dtstart || 0}`
           : `${user.id}:${cal}:${row.id}`;
-        const fields = rowToAppointment(row, cal, tz, shareIds.includes(cal), user);
+        const fields = rowToAppointment(row, cal, tz, user);
         if (!fields) continue;
         if (fields.date > horizon) continue;
         seen.add(key);
@@ -188,10 +185,10 @@ Deno.serve(async (req) => {
         if (have) {
           if (!fieldsMatch(have, fields)) {
             const keep: Record<string, unknown> = { ...fields };
-            // What the family changed here stays: who it's for, the category, visibility if shared by hand.
+            // What the family changed here stays: who it's for, the category, who it's shared with.
             if (have.family_member_id) { delete keep.family_member_id; }
             if (have.category && have.category !== 'Other') delete keep.category;
-            if (have.visibility === 'family' && !shareIds.includes(cal)) delete keep.visibility;
+            delete keep.visibility;
             await db.Appointment.update(have.id, keep);
             updated++;
           }
@@ -203,19 +200,38 @@ Deno.serve(async (req) => {
             await db.Appointment.update(twin.id, { device_key: key, source: 'phone', created_by_user_id: twin.created_by_user_id || user.id });
             updated++;
           } else {
-            await db.Appointment.create({ ...fields, family_id: familyId, device_key: key });
-            created++;
+            // Another import (the phone's background sync) may have saved it a moment ago.
+            const already = ((await db.Appointment.filter({ family_id: familyId, device_key: key })) || []).length > 0;
+            if (!already) {
+              await db.Appointment.create({ ...fields, family_id: familyId, device_key: key });
+              created++;
+            }
           }
         }
       }
-      // Gone from the phone (in a calendar we were sent): gone here.
+      // Gone from the phone (in a calendar we were sent), or a birthday: gone here.
       for (const a of existing) {
         const cal = String(a.device_key || '').split(':')[1] || '';
         if (!calendarIds.includes(cal) || seen.has(a.device_key)) continue;
         await db.Appointment.delete(a.id);
         removed++;
       }
-      return Response.json({ ok: true, created, updated, removed, synced_at: new Date().toISOString() });
+      // Two imports at once can each save the same event: keep one copy. Every
+      // run picks the same keeper (one someone shared or assigned, else the
+      // oldest), so two runs cleaning up at once never delete each other's.
+      const now = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
+      const groups = new Map<string, any[]>();
+      for (const a of now) { if (a.device_key) (groups.get(a.device_key) || groups.set(a.device_key, []).get(a.device_key)!).push(a); }
+      let duplicates = 0;
+      for (const list of groups.values()) {
+        if (list.length < 2) continue;
+        const touched = (a: any) => (a.visibility && a.visibility !== 'private') || a.family_member_id || (a.category && a.category !== 'Other' && a.category !== guessCategory(a.title || ''));
+        list.sort((a: any, b: any) => (Number(!!touched(b)) - Number(!!touched(a))) || String(a.created_date || '').localeCompare(String(b.created_date || '')) || String(a.id).localeCompare(String(b.id)));
+        for (const extra of list.slice(1)) {
+          try { await db.Appointment.delete(extra.id); duplicates++; } catch (_) { /* the other run got it */ }
+        }
+      }
+      return Response.json({ ok: true, created, updated, removed, duplicates, total: seen.size, synced_at: new Date().toISOString() });
     }
 
     if (mode === 'export_pull') {

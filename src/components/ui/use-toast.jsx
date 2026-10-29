@@ -1,8 +1,12 @@
 // Inspired by react-hot-toast library
 import { useState, useEffect } from "react";
 
-const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+// Every toast closes on its own after DEFAULT_DURATION (pass `duration` to
+// change one), and its X closes it right away. A closed toast is removed a
+// moment later so it can animate out.
+const TOAST_LIMIT = 3;
+const TOAST_REMOVE_DELAY = 300;
+const DEFAULT_DURATION = 5000;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -133,6 +137,9 @@ function toast({ ...props }) {
       },
     },
   });
+
+  const ms = typeof props.duration === 'number' && props.duration > 0 ? props.duration : DEFAULT_DURATION;
+  setTimeout(dismiss, ms);
 
   return {
     id,
