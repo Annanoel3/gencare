@@ -37,6 +37,11 @@
       "format": "date-time",
       "type": "string"
     },
+    "subscription_trial": {
+      "default": false,
+      "description": "The covering subscription is still in its store free trial (App Store / Google Play), so it starts charging at subscription_expires_at unless cancelled",
+      "type": "boolean"
+    },
     "subscription_user_id": {
       "description": "The family member whose Google Play / App Store subscription covers the family",
       "type": "string"
@@ -46,7 +51,7 @@
       "type": "boolean"
     },
     "trial_ends_at": {
-      "description": "Free for 7 days from when the family was created",
+      "description": "GenCare's own free week (no card), for families made where store billing isn't live yet (Android, web). iPhone families made after Oct 29 2026 use the App Store's free week instead and have none",
       "format": "date-time",
       "type": "string"
     }
@@ -54,6 +59,7 @@
   "required": [
     "name"
   ],
+  "type": "object",
   "rls": {
     "delete": {
       "user_condition": {
@@ -75,6 +81,5 @@
         }
       ]
     }
-  },
-  "type": "object"
+  }
 }
