@@ -3,8 +3,9 @@ import { track } from '@/lib/activity';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Send, Pin, ImagePlus, Loader2, X, RefreshCw, Reply, Trash2, Pencil, Check, ClipboardList } from 'lucide-react';
-import { format, parseISO, isValid, isToday } from 'date-fns';
+import { format, isToday } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { serverDate } from '@/lib/serverTime';
 import { useFamily } from '@/lib/family';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -172,8 +173,8 @@ export default function Messages() {
 }
 
 function when(d) {
-  const t = d ? parseISO(d) : null;
-  if (!t || !isValid(t)) return '';
+  const t = serverDate(d);
+  if (!t) return '';
   return isToday(t) ? format(t, 'h:mm a') : format(t, 'MMM d, h:mm a');
 }
 

@@ -37,6 +37,8 @@ const HOURS = [7, 8, 9, 12, 15, 18, 20, 21];
 
 const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
+const reminderOn = (h) => Number.isInteger(h) && h >= 0 && h <= 23;
+
 export default function Wellness() {
   const queryClient = useQueryClient();
   const { me, family, apply } = useFamily();
@@ -73,12 +75,14 @@ export default function Wellness() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['wellnessCheckins'] }); setForm({ mood: '', stress: 0, sleep_hours: '', self_care: [], note: '' }); },
   });
 
+  // Off is saved as -1: Base44 ignores a null in updateMe, so "Off" used to
+  // look saved here while the server kept the old hour and still pushed.
   const setReminder = async (v) => {
-    const hour = v === 'off' ? null : Number(v);
+    const hour = v === 'off' ? -1 : Number(v);
     try {
       await base44.auth.updateMe({ wellness_reminder_hour: hour });
       if (family) apply({ family, me: { ...me, wellness_reminder_hour: hour } });
-      toast({ title: hour === null ? 'Reminder off' : `Reminder set for ${fmtHour(hour)}` });
+      toast({ title: hour < 0 ? 'Reminder off' : `Reminder set for ${fmtHour(hour)}` });
     } catch (e) { toast({ title: "Couldn't save", description: e?.message, variant: 'destructive' }); }
   };
 
@@ -189,7 +193,7 @@ export default function Wellness() {
             <p className="font-medium flex items-center gap-2"><Bell className="w-4 h-4 text-primary" /> Daily reminder</p>
             <p className="text-sm text-muted-foreground">A quiet push once a day asking how you're holding up. Skipped on days you've already checked in.</p>
           </div>
-          <Select value={typeof me?.wellness_reminder_hour === 'number' ? String(me.wellness_reminder_hour) : 'off'} onValueChange={setReminder}>
+          <Select value={reminderOn(me?.wellness_reminder_hour) ? String(me.wellness_reminder_hour) : 'off'} onValueChange={setReminder}>
             <SelectTrigger className="w-[150px] rounded-xl"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="off">Off</SelectItem>

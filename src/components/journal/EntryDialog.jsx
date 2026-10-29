@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { serverDate, serverDay } from '@/lib/serverTime';
 import { ImagePlus, Loader2, Star, Trash2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -33,7 +34,7 @@ export default function EntryDialog({ open, onOpenChange, entry, members = [], d
         ...blank(), ...entry,
         mood: entry.mood || '',
         family_member_id: entry.family_member_id || '',
-        entry_date: entry.entry_date || (entry.created_date ? entry.created_date.slice(0, 10) : todayStr()),
+        entry_date: entry.entry_date || (serverDay(entry.created_date) || todayStr()),
         photos: Array.isArray(entry.photos) ? entry.photos : (entry.photo_url ? [entry.photo_url] : []),
       });
     } else setForm(blank(defaultMemberId));
@@ -139,7 +140,7 @@ export default function EntryDialog({ open, onOpenChange, entry, members = [], d
           </div>
 
           {editing && entry.author_name && (
-            <p className="text-xs text-muted-foreground">Written by {entry.author_name}{entry.created_date ? ` · ${new Date(entry.created_date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}</p>
+            <p className="text-xs text-muted-foreground">Written by {entry.author_name}{serverDate(entry.created_date) ? ` · ${serverDate(entry.created_date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}</p>
           )}
 
           <div className="flex items-center gap-2 pt-1">

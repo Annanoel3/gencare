@@ -232,7 +232,8 @@ const MISSED_AFTER_MS = 90 * 60_000;
       // hour each person picked, skipped if they already checked in today.
       // Each person's own timezone, since this is about them, not the family.
       for (const u of users) {
-        const hour = typeof u.wellness_reminder_hour === 'number' ? u.wellness_reminder_hour : null;
+        // Off is -1 (an hour of 0-23 means on).
+        const hour = Number.isInteger(u.wellness_reminder_hour) && u.wellness_reminder_hour >= 0 && u.wellness_reminder_hour <= 23 ? u.wellness_reminder_hour : null;
         if (hour === null || !wantsPush(u, 'reminders')) continue;
         const utz = safeTz(u.timezone || tz);
         const ul = partsIn(utz, new Date(now));

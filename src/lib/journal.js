@@ -1,4 +1,5 @@
 import { format, parseISO, isValid, isToday, isYesterday } from 'date-fns';
+import { serverDay } from '@/lib/serverTime';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
 
@@ -69,8 +70,7 @@ export async function uploadPhoto(file) {
 /** The day an entry is about (entry_date, else the day it was written). */
 export function entryDay(e) {
   if (e.entry_date) return e.entry_date;
-  const d = e.created_date ? parseISO(e.created_date) : null;
-  return d && isValid(d) ? format(d, 'yyyy-MM-dd') : todayStr();
+  return serverDay(e.created_date) || todayStr();
 }
 
 export function dayLabel(day) {

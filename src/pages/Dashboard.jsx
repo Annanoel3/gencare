@@ -39,9 +39,6 @@ export default function Dashboard() {
 
   const todayAppts = expandAppointments(appointments, new Date(), new Date());
   const remindersToday = slotsForDay(reminders, [], todayStr()).length;
-  const topLevel = tasks.filter(t => !t.parent_task_id && t.kind !== 'checklist');
-  const pendingTasks = topLevel.filter(t => t.status === 'pending' || t.status === 'in_progress');
-  const urgentTasks = topLevel.filter(t => t.priority === 'urgent' && t.status !== 'completed');
 
   return (
     <div className="pb-24 lg:pb-8">
@@ -49,8 +46,6 @@ export default function Dashboard() {
       <StatCards
         appointments={todayAppts.length}
         reminders={remindersToday}
-        tasks={pendingTasks.length}
-        urgentTasks={urgentTasks.length}
       />
 
       <TodoCard tasks={tasks} members={members} />

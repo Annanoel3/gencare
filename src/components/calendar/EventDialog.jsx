@@ -64,6 +64,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   const canRecord = usePluginPresent('RecorderBridge');
   const { me, members: accounts } = useFamily();
   const others = (accounts || []).filter((u) => u.id !== me?.id);
+  // Picked every other person one by one: that's the whole family.
+  const everyone = (f) => others.length > 0 && others.every((u) => (f.shared_with || []).includes(u.id));
   const editing = !!appt?.id;
   const fromPhone = appt?.source === 'phone';
 
@@ -126,8 +128,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
       end_date: f.end_date && f.end_date > f.date ? f.end_date : '',
       recurrence: withUntil(f.recurrence, f.until),
       // "GenCare decides" is saved as Only me until it's decided.
-      visibility: f.visibility === 'private' || f.visibility === 'auto' ? 'private' : f.visibility === 'some' ? 'some' : 'family',
-      shared_with: f.visibility === 'some' ? (f.shared_with || []).filter((id) => others.some((u) => u.id === id)) : [],
+      visibility: f.visibility === 'private' || f.visibility === 'auto' ? 'private' : f.visibility === 'some' && !everyone(f) ? 'some' : 'family',
+      shared_with: f.visibility === 'some' && !everyone(f) ? (f.shared_with || []).filter((id) => others.some((u) => u.id === id)) : [],
       last_changed_at: new Date().toISOString(),
     };
     // What GenCare filled in stays marked as its own until the person changes it.
@@ -233,7 +235,10 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                     touched.current.add('visibility');
                     const cur = form.visibility === 'some' ? (form.shared_with || []) : [];
                     const next = cur.includes(u.id) ? cur.filter((x) => x !== u.id) : [...cur, u.id];
-                    setForm((f) => ({ ...f, visibility: next.length ? 'some' : 'private', shared_with: next }));
+                    // Everyone picked one by one is the whole family, so people who
+                    // join later see it too (a list would leave them out).
+                    const all = others.length > 0 && others.every((o) => next.includes(o.id));
+                    setForm((f) => ({ ...f, visibility: all ? 'family' : next.length ? 'some' : 'private', shared_with: all ? [] : next }));
                   }}>{(u.display_name || u.full_name || u.email || '?').split(' ')[0]}</Chip>
                 );
               })}

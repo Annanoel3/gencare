@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { format, parseISO, isValid } from 'date-fns';
+import { serverDate } from '@/lib/serverTime';
+import { format } from 'date-fns';
 import { Star } from 'lucide-react';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import { categoryIcon, moodEmoji } from '@/lib/journal';
@@ -12,8 +13,8 @@ export default function EntryCard({ entry, members = [], onOpen }) {
   const color = entry.family_member_id ? getMemberColorByMemberId(entry.family_member_id, members) : null;
   const tint = entry.family_member_id ? getMemberLightColorByMemberId(entry.family_member_id, members) : 'bg-card';
   const photos = Array.isArray(entry.photos) && entry.photos.length ? entry.photos : (entry.photo_url ? [entry.photo_url] : []);
-  const written = entry.created_date ? parseISO(entry.created_date) : null;
-  const time = written && isValid(written) ? format(written, 'h:mm a') : '';
+  const written = serverDate(entry.created_date);
+  const time = written ? format(written, 'h:mm a') : '';
   const author = entry.author_name || entry.created_by_name || '';
 
   return (

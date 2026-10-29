@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { withFamily, useFamily, relationshipLabel, orderMembers } from '@/lib/family';
 import { Link } from 'react-router-dom';
-import { Users, Plus, School, QrCode, StickyNote, PawPrint } from 'lucide-react';
+import { Users, Plus, School, QrCode, StickyNote, PawPrint, HeartHandshake } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -103,10 +103,8 @@ export default function Family() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <Link
-                to={`/family/${member.id}`}
-                className="block bg-card rounded-2xl border border-border/50 p-5 hover:shadow-md transition-all hover:-translate-y-0.5"
-              >
+              <div className="bg-card rounded-2xl border border-border/50 hover:shadow-md transition-all">
+              <Link to={`/family/${member.id}`} className="block p-5 pb-3">
                 <div className="flex items-center gap-4 mb-4">
                   <Avatar className="w-14 h-14">
                     <AvatarImage src={member.photo_url} />
@@ -134,6 +132,16 @@ export default function Family() {
                   )}
                 </div>
               </Link>
+              {/* Straight to their Care Log (Anna, Oct 29 2026). */}
+              <div className="flex gap-2 px-5 pb-4">
+                <Link to={`/care-log?for=${member.id}`} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 text-primary text-sm font-medium py-2">
+                  <HeartHandshake className="w-4 h-4" /> Care log
+                </Link>
+                <Link to={`/family/${member.id}`} className="flex-1 inline-flex items-center justify-center rounded-xl border border-border text-sm font-medium py-2 text-foreground">
+                  Profile
+                </Link>
+              </div>
+              </div>
             </motion.div>
           ))}
         </div>
