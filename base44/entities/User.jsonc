@@ -149,6 +149,13 @@
     "wellness_reminder_hour": {
       "description": "Local hour (0-23) for the daily 'how are you holding up?' push; null = off",
       "type": "number"
+    },
+    "widget_keys": {
+      "description": "Hashes of this person's home-screen widget keys, one per phone (functions/widgetFeed): read-only access to their calendar for the widgets",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     }
   },
   "required": [],
