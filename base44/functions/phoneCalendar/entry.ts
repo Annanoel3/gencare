@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { canSee } from '../../shared/sharing.ts';
 import { sortEvents, sortMembers } from '../../shared/eventSort.ts';
+import { sameEvent } from '../../shared/sameEvent.ts';
 
 // The phone's calendars and the family calendar, both ways. Called by the web
 // app (on open, after edits, from the Phone calendar settings) and by the
@@ -152,6 +153,17 @@ function guessCategory(title: string) {
   return 'Other';
 }
 
+// Work never goes to the family on its own (Anna, Oct 30 2026: her Mom's work
+// meetings came in shared). Before the sorter has looked at an event, these
+// are the signs: meeting words in the title, or a Teams/Zoom/Webex link in it.
+function looksLikeWork(a: any) {
+  const t = String(a?.title || '').toLowerCase();
+  const n = String(a?.notes || '').toLowerCase();
+  return /\b(work|shift|meeting|mtg|committee|budget|deadline|webinar|standup|stand-up|one-on-one|1:1|all-hands|offsite|quarterly|agenda|staff|interview|conference call|presentation|training|actuals|performance review)\b/.test(t)
+    || /teams\.microsoft\.com|microsoft teams meeting|zoom\.us\/j|join zoom meeting|webex\.com|meet\.google\.com/.test(n);
+}
+const isWork = (a: any) => a?.category === 'Work';
+
 // The fields GenCare filled in itself (sharing, who it's for, category), as
 // opposed to ones a person picked. A person's pick is never overridden.
 function autoSetOf(a: any): string[] { return Array.isArray(a?.auto_set) ? a.auto_set.map(String) : []; }
@@ -168,8 +180,10 @@ function sharingMode(u: any): SharingMode {
   const v = String(u?.event_sharing_default || '');
   return v === 'auto' || v === 'family' || v === 'private' ? v : '';
 }
-// No choice made yet = "Only me", as before the choice existed.
-function visibilityFor(mode: SharingMode, share: boolean) {
+// No choice made yet = "Only me", as before the choice existed. Work stays
+// with the person whatever they picked; they can still share one by hand.
+function visibilityFor(mode: SharingMode, share: boolean, work = false) {
+  if (work) return 'private';
   return mode === 'family' ? 'family' : mode === 'auto' && share ? 'family' : 'private';
 }
 
@@ -203,7 +217,8 @@ function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean;
     else if (auto.has('member')) { patch.family_member_id = ''; patch.family_member_name = ''; auto.delete('member'); }
   }
   if (r.category && categoryIsAuto(a, auto)) { patch.category = r.category; auto.add('category'); }
-  if (visibilityIsAuto(a, auto)) { patch.visibility = visibilityFor(mode, !!r.share); auto.add('visibility'); }
+  const work = (r.category || a.category) === 'Work' || (!r.category && looksLikeWork(a));
+  if (visibilityIsAuto(a, auto)) { patch.visibility = visibilityFor(mode, !!r.share, work); auto.add('visibility'); }
   patch.auto_set = [...auto];
   return patch;
 }
@@ -342,16 +357,19 @@ async function applySharing(db: any, user: any, familyId: string, tz: string) {
   const mode = sharingMode(user);
   const from = addDays(todayIn(tz), -7);
   const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
+  // "Everyone" shares what the sorter has looked at, except work; one it
+  // hasn't looked at yet is shared unless it looks like work.
+  const want = (a: any) => visibilityFor(mode, a.ai_checked_at ? a.ai_share === true : !looksLikeWork(a), isWork(a) || (!a.ai_checked_at && looksLikeWork(a)));
   const change = mine.filter((a: any) => {
     if (!a.recurrence && String(a.end_date || a.date || '') < from) return false;
     const auto = new Set(autoSetOf(a));
     if (!visibilityIsAuto(a, auto)) return false;
-    return visibilityFor(mode, a.ai_share === true) !== (a.visibility || 'private') || !auto.has('visibility');
+    return want(a) !== (a.visibility || 'private') || !auto.has('visibility');
   });
   return inGroups(change, (a: any) => {
     const auto = new Set(autoSetOf(a));
     auto.add('visibility');
-    return db.Appointment.update(a.id, { visibility: visibilityFor(mode, a.ai_share === true), auto_set: [...auto] });
+    return db.Appointment.update(a.id, { visibility: want(a), auto_set: [...auto] });
   });
 }
 
@@ -523,8 +541,11 @@ Deno.serve(async (req) => {
             const already = ((await db.Appointment.filter({ family_id: familyId, device_key: key })) || []).length > 0;
             if (!already) {
               // Sharing follows the person's choice ("GenCare decides" starts
-              // it at Only me until it's sorted, a moment later).
-              await db.Appointment.create({ ...fields, phone_location: fields.location || '', phone_notes: fields.notes || '', visibility: sharingMode(user) === 'family' ? 'family' : 'private', auto_set: ['visibility', 'category'], family_id: familyId, device_key: key });
+              // it at Only me until it's sorted, a moment later). With
+              // "Everyone", anything that looks like work starts at Only me too,
+              // and the sorter keeps work there.
+              const startShared = sharingMode(user) === 'family' && !looksLikeWork(fields);
+              await db.Appointment.create({ ...fields, phone_location: fields.location || '', phone_notes: fields.notes || '', visibility: startShared ? 'family' : 'private', auto_set: ['visibility', 'category'], ...(looksLikeWork(fields) ? { category: 'Work' } : {}), family_id: familyId, device_key: key });
               created++;
             }
           }
@@ -577,11 +598,16 @@ Deno.serve(async (req) => {
       const to = addDays(todayIn(tz), DAYS_AHEAD);
       const all = (await db.Appointment.filter({ family_id: familyId })) || [];
       const wanted = new Map<string, any>();
+      const ownPhone = (a: any) => a.source === 'phone' && (a.created_by_user_id === user.id || a.created_by_id === user.id);
+      const mineFromPhone = all.filter(ownPhone);
       for (const a of all) {
         if (!a.date || a.date < from || a.date > to) continue;
         if (!canSee(a, user.id)) continue;
         // Came from this person's own phone: it's already there.
-        if (a.source === 'phone' && (a.created_by_user_id === user.id || a.created_by_id === user.id)) continue;
+        if (ownPhone(a)) continue;
+        // The same event is already on their phone from their own calendar
+        // (someone else's copy of it, under another name): not twice.
+        if (mineFromPhone.some((m: any) => sameEvent(a, m))) continue;
         wanted.set(a.id, a);
       }
       const reminder = typeof user.export_reminder_minutes === 'number' ? user.export_reminder_minutes : 30;

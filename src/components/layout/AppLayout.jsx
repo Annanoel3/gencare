@@ -206,7 +206,7 @@ function AppShell() {
       {currentUser && <WelcomeDialog user={currentUser} />}
 
       {/* Header (GenCare is a phone app only; Base44's computer sidebar is gone) */}
-      <div className="fixed top-0 left-0 right-0 bg-card border-b border-border z-40">
+      <div className="app-header fixed top-0 left-0 right-0 bg-card border-b border-border z-40">
       <div className="h-16 flex items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -224,7 +224,7 @@ function AppShell() {
       {/* Menu */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setMobileOpen(false)}>
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-card shadow-xl p-4 overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="app-menu absolute left-0 top-0 bottom-0 w-72 bg-card shadow-xl p-4 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 p-4 mb-4">
               <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                 <Heart className="w-5 h-5 text-primary-foreground" />
@@ -261,7 +261,7 @@ function AppShell() {
       </main>
 
       {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around py-2 px-2 z-40">
+      <div className="app-bottom-nav fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around py-2 px-2 z-40">
         {mobileBottomNav.map(item => {
           const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
           return (

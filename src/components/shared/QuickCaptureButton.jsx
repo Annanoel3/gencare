@@ -15,7 +15,7 @@ export default function QuickCaptureButton() {
   const navigate = useNavigate();
 
   return (
-    <div className="fixed bottom-20 right-4 lg:bottom-8 lg:right-8 z-50 flex flex-col-reverse items-end gap-3">
+    <div className="app-fab fixed bottom-20 right-4 z-50 flex flex-col-reverse items-end gap-3">
       <AnimatePresence>
         {expanded && captureOptions.map((opt, i) => (
           <motion.button

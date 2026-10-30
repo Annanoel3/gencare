@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="https://base44.com/logo_v2.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+    <script>
+      // iPhone builds from 5 on draw all the way to the top of the screen
+      // (capacitor.config: contentInset 'never') and say so in their user
+      // agent. The page then keeps clear of the status bar itself, with a solid
+      // strip behind it (index.css, .ios-edge). Older builds stay as they were.
+      if (/GenCareEdge\//.test(navigator.userAgent)) {
+        document.documentElement.classList.add('ios-edge');
+        var vp = document.querySelector('meta[name=viewport]');
+        if (vp) vp.setAttribute('content', vp.getAttribute('content') + ', viewport-fit=cover');
+      }
+    </script>
     <link rel="manifest" href="/manifest.json" />
     <title>GenCare</title>
     <script>

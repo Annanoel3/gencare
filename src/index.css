@@ -89,3 +89,16 @@
     @apply bg-background text-foreground font-body;
   }
 }
+/* iPhone builds that draw to the top of the screen (index.html adds .ios-edge):
+   page content starts below the status bar, a solid strip in the header's
+   color sits behind the status bar, and the fixed bars keep clear of it and
+   of the home indicator. */
+.ios-edge body { padding-top: env(safe-area-inset-top); }
+.ios-edge body::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top);
+  background: hsl(var(--card)); z-index: 45; pointer-events: none;
+}
+.ios-edge .app-header { top: env(safe-area-inset-top); }
+.ios-edge .app-bottom-nav { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+.ios-edge .app-menu { padding-top: calc(1rem + env(safe-area-inset-top)); }
+.ios-edge .app-fab { bottom: calc(5rem + env(safe-area-inset-bottom)); }

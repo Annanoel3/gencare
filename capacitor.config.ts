@@ -43,11 +43,15 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false,
   },
   ios: {
-    contentInset: 'automatic',
+    // The page reaches the top of the screen and keeps clear of the status bar
+    // itself, with a solid strip behind it. With 'automatic', the page scrolled
+    // up under a see-through status bar (Anna, Oct 30 2026). index.html turns
+    // the page's side of this on when it sees GenCareEdge/ in the agent.
+    contentInset: 'never',
     // Google's sign-in page refuses "embedded" browsers; a Safari-like agent
     // is what ADHDone's Android shell does too (it strips the "; wv" marker).
     overrideUserAgent:
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 GenCare',
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 GenCare GenCareEdge/1',
   },
 };
 

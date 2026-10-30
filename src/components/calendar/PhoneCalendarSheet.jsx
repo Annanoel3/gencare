@@ -3,7 +3,8 @@ import { Smartphone, Download, Upload, Loader2, RefreshCw, CheckCircle2 } from '
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
+import { SharingOptions, SHARING_OPTIONS, useSharingChoice } from '@/components/calendar/SharingChoice';
+import { sharingDefaultOf } from '@/lib/events';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
@@ -30,9 +31,12 @@ const REMINDERS = [
 ];
 
 // "Phone calendar": two independent halves.
-//   Bring in — tick phone calendars to import into GenCare. Imported events
-//     come in as "Only me"; you share them one event at a time (open the event,
-//     Share with). Never a whole calendar at once. Birthdays stay out.
+//   Bring in — switch phone calendars on to bring them into GenCare, off to
+//     take their events back out (Anna, Oct 30 2026: unsyncing has to be
+//     easy). Turning one on first asks who in the family sees what comes in
+//     (the person's "Who sees the events you add" choice), with their current
+//     answer marked: connecting her Mom's calendar never asked. Work stays
+//     private whatever they pick. Birthdays stay out.
 //   Send to my phone — pick ONE phone calendar GenCare writes into. What lands
 //     there is decided per event by whoever adds it ("Share with" on the
 //     event): the whole family, certain people, or only themselves.
@@ -46,6 +50,9 @@ export default function PhoneCalendarSheet({ open, onClose }) {
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState('');
   const [peek, setPeek] = useState({});
+  // The calendar waiting on "who sees these?" before it's brought in.
+  const [asking, setAsking] = useState(null);
+  const sharing = useSharingChoice(() => refresh());
 
   const native = isNativeApp() && hasPhoneCalendars();
 
@@ -93,14 +100,19 @@ export default function PhoneCalendarSheet({ open, onClose }) {
     await load();
   };
 
-  const toggleImport = async (id, on) => {
+  const toggleImport = async (id, on, mode = sharingDefaultOf(me)) => {
     const ids = new Set(settings.device_calendar_ids || []);
     if (on) ids.add(id); else ids.delete(id);
     const next = await save({ device_calendar_ids: [...ids] });
     if (next && !on) {
       // Its events leave GenCare (ones you shared or gave a "For" stay).
       setBusy('import');
-      try { await pruneImports(); await refreshStatus(); } catch (e) { /* the next sync does it */ } finally { setBusy(''); }
+      const name = calendars.find((c) => c.id === id)?.name || 'That calendar';
+      try {
+        const r = await pruneImports();
+        await refreshStatus();
+        toast({ title: `${name} is off`, description: r?.removed ? `${r.removed} event${r.removed === 1 ? '' : 's'} taken out of GenCare${r.kept ? `; ${r.kept} you shared or changed stayed` : ''}.` : 'Its events are out of GenCare.' });
+      } catch (e) { /* the next sync does it */ } finally { setBusy(''); }
     }
     if (next && on) {
       setBusy('import');
@@ -108,7 +120,8 @@ export default function PhoneCalendarSheet({ open, onClose }) {
         const r = await runImport(next.device_calendar_ids, { force: true });
         if (r?.ok) {
           const n = typeof r.total === 'number' ? r.total : r.created;
-          toast({ title: 'Calendar brought in', description: n ? `${n} upcoming event${n === 1 ? '' : 's'} from your phone. Only you see them until you open one and share it.` : 'No upcoming events in that calendar.' });
+          const who = { auto: 'GenCare is sorting who in the family sees each one; work stays with you.', family: 'Your family sees them, except work meetings.', private: 'Only you see them until you share one.' }[mode] || '';
+          toast({ title: 'Calendar brought in', description: n ? `${n} upcoming event${n === 1 ? '' : 's'} from your phone. ${who}`.trim() : 'No upcoming events in that calendar.' });
         }
         await refreshStatus();
       } catch (e) {
@@ -178,12 +191,24 @@ export default function PhoneCalendarSheet({ open, onClose }) {
                 <p className="text-sm text-muted-foreground">No calendars found on this phone.</p>
               ) : (
                 <div className="space-y-2">
+                  {asking && (
+                    // Before a calendar comes in: who in the family sees it.
+                    <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-3 space-y-2">
+                      <p className="text-sm font-semibold">Who in the family sees events from {asking.name}?</p>
+                      <p className="text-xs text-muted-foreground">This counts for all your calendars. Work meetings always stay with you, and you can change any single event.</p>
+                      <SharingOptions value={sharingDefaultOf(me)} busy={sharing.busy} onPick={async (v) => {
+                        await sharing.pick(v);
+                        const c = asking; setAsking(null);
+                        await toggleImport(c.id, true, v);
+                      }} />
+                      <Button variant="ghost" size="sm" className="w-full" onClick={() => setAsking(null)}>Cancel</Button>
+                    </div>
+                  )}
                   {calendars.map((c) => {
                     const on = (settings.device_calendar_ids || []).includes(c.id);
                     return (
-                      <div key={c.id} className="rounded-xl border border-border p-3">
+                      <div key={c.id} className={`rounded-xl border p-3 ${on ? 'border-primary/40 bg-primary/5' : 'border-border'}`}>
                         <label className="flex items-center gap-3">
-                          <Checkbox checked={on} onCheckedChange={(v) => toggleImport(c.id, !!v)} />
                           <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: c.color }} />
                           <span className="flex-1 min-w-0">
                             <span className="block text-sm font-medium truncate">{c.name}</span>
@@ -196,11 +221,14 @@ export default function PhoneCalendarSheet({ open, onClose }) {
                               <span className="block text-xs text-muted-foreground">Nothing in the next 30 days</span>
                             ) : null}
                           </span>
+                          <Switch checked={on} disabled={!!busy || !!asking} aria-label={`Bring in ${c.name}`}
+                            onCheckedChange={(v) => { if (v) setAsking(c); else toggleImport(c.id, false); }} />
                         </label>
                       </div>
                     );
                   })}
-                  <p className="text-xs text-muted-foreground">Tick every calendar you want in GenCare. Events come in as "Only me": to share one, open it on the calendar and pick who it's for under Share with. Birthdays aren't brought in. Untick a calendar and its events leave GenCare, except ones you shared.</p>
+                  <p className="text-xs text-muted-foreground">Turn on each calendar you want in GenCare. Turn one off and its events come back out of GenCare, except ones you shared or changed yourself. Birthdays aren't brought in.</p>
+                  <p className="text-xs text-muted-foreground">Who sees them: {SHARING_OPTIONS.find((o) => o.value === sharingDefaultOf(me))?.label || 'not chosen yet'}. Work meetings always stay with you. Change it in Settings, My Family.</p>
                   {status && <p className="text-xs text-muted-foreground">{status.imported} event{status.imported === 1 ? '' : 's'} from your phone. New ones come in on their own, even with GenCare closed.</p>}
                 </div>
               )}

@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { format, addDays } from 'date-fns';
+import { mergeSameEvents } from '@/lib/sameEvent';
 
 // Loading events for a stretch of days. Pages used to ask for "the 50 (or
 // 1000) events furthest in the future", so once a phone calendar brought in a
@@ -12,6 +13,7 @@ const ymd = (d) => format(d, 'yyyy-MM-dd');
  * Every event that can land between `from` and `to` (Dates, inclusive): the
  * ones dated in that stretch, plus repeating and multi-day ones that started
  * earlier. Hand the result to expandAppointments for one entry per day.
+ * The same event on two people's calendars comes back once (lib/sameEvent).
  */
 export async function listEvents(from, to) {
   const E = base44.entities.Appointment;
@@ -25,10 +27,10 @@ export async function listEvents(from, to) {
     ]);
     const byId = new Map();
     for (const r of [...(dated || []), ...(series || []), ...(spans || [])]) if (r?.id) byId.set(r.id, r);
-    return [...byId.values()];
+    return mergeSameEvents([...byId.values()]);
   } catch (e) {
     console.warn('[events] could not load by date, loading the latest instead', e);
-    return (await E.list('-date', 2000)) || [];
+    return mergeSameEvents((await E.list('-date', 2000)) || []);
   }
 }
 

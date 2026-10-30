@@ -27,6 +27,11 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 // Opening never jumps into the first text box, so the phone's keyboard only
 // comes up when someone taps a box (Anna, Oct 29 2026).
+// Never wider than the screen (Anna, Oct 30 2026: on iPhone the Phone calendar
+// popup ran off the right side). A grid column grows to fit its widest line,
+// and a one-line, cut-off text ("truncate") counts at its full length, so the
+// column is held to the popup's width and anything too long is cut off inside
+// it; the popup itself keeps a margin on each side of the screen.
 const DialogContent = React.forwardRef(({ className, children, onOpenAutoFocus, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
@@ -34,7 +39,7 @@ const DialogContent = React.forwardRef(({ className, children, onOpenAutoFocus, 
       ref={ref}
       onOpenAutoFocus={(e) => { e.preventDefault(); onOpenAutoFocus?.(e); }}
       className={cn(
-        "fixed left-[50%] top-[max(0.75rem,env(safe-area-inset-top))] sm:top-[50%] z-50 grid w-full max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain translate-x-[-50%] translate-y-0 sm:translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        "fixed left-[50%] top-[max(0.75rem,env(safe-area-inset-top))] sm:top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100vw-1.5rem)] max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden overscroll-contain rounded-2xl translate-x-[-50%] translate-y-0 sm:translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
         className
       )}
       {...props}>

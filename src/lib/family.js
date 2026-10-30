@@ -14,6 +14,10 @@ let currentUserName = '';
 
 export const PENDING_INVITE_KEY = 'gencare_pending_invite';
 
+export function getUserId() {
+  return currentUserId;
+}
+
 export function getFamilyId() {
   return currentFamilyId;
 }
