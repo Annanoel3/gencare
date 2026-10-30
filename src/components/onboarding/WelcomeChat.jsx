@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,12 +73,26 @@ export default function WelcomeChat({ plan, home, onDone }) {
   const [draft, setDraft] = useState(plan.nameGuess || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const endRef = useRef(null);
+  const listRef = useRef(null);
+  // Whether the person is at the bottom of the chat (or hasn't scrolled it).
+  const pinned = useRef(true);
 
   const beat = beats[idx];
   const { shown, done } = useTypewriter(beat?.text || '', 18, idx);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [shown, history.length, done]);
+  // Keep the newest line in view as it types. This used to start a smooth
+  // scroll for every letter (and scroll the whole popup with it), which on
+  // iPhone crawled and jumped (Anna, Oct 30 2026). Now the chat list alone
+  // jumps straight to its bottom, and only while the person hasn't scrolled
+  // up to reread something.
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (el && pinned.current) el.scrollTop = el.scrollHeight;
+  }, [shown, history.length, done]);
+  const onListScroll = () => {
+    const el = listRef.current;
+    if (el) pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+  };
 
   // Lines with nothing to answer roll on by themselves.
   useEffect(() => {
@@ -88,6 +102,7 @@ export default function WelcomeChat({ plan, home, onDone }) {
   }, [done, beat]);
 
   const next = (answer) => {
+    pinned.current = true; // they answered: follow the chat again
     setHistory((h) => [...h, { from: 'app', text: beat.text }, ...(answer ? [{ from: 'user', text: answer }] : [])]);
     setDraft(''); setErr('');
     setIdx((i) => i + 1);
@@ -131,10 +146,9 @@ export default function WelcomeChat({ plan, home, onDone }) {
         <span className="font-heading text-sm font-bold">GenCare</span>
       </div>
 
-      <div className="space-y-2.5 max-h-[45vh] overflow-y-auto pr-1">
+      <div ref={listRef} onScroll={onListScroll} className="space-y-2.5 max-h-[45vh] overflow-y-auto overscroll-contain pr-1">
         {history.map((m, i) => <React.Fragment key={i}>{bubble(m.from, m.text)}</React.Fragment>)}
         {beat && bubble('app', <>{shown}{!done && <span className="opacity-40">▍</span>}</>)}
-        <div ref={endRef} />
       </div>
 
       {done && beat?.input === 'name' && (
