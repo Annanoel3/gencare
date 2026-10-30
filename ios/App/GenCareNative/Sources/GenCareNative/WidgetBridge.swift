@@ -42,7 +42,7 @@ public class WidgetBridge: CAPPlugin, CAPBridgedPlugin {
             call.reject("key, appId and serverUrl are required")
             return
         }
-        let cfg: [String: Any] = ["key": key, "userId": call.getString("userId") ?? "", "appId": appId, "serverUrl": serverUrl]
+        let cfg: [String: Any] = ["key": key, "userId": call.getString("userId") ?? "", "appId": appId, "serverUrl": serverUrl, "changedAt": Date().timeIntervalSince1970]
         guard WidgetBridge.writeConfig(cfg) else {
             call.reject("Could not save the widget key")
             return
@@ -52,6 +52,11 @@ public class WidgetBridge: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func reload(_ call: CAPPluginCall) {
+        // The widgets don't reuse a feed saved before this (they otherwise share one for 5 minutes).
+        if var cfg = WidgetBridge.readConfig() {
+            cfg["changedAt"] = Date().timeIntervalSince1970
+            _ = WidgetBridge.writeConfig(cfg)
+        }
         WidgetBridge.reloadWidgets()
         call.resolve()
     }

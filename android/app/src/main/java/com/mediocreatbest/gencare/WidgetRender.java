@@ -52,6 +52,7 @@ final class WidgetRender {
         updateList(c, m, ids(c, DayWidget.class), KIND_DAY);
         updateList(c, m, ids(c, WeekWidget.class), KIND_WEEK);
         updateMonth(c, m, ids(c, MonthWidget.class));
+        WidgetMidnight.schedule(c);
     }
 
     /** What to say instead of events, or null when there are events to show. */

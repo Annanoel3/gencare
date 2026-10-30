@@ -113,25 +113,41 @@ enum Days {
 // MARK: - Key and fetching
 
 enum FeedLoader {
-    struct Config { let key: String; let appId: String; let serverUrl: String }
+    /// changedAt: when the app last said the calendar changed (or set the key), so
+    /// a saved feed from before that isn't reused.
+    struct Config { let key: String; let appId: String; let serverUrl: String; let changedAt: Double }
+
+    enum KeyRead { case found(Config), missing, unreadable }
+
+    private static let keyQuery: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: "com.mediocreatbest.gencare.widget",
+        kSecAttrAccount as String: "config"
+    ]
 
     /// The app's widget key (shared keychain group; this extension's only group, so no group needed in the query).
-    static func config() -> Config? {
-        let q: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.mediocreatbest.gencare.widget",
-            kSecAttrAccount as String: "config",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
+    /// Before the phone's first unlock after a restart the keychain can't be read
+    /// at all: that's "unreadable", not "signed out".
+    static func readKey() -> KeyRead {
+        var q = keyQuery
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess,
+        let status = SecItemCopyMatching(q as CFDictionary, &result)
+        if status == errSecItemNotFound { return .missing }
+        guard status == errSecSuccess,
               let data = result as? Data,
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let key = obj["key"] as? String, !key.isEmpty,
               let app = obj["appId"] as? String, !app.isEmpty,
-              let server = obj["serverUrl"] as? String, !server.isEmpty else { return nil }
-        return Config(key: key, appId: app, serverUrl: server)
+              let server = obj["serverUrl"] as? String, !server.isEmpty else { return status == errSecSuccess ? .missing : .unreadable }
+        return .found(Config(key: key, appId: app, serverUrl: server, changedAt: (obj["changedAt"] as? Double) ?? 0))
+    }
+
+    /// The server no longer knows this key (it keeps a few per person): drop it,
+    /// so the app gets a new one the next time it opens. Not one the app just wrote.
+    private static func dropKey(_ rejected: String) {
+        if case .found(let now) = readKey(), now.key == rejected { SecItemDelete(keyQuery as CFDictionary) }
     }
 
     private static var cacheURL: URL? {
@@ -156,12 +172,19 @@ enum FeedLoader {
 
     /// The six weeks the Month widget can show (they always hold this week, today and tomorrow).
     static func load(now: Date = Date()) async -> (Feed?, FeedState) {
-        guard let cfg = config() else {
+        let cfg: Config
+        switch readKey() {
+        case .found(let c): cfg = c
+        case .missing:
             clearCache()
             return (nil, .signedOut)
+        case .unreadable:
+            if let saved = cached() { return (saved.0, .ok) }
+            return (nil, .loading)
         }
-        // All three widgets ask at about the same time; one fetch serves them.
-        if let saved = cached(), now.timeIntervalSince(saved.1) < 5 * 60 { return (saved.0, .ok) }
+        // All three widgets ask at about the same time; one fetch serves them,
+        // unless the calendar changed in the app since it was saved.
+        if let saved = cached(), now.timeIntervalSince(saved.1) < 5 * 60, saved.1.timeIntervalSince1970 > cfg.changedAt { return (saved.0, .ok) }
         let from = Days.gridStart(now)
         var to = Days.add(from, 41)
         let tomorrow = Days.add(Days.start(now), 1)
@@ -183,7 +206,7 @@ enum FeedLoader {
             let code = (response as? HTTPURLResponse)?.statusCode ?? 0
             let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
             let error = obj?["error"] as? String
-            if code == 401 || error == "no_key" { clearCache(); return (nil, .signedOut) }
+            if code == 401 || error == "no_key" { clearCache(); dropKey(cfg.key); return (nil, .signedOut) }
             if error == "no_access" { return (nil, .noAccess) }
             if code >= 200 && code < 300, obj?["ok"] as? Bool == true {
                 let feed = (try? JSONDecoder().decode(Feed.self, from: data)) ?? Feed()

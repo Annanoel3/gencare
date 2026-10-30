@@ -168,7 +168,9 @@ final class WidgetStore {
             String text = read(code >= 400 ? conn.getErrorStream() : conn.getInputStream());
             JSONObject res = text != null && text.trim().startsWith("{") ? new JSONObject(text.trim()) : null;
             if (code == 401 || (res != null && "no_key".equals(res.optString("error")))) {
-                p.edit().putString(K_STATE, "no_key").apply();
+                // The server no longer knows this key (it keeps a few per person):
+                // drop it, so the widgets say "Open GenCare" and the app gets a new one.
+                p.edit().remove(K_KEY).remove(K_FEED).remove(K_FETCHED).putString(K_STATE, "no_key").apply();
                 return false;
             }
             if (res != null && "no_access".equals(res.optString("error"))) {
