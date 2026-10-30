@@ -67,6 +67,23 @@ export function getEventColorClass(appt, members = [], accounts = []) {
   return getUserColorClass(appt.created_by_user_id || appt.created_by_id, members, accounts);
 }
 
+/**
+ * Care events keep their color on the calendar; everything else is plain text
+ * (Anna, Oct 30 2026: "Ofelia day is when our house cleaner comes. It's not
+ * care related so it should just be text"). GenCare's sorter decides
+ * (ai_care: health, therapy, doctor/vet visits, medicine, caregiver help);
+ * an event it hasn't looked at counts as care when it's an appointment.
+ */
+export function isCareEvent(appt) {
+  if (typeof appt?.ai_care === 'boolean') return appt.ai_care;
+  return ['Appointment', 'Doctor', 'Therapy'].includes(String(appt?.category || ''));
+}
+
+/** The event's color if it's a care event, '' for plain text. */
+export function getEventHighlightClass(appt, members = [], accounts = []) {
+  return isCareEvent(appt) ? getEventColorClass(appt, members, accounts) : '';
+}
+
 // Light tint versions of each palette color, for tinted containers.
 const LIGHT = {
   'bg-blue-500': 'bg-blue-500/15', 'bg-emerald-500': 'bg-emerald-500/15', 'bg-purple-500': 'bg-purple-500/15',

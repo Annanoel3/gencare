@@ -77,7 +77,7 @@ export async function sortNewEvent(created, left = {}, mode = '') {
   } catch (e) { r = null; }
   if (!r?.ok) return null;
   const auto = new Set(Array.isArray(created.auto_set) ? created.auto_set : []);
-  const patch = { ai_checked_at: new Date().toISOString(), ai_share: !!r.share, ai_trip: !!r.trip, ai_cover: r.cover || '' };
+  const patch = { ai_checked_at: new Date().toISOString(), ai_share: !!r.share, ai_trip: !!r.trip, ai_cover: r.cover || '', ...(typeof r.care === 'boolean' ? { ai_care: r.care } : {}) };
   if (left.member && r.member_id) { patch.family_member_id = r.member_id; patch.family_member_name = r.member_name || ''; auto.add('member'); }
   if (left.category && r.category && r.category !== created.category) { patch.category = r.category; auto.add('category'); }
   let becameShared = false;

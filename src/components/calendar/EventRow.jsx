@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import AddressLink from '@/components/shared/AddressLink';
 import { Lock, Smartphone, Mic, Repeat, Users } from 'lucide-react';
-import { getMemberColorByMemberId, getEventColorClass } from '@/utils/memberColors';
+import { getMemberColorByMemberId, getEventColorClass, getEventHighlightClass } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 
@@ -31,6 +31,8 @@ export default function EventRow({ appt, members, onClick }) {
   const canRecord = usePluginPresent('RecorderBridge');
   const { members: accounts } = useFamily();
   const color = getEventColorClass(appt, members, accounts);
+  // The side bar is for care events only; anything else reads as plain text.
+  const bar = getEventHighlightClass(appt, members, accounts);
   const memberDot = getMemberColorByMemberId(appt.family_member_id, members);
   const poster = String(appt.created_by_name || '').split(' ')[0];
   return (
@@ -39,7 +41,7 @@ export default function EventRow({ appt, members, onClick }) {
       onClick={onClick ? () => onClick(appt) : undefined}
       className={`flex items-start gap-3 p-3 rounded-xl bg-muted/50 ${onClick ? 'cursor-pointer hover:bg-muted active:bg-muted' : ''}`}
     >
-      <div className={`w-2 self-stretch min-h-[40px] rounded-full ${color}`} />
+      <div className={`w-2 self-stretch min-h-[40px] rounded-full ${bar || 'bg-transparent'}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2">
           <p className="font-medium text-sm flex-1 min-w-0">{appt.title}</p>

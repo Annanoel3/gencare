@@ -207,9 +207,9 @@ async function inGroups<T>(list: T[], fn: (x: T) => Promise<unknown>, size = 8) 
 }
 
 // What one sorting answer changes on an event: only the fields nobody picked.
-function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean; cover?: string; category: string }, mode: SharingMode, members: any[], now: string) {
+function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean; cover?: string; care?: boolean; category: string }, mode: SharingMode, members: any[], now: string) {
   const auto = new Set(autoSetOf(a));
-  const patch: Record<string, unknown> = { ai_checked_at: now, ai_share: !!r.share, ai_trip: !!r.trip, ai_cover: r.cover || '' };
+  const patch: Record<string, unknown> = { ai_checked_at: now, ai_share: !!r.share, ai_trip: !!r.trip, ai_cover: r.cover || '', ai_care: !!r.care, ai_sort_v: SORT_VERSION };
   if (!a.family_member_id || auto.has('member')) {
     const m = members.find((x: any) => x.id === r.who);
     if (m) { patch.family_member_id = m.id; patch.family_member_name = m.name; auto.add('member'); }
@@ -224,6 +224,10 @@ function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean;
 }
 
 const SORT_DAYS = 60;
+// Bumped when the sorting rules change, so events sorted under the old ones
+// are sorted again on the next sync (2: someone the family takes care of,
+// house help, and 'care' for how events show; Oct 30 2026).
+const SORT_VERSION = 2;
 const SORT_BATCH = 40;
 
 // Sort these events (one AI call per 40) and save what GenCare decided for
@@ -333,7 +337,7 @@ async function sortImports(db: any, user: any, familyId: string, tz: string) {
   const { members, newest } = await sortMembers(db, familyId, user.id);
   const due = mine.filter((a: any) => {
     if (!inSortWindow(a, tz)) return false;
-    if (!a.ai_checked_at) return true;
+    if (!a.ai_checked_at || Number(a.ai_sort_v || 0) < SORT_VERSION) return true;
     return !a.family_member_id && !!newest && String(a.ai_checked_at) < newest;
   }).sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || ''))).slice(0, SORT_BATCH);
   return sortRows(db, user, familyId, due, members);
@@ -461,7 +465,7 @@ Deno.serve(async (req) => {
       const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time }], { poster: user.display_name || user.full_name || '', posterId: user.id, members })).get('e');
       if (!r) return Response.json({ ok: false, error: 'Could not sort' });
       const m = members.find((x) => x.id === r.who);
-      return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, cover: r.cover, category: r.category });
+      return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, cover: r.cover, care: r.care, category: r.category });
     }
 
     if (mode === 'prune') {

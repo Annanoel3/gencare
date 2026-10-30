@@ -18,7 +18,9 @@ const startOf = (a: any) => (a.all_day || !a.time ? '' : String(a.time).slice(0,
 export function sameEvent(a: any, b: any): boolean {
   if (!a || !b || a.id === b.id) return false;
   if (a.recurrence || b.recurrence) return false;
-  if (a.away_of || b.away_of || a.cover_of || b.cover_of) return false;
+  // A trip's "<name> traveling" spans days and is never one event; a
+  // "<name>: doctor" stand-in IS the event it stands for.
+  if (a.away_of || b.away_of) return false;
   if (!a.date || a.date !== b.date) return false;
   if (startOf(a) !== startOf(b)) return false;
   if (a.family_member_id && b.family_member_id && a.family_member_id !== b.family_member_id) return false;

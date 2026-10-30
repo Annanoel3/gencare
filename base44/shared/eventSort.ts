@@ -20,19 +20,25 @@ const SYSTEM = `You help a family share one calendar. Someone added events (type
 
 who: the id of the family profile the event is about: the person or pet who has to be there or whose need it serves (Mom's speech therapy is Mom's, even if someone else drives her). "Mom", "Dad", "Grandma" and the like mean the people with that relationship to the person who added the event: a profile listed as Mother and written by that same person is their Mom. Pets have profiles too ("Kirito ultrasound" is Kirito's). Use "self" when it's about the person who added it (their own trip, their own appointment). Use "" when it's about someone not in the list, or you can't tell. Never guess a profile just to fill the field.
 
-share: be picky. The shared calendar is for what the rest of the family needs to know or plan around, not everything on someone's phone. Share (true): events about the people being cared for, the kids or the pets; family plans and gatherings the family takes part in; household matters; and the person's own flights (the family wants the flight numbers and times). Keep private (false): the person's own appointments and health, the rest of their own trips (hotels, Airbnbs, events while away), their own work (meetings, calls, committee meetings, work deadlines and due dates like "Budget ACTUALS DUE", shifts, trainings, presentations, anything from a work calendar or with a Teams or Zoom link), their own plans with friends, errands, bills and money, gifts or surprises, and anything sensitive. Work is never shared. When unsure, keep it private: showing the family something private does more harm than keeping something to themselves.
+share: the shared calendar is for what the rest of the family needs to know or plan around, not everything on someone's phone. Share (true): events about the people being cared for, the kids or the pets; family plans and gatherings the family takes part in; household matters, including help that comes to the house (a house cleaner's day, lawn care, repairs, deliveries); and the person's own flights (the family wants the flight numbers and times).
+
+When the person who added the events is someone the family helps take care of (their profile says so), the family plans rides, help and visits around their days, so share nearly everything of theirs: their appointments and therapy in full (not a cover), visits and outings, people coming to see them, and their home routines. Keep private only their bills and money, gifts or surprises, and anything intimate or sensitive (that gets a cover). Their own work stays private too.
+
+For everyone else, be picky: keep private (false) the person's own appointments and health, the rest of their own trips (hotels, Airbnbs, events while away), their own work (meetings, calls, committee meetings, work deadlines and due dates like "Budget ACTUALS DUE", shifts, trainings, presentations, anything from a work calendar or with a Teams or Zoom link), their own plans with friends, errands, bills and money, gifts or surprises, and anything sensitive. Work is never shared. When unsure, keep it private, except for someone the family takes care of, where unsure means share.
 
 trip: true only when the event is clearly part of the person's own trip away from home: their flights, their hotel or Airbnb stay somewhere else, and things they do while away (a destination wedding). The family sees one "<name> traveling" note for the trip. A stay named for someone else or a guest coming to town ("Lorenzo Airbnb" when Lorenzo is visiting) is a visit, not their trip. When unsure, false.
 
-cover: when share is false because it's the person's own appointment that the family would still want to know is happening (a doctor, dentist or eye appointment), a plain label the family sees in its place, with the time and nothing else: "doctor", "dentist", "eye doctor". For anything sensitive (therapy, counseling, intimate health) use just "appointment". "" for everything else (work, friends, errands, money, gifts, trips).
+cover: when share is false because it's the person's own appointment that the family would still want to know is happening (a doctor, dentist or eye appointment), a plain label the family sees in its place, with the time and nothing else: "doctor", "dentist", "eye doctor". For anything sensitive (counseling, mental health, intimate health) use just "appointment". "" for everything else (work, friends, errands, money, gifts, trips).
+
+care: true when the event is part of looking after someone in the family: health, therapy, doctor, dentist, eye and vet visits, tests and results, medicine and pharmacy pickups, caregiver help, rides to any of those, and meetings about a child's needs. False for everything else: household help and chores (a house cleaner, lawn care), errands, bills, voting, social plans and visits, trips and flights, work, holidays.
 
 category: Appointment, School, Work, Sports, Social or Other. The person's own job is always Work.
 
-Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id, self, or empty>","share":false,"trip":false,"cover":"","category":"Appointment"}]} with one entry for every event.`;
+Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id, self, or empty>","share":false,"trip":false,"cover":"","care":false,"category":"Appointment"}]} with one entry for every event.`;
 
-export type SortMember = { id: string; name: string; relationship?: string; added_by?: string; added_by_id?: string; is_poster?: boolean; is_pet?: boolean };
+export type SortMember = { id: string; name: string; relationship?: string; added_by?: string; added_by_id?: string; is_poster?: boolean; is_pet?: boolean; cared_for?: boolean };
 export type SortItem = { key: string; title: string; notes?: string; location?: string; with?: string; date?: string; time?: string };
-export type SortResult = { who: string; self: boolean; share: boolean; trip: boolean; cover: string; category: string };
+export type SortResult = { who: string; self: boolean; share: boolean; trip: boolean; cover: string; care: boolean; category: string };
 
 // "Mom"/"Dad" in a title the model left without a profile: the one Mother /
 // Father profile the person who added it made themselves, if there's exactly one.
@@ -61,7 +67,7 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; poste
   const openai = lean(new OpenAI({ apiKey, timeout: 45000, maxRetries: 1 }), { name: "eventSort" });
   const memberIds = new Set(ctx.members.map((m) => m.id));
   const family = ctx.members.length
-    ? ctx.members.map((m) => `- id ${m.id}: ${m.name}${m.is_pet ? ", a pet" : m.relationship ? `, ${m.relationship}${m.added_by ? ` (relationship as written by ${m.added_by})` : ""}` : ""}${m.is_poster ? " (this is the person who added the events)" : ""}`).join("\n")
+    ? ctx.members.map((m) => `- id ${m.id}: ${m.name}${m.is_pet ? ", a pet" : m.relationship ? `, ${m.relationship}${m.added_by ? ` (relationship as written by ${m.added_by})` : ""}` : ""}${m.cared_for && !m.is_pet ? " (the family helps take care of them)" : ""}${m.is_poster ? " (this is the person who added the events)" : ""}`).join("\n")
     : "(no profiles yet)";
   const events = items.map((e) => ({
     key: e.key,
@@ -96,6 +102,7 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; poste
           self,
           share: r?.share === true,
           trip: r?.trip === true,
+          care: r?.care === true,
           cover: r?.share === true ? "" : String(r?.cover || "").replace(/[^\p{L}\p{N} '-]/gu, "").trim().slice(0, 30),
           category: SORT_CATEGORIES.includes(String(r?.category)) ? String(r.category) : "",
         });
@@ -116,6 +123,20 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
     const u = users.find((x: any) => x.id === id || x.email === id);
     return u ? String(u.display_name || u.full_name || u.email || "").split(" ")[0] : "";
   };
+  // Someone the family helps take care of: other people in the family add
+  // events about them (Anna adds her Mom's appointments), so their own
+  // calendar is the family's business too (Anna, Oct 30 2026: her Mom's
+  // house cleaner day, a 3:00 appointment and a visit were hidden).
+  const caredFor = new Set<string>();
+  try {
+    const appts = (await db.Appointment.filter({ family_id: familyId })) || [];
+    const linked = new Map(rows.map((m: any) => [m.id, String(m.linked_user_id || "")]));
+    for (const a of appts) {
+      const who = String(a.family_member_id || "");
+      const by = String(a.created_by_user_id || a.created_by_id || "");
+      if (who && by && linked.has(who) && linked.get(who) !== by && !a.away_of && !a.cover_of) caredFor.add(who);
+    }
+  } catch (_e) { /* sorted without it */ }
   let newest = "";
   const members = rows.map((m: any) => {
     if (String(m.created_date || "") > newest) newest = String(m.created_date || "");
@@ -129,6 +150,7 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
       added_by_id: addedBy,
       is_poster: !!posterId && m.linked_user_id === posterId,
       is_pet: /^pet$/i.test(String(m.relationship || "")),
+      cared_for: caredFor.has(m.id),
     };
   });
   return { members, newest };

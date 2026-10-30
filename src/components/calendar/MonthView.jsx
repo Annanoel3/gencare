@@ -2,7 +2,7 @@ import React from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, parseISO, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getEventColorClass } from '@/utils/memberColors';
+import { getEventHighlightClass } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 
 // Month grid with WORDS in the cells (the event titles), not dots — the same
@@ -49,15 +49,19 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
             >
               <span className={`text-[11px] md:text-xs leading-4 px-0.5 ${today ? 'text-primary font-bold' : 'text-muted-foreground'}`}>{format(day, 'd')}</span>
               <div className="flex flex-col gap-px mt-0.5">
-                {shown.map(a => (
-                  <span
-                    key={a.id}
-                    className={`block truncate rounded px-1 text-[10px] md:text-[11px] leading-4 text-white ${getEventColorClass(a, members, accounts)}`}
-                    title={a.title}
-                  >
-                    {a.title}
-                  </span>
-                ))}
+                {shown.map(a => {
+                  // Care events are colored chips; the rest are plain text.
+                  const color = getEventHighlightClass(a, members, accounts);
+                  return (
+                    <span
+                      key={a.id}
+                      className={`block truncate rounded px-1 text-[10px] md:text-[11px] leading-4 ${color ? `text-white ${color}` : 'text-foreground/80'}`}
+                      title={a.title}
+                    >
+                      {a.title}
+                    </span>
+                  );
+                })}
                 {extra > 0 && <span className="text-[10px] leading-4 px-1 text-muted-foreground">+{extra} more</span>}
               </div>
             </button>

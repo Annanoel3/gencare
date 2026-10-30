@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AddressLink from '@/components/shared/AddressLink';
 import { format, parseISO, isValid } from 'date-fns';
 import { CalendarDays, Lock, Users, Repeat, Mic } from 'lucide-react';
-import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass } from '@/utils/memberColors';
+import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass, isCareEvent } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { rowIdOf, repeatLabel } from '@/lib/occurrences';
 import { categoryOf, isRecordable } from '@/components/calendar/EventRow';
@@ -26,7 +26,9 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
   const id = rowIdOf(appt);
   const { members: accounts } = useFamily();
   const color = getEventColorClass(appt, members, accounts);
-  const tint = appt.visibility === 'private' ? 'bg-card' : getEventLightColorClass(appt, members, accounts);
+  // Care events get their color; the rest are plain (no bar, no tint).
+  const care = isCareEvent(appt);
+  const tint = appt.visibility === 'private' || !care ? 'bg-card' : getEventLightColorClass(appt, members, accounts);
   const memberDot = getMemberColorByMemberId(appt.family_member_id, members);
   const day = appt.date ? parseISO(appt.date) : null;
   const clock = appt.all_day || !appt.time ? 'All day' : `${fmtTime(appt.time)}${appt.end_time ? ` – ${fmtTime(appt.end_time)}` : ''}`;
@@ -41,7 +43,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
       onKeyDown={(e) => { if (e.key === 'Enter') { if (onOpen) onOpen(appt); else navigate(`/calendar?date=${appt.date}&open=${id}`); } }}
       className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 cursor-pointer`}
     >
-      {color && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
+      {color && care && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
       <div className="flex items-start gap-3 p-3.5 pl-4">
         <div className="mt-0.5 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
           <CalendarDays className="w-3.5 h-3.5 text-primary" />
