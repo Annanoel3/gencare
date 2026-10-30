@@ -21,6 +21,7 @@ import { FamilyProvider, useFamily } from '@/lib/family';
 import { syncOnOpen } from '@/lib/calendarSync';
 import { useUnreadMessages } from '@/lib/messages';
 import { isNativeApp, plugin, waitForPlugin } from '@/lib/phone';
+import { setupWidgets, signOut } from '@/lib/widgets';
 
 function buildNavStructure(members, canRecord, unread = 0) {
   return [
@@ -160,6 +161,7 @@ function AppShell() {
   useEffect(() => {
     if (!me) return undefined;
     syncOnOpen(me);
+    setupWidgets(me);
     const onVisible = () => { if (document.visibilityState === 'visible') syncOnOpen(me); };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
@@ -239,7 +241,7 @@ function AppShell() {
             </nav>
             {/* The way out (Anna, Oct 29 2026: it was hard to find). */}
             <button
-              onClick={() => base44.auth.logout()}
+              onClick={() => signOut()}
               className="mt-4 pt-4 border-t border-border flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full transition-all"
             >
               <LogOut className="w-5 h-5" />

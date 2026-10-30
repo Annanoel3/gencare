@@ -2,6 +2,7 @@ import { base44 } from '@/api/base44Client';
 import { track } from '@/lib/activity';
 import { plugin } from '@/lib/phone';
 import { queryClientInstance } from '@/lib/query-client';
+import { reloadWidgets } from '@/lib/widgets';
 
 // Phone calendars, both ways (Android app only; the browser has no phone
 // calendar, so everything here is a no-op there). Ported from ADHDone's
@@ -148,6 +149,7 @@ export async function saveSharingDefault(value) {
 
 export function refreshEvents() {
   try { queryClientInstance.invalidateQueries({ queryKey: ['appointments'] }); } catch (e) { /* no cache yet */ }
+  reloadWidgets();
 }
 
 // A calendar was unticked: its events leave GenCare (ones the person shared
@@ -237,6 +239,7 @@ export async function syncOnOpen(user) {
 
 // After the family calendar changed in the app: the person's own phone gets it now.
 export function exportSoon() {
+  reloadWidgets();
   if (!hasPhoneCalendars()) return;
   setTimeout(() => { runExport({ force: true }).catch(() => null); }, 1500);
 }

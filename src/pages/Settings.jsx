@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { signOut } from '@/lib/widgets';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
@@ -181,7 +182,7 @@ export default function Settings() {
 
         {/* Sign out lives here as well as the menus (Anna, Oct 29 2026: on a
             phone it was hard to find). */}
-        <Button variant="outline" onClick={() => base44.auth.logout()} className="w-full h-12 gap-2 text-destructive border-destructive/30 hover:bg-destructive/5">
+        <Button variant="outline" onClick={() => signOut()} className="w-full h-12 gap-2 text-destructive border-destructive/30 hover:bg-destructive/5">
           <LogOut className="w-4 h-4" /> Sign out{user?.email ? ` of ${user.email}` : ''}
         </Button>
       </div>

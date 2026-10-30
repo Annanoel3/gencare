@@ -4,8 +4,8 @@ import { Heart, Check, Loader2, Users, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { useFamily } from '@/lib/family';
-import { base44 } from '@/api/base44Client';
 import { isNativeApp, isAndroidApp , externalClick } from '@/lib/phone';
+import { signOut } from '@/lib/widgets';
 import {
   billingAvailable, getPlans, buyPlan, restorePurchases, getPlanStatus,
   manageSubscriptionUrl, openInPlay, PRICE_MONTHLY_TEXT, PRICE_YEARLY_TEXT, PLAY_STORE_URL,
@@ -189,7 +189,7 @@ export default function Subscribe({ gate = false }) {
         {gate && (
           <p className="text-xs text-center text-muted-foreground mt-4 space-x-3">
             <Link to="/account-management" className="underline">Account settings</Link>
-            <button type="button" onClick={() => base44.auth.logout()} className="underline">Sign out</button>
+            <button type="button" onClick={() => signOut()} className="underline">Sign out</button>
           </p>
         )}
       </div>

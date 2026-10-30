@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { UserX, Trash2, ArrowLeft, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { signOut } from '@/lib/widgets';
 
 export default function AccountManagement() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function AccountManagement() {
     setConfirmText('');
     if (done) {
       if (confirmOpen === 'account') {
-        base44.auth.logout();
+        signOut();
       } else {
         navigate('/settings');
       }
