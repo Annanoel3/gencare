@@ -138,6 +138,13 @@ public class NotifyBridge: CAPPlugin, CAPBridgedPlugin {
         return OneSignal.User.pushSubscription.id ?? ""
     }
 
+    /// A tap on a home-screen widget (gencare://open?path=...): lands on that page,
+    /// like a push tap, warm or cold start (SceneDelegate hands it over).
+    public static func openPath(_ path: String) {
+        guard path.hasPrefix("/") else { return }
+        notificationOpened(["screen": path, "type": "open_path"])
+    }
+
     fileprivate static func notificationOpened(_ data: [String: Any]) {
         lastLaunchData = data
         instance?.notifyListeners("notificationOpened", data: ["data": data])

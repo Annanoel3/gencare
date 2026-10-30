@@ -22,6 +22,18 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<!-- Taps on the home-screen widgets: gencare://open?path=/calendar?date=... -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.mediocreatbest.gencare.widgets</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>gencare</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -77,7 +89,13 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
+		<string>fetch</string>
 		<string>remote-notification</string>
+	</array>
+	<!-- Calendar sync with the app closed (BackgroundSync.swift). -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.mediocreatbest.gencare.calendar-sync</string>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

@@ -6,6 +6,8 @@ import PackageDescription
 //   CalendarBridge — the phone's calendars, read and write (EventKit)
 //   RecorderBridge — the Record Notes recorder (AVAudioRecorder, keeps going in the background)
 //   BillingBridge  — the Family plan subscription (RevenueCat / StoreKit)
+//   WidgetBridge   — the home-screen widgets' key and refresh (WidgetKit; the widgets are the GenCareWidgets extension)
+//   BackgroundSync — calendar sync with the app closed (BackgroundTasks)
 // Same plugin names and methods as the Android app, so the web app does not
 // care which phone it is on.
 let package = Package(

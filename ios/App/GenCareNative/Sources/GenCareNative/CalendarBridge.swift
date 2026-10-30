@@ -13,7 +13,7 @@ import EventKit
 ///   listEvents({ calendarIds, days })     -> { granted, events: [rows] }
 ///   writeEvents({ calendarId, events })   -> { granted, results: [{ key, ok, deviceEventId, hash, error? }] }
 ///   deleteEvents({ deviceEventIds })      -> { granted, deleted }
-///   setSyncCalendars({ calendarIds })     -> { watching }   (nothing runs in the background on iPhone; the app syncs on open)
+///   setSyncCalendars({ calendarIds })     -> { watching }   (remembered for BackgroundSync, which syncs with the app closed when iOS lets it)
 ///   setExportEnabled({ enabled })         -> { ok }
 ///
 /// Rows from listEvents follow the Android Calendar Provider shape the server
@@ -45,7 +45,9 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - Permission
 
-    private func hasFullAccess() -> Bool {
+    private func hasFullAccess() -> Bool { CalendarBridge.fullAccess() }
+
+    static func fullAccess() -> Bool {
         let status = EKEventStore.authorizationStatus(for: .event)
         if #available(iOS 17.0, *) {
             return status == .fullAccess
@@ -148,14 +150,17 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["granted": true, "calendars": rows])
     }
 
-    // On Android these hand settings to a background worker. iPhone has no such
-    // worker: the app syncs when it opens. Accepted so the web app's calls succeed.
+    // The app's word (on every open and after every change) on which calendars
+    // to bring in and whether family events go onto this phone: remembered for
+    // BackgroundSync, which does both with the app closed when iOS lets it.
     @objc func setSyncCalendars(_ call: CAPPluginCall) {
         let ids = call.getArray("calendarIds", String.self) ?? []
+        BackgroundSync.setCalendars(ids)
         call.resolve(["watching": !ids.isEmpty && hasFullAccess()])
     }
 
     @objc func setExportEnabled(_ call: CAPPluginCall) {
+        BackgroundSync.setExportEnabled(call.getBool("enabled") ?? false)
         call.resolve(["ok": true])
     }
 
@@ -166,9 +171,16 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
         let ids = Set(call.getArray("calendarIds", String.self) ?? [])
         let days = max(1, min(730, call.getInt("days") ?? 365))
         work.async {
+            call.resolve(["granted": true, "events": CalendarBridge.readRows(ids: ids, days: days)])
+        }
+    }
+
+    /// The events in these calendars from a week ago through `days` ahead, as rows
+    /// the server's phoneCalendar import reads (also used by BackgroundSync).
+    static func readRows(ids: Set<String>, days: Int) -> [[String: Any]] {
             let store = CalendarBridge.store
             let wanted = store.calendars(for: .event).filter { ids.isEmpty || ids.contains($0.calendarIdentifier) }
-            guard !wanted.isEmpty else { call.resolve(["granted": true, "events": []]); return }
+            guard !wanted.isEmpty else { return [] }
             let start = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
             let end = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
             let predicate = store.predicateForEvents(withStart: start, end: end, calendars: wanted)
@@ -216,8 +228,7 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
                 }
                 rows.append(row)
             }
-            call.resolve(["granted": true, "events": rows])
-        }
+            return rows
     }
 
     /// Epoch ms. All-day events are reported at UTC midnight of their local day
@@ -290,10 +301,16 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
         }
         let events = (call.getArray("events") ?? []).compactMap { $0 as? [String: Any] }
         work.async {
+            call.resolve(["granted": true, "results": CalendarBridge.writeRows(calendarId: calendarId, events: events)])
+        }
+    }
+
+    /// Writes GenCare's events into one of the phone's calendars; one result per
+    /// event ({ key, ok, deviceEventId, hash } or { key, ok: false, error }).
+    static func writeRows(calendarId: String, events: [[String: Any]]) -> [[String: Any]] {
             let store = CalendarBridge.store
             guard let calendar = store.calendar(withIdentifier: calendarId), calendar.allowsContentModifications else {
-                call.resolve(["granted": true, "results": events.map { ["key": $0["key"] ?? "", "ok": false, "error": "calendar_gone"] }])
-                return
+                return events.map { ["key": $0["key"] ?? "", "ok": false, "error": "calendar_gone"] }
             }
             var results: [[String: Any]] = []
             for e in events {
@@ -338,24 +355,27 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
                     results.append(["key": key, "ok": false, "error": error.localizedDescription])
                 }
             }
-            call.resolve(["granted": true, "results": results])
-        }
+            return results
     }
 
     @objc func deleteEvents(_ call: CAPPluginCall) {
         guard hasFullAccess() else { call.resolve(["granted": false, "deleted": 0]); return }
         let ids = call.getArray("deviceEventIds", String.self) ?? []
         work.async {
-            let store = CalendarBridge.store
-            var deleted = 0
-            for id in ids {
-                guard let ev = store.event(withIdentifier: id) else { continue }
-                // A series GenCare wrote goes as a whole, not one day of it.
-                let span: EKSpan = ev.hasRecurrenceRules ? .futureEvents : .thisEvent
-                do { try store.remove(ev, span: span, commit: true); deleted += 1 } catch { /* already gone */ }
-            }
-            call.resolve(["granted": true, "deleted": deleted])
+            call.resolve(["granted": true, "deleted": CalendarBridge.deleteRows(ids)])
         }
+    }
+
+    static func deleteRows(_ ids: [String]) -> Int {
+        let store = CalendarBridge.store
+        var deleted = 0
+        for id in ids {
+            guard let ev = store.event(withIdentifier: id) else { continue }
+            // A series GenCare wrote goes as a whole, not one day of it.
+            let span: EKSpan = ev.hasRecurrenceRules ? .futureEvents : .thisEvent
+            do { try store.remove(ev, span: span, commit: true); deleted += 1 } catch { /* already gone */ }
+        }
+        return deleted
     }
 
     /// "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;UNTIL=20261231" -> EKRecurrenceRule.

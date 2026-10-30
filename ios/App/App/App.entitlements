@@ -4,5 +4,13 @@
 <dict>
 	<key>aps-environment</key>
 	<string>production</string>
+	<!-- The app's own keychain group stays first (where its items go by default);
+	     the .shared group holds the home-screen widgets' key, which the
+	     GenCareWidgets extension reads (WidgetBridge.swift). -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.mediocreatbest.gencare</string>
+		<string>$(AppIdentifierPrefix)com.mediocreatbest.gencare.shared</string>
+	</array>
 </dict>
 </plist>

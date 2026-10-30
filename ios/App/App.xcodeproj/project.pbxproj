@@ -18,7 +18,33 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		6C1A0001000000000000AC01 /* GenCareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1A0001000000000000AC00 /* GenCareViewController.swift */; };
 		6C1A0001000000000000AC11 /* GenCareNative in Frameworks */ = {isa = PBXBuildFile; productRef = 6C1A0001000000000000AC10 /* GenCareNative */; };
+		6C1A0002000000000000B005 /* GenCareWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C1A0002000000000000B002 /* GenCareWidgets.swift */; };
+		6C1A0002000000000000B006 /* GenCareWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6C1A0002000000000000B001 /* GenCareWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6C1A0002000000000000B00D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6C1A0002000000000000B008;
+			remoteInfo = GenCareWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6C1A0002000000000000B00C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6C1A0002000000000000B006 /* GenCareWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -34,6 +60,10 @@
 		6C1A0001000000000000AC00 /* GenCareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenCareViewController.swift; sourceTree = "<group>"; };
 		6C1A0001000000000000AC02 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		6C1A0002000000000000B001 /* GenCareWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GenCareWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6C1A0002000000000000B002 /* GenCareWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenCareWidgets.swift; sourceTree = "<group>"; };
+		6C1A0002000000000000B003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6C1A0002000000000000B004 /* GenCareWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GenCareWidgets.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +76,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6C1A0002000000000000B00A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -54,6 +91,7 @@
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
+				6C1A0002000000000000B007 /* GenCareWidgets */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -62,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				6C1A0002000000000000B001 /* GenCareWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -84,6 +123,16 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		6C1A0002000000000000B007 /* GenCareWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				6C1A0002000000000000B002 /* GenCareWidgets.swift */,
+				6C1A0002000000000000B003 /* Info.plist */,
+				6C1A0002000000000000B004 /* GenCareWidgets.entitlements */,
+			);
+			path = GenCareWidgets;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -94,10 +143,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				6C1A0002000000000000B00C /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6C1A0002000000000000B00E /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -107,6 +158,23 @@
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
 			productType = "com.apple.product-type.application";
+		};
+		6C1A0002000000000000B008 /* GenCareWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6C1A0002000000000000B00F /* Build configuration list for PBXNativeTarget "GenCareWidgets" */;
+			buildPhases = (
+				6C1A0002000000000000B009 /* Sources */,
+				6C1A0002000000000000B00A /* Frameworks */,
+				6C1A0002000000000000B00B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GenCareWidgets;
+			productName = GenCareWidgets;
+			productReference = 6C1A0002000000000000B001 /* GenCareWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -125,6 +193,10 @@
 							com.apple.BackgroundModes = { enabled = 1; };
 							com.apple.Push = { enabled = 1; };
 						};
+					};
+					6C1A0002000000000000B008 = {
+						CreatedOnToolsVersion = 15.0;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -146,6 +218,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				6C1A0002000000000000B008 /* GenCareWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -164,6 +237,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6C1A0002000000000000B00B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -177,7 +257,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6C1A0002000000000000B009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6C1A0002000000000000B005 /* GenCareWidgets.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6C1A0002000000000000B00E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6C1A0002000000000000B008 /* GenCareWidgets */;
+			targetProxy = 6C1A0002000000000000B00D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -249,6 +345,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.1.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -300,6 +397,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -322,7 +420,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mediocreatbest.gencare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -345,9 +442,52 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mediocreatbest.gencare;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		6C1A0002000000000000B010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = GenCareWidgets/GenCareWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = GenCareWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mediocreatbest.gencare.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		6C1A0002000000000000B011 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = GenCareWidgets/GenCareWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = GenCareWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.mediocreatbest.gencare.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -371,6 +511,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6C1A0002000000000000B00F /* Build configuration list for PBXNativeTarget "GenCareWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6C1A0002000000000000B010 /* Debug */,
+				6C1A0002000000000000B011 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

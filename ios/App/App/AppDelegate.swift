@@ -11,6 +11,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Push notifications start before the web app loads, so a tap on a push that
         // cold-starts the app is kept for NotifyBridge.getLaunchNotification().
         NotifyBridge.initialize(launchOptions: launchOptions)
+        // Calendar sync with the app closed (iOS needs the task registered here).
+        BackgroundSync.register()
         return true
     }
 
