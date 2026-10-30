@@ -1,6 +1,10 @@
 {
   "name": "Appointment",
   "properties": {
+    "ai_care": {
+      "description": "GenCare's read: part of looking after someone (health, therapy, doctor or vet visits, medicine, caregiver help). Care events are colored on the calendar; the rest show as plain text",
+      "type": "boolean"
+    },
     "ai_checked_at": {
       "description": "When GenCare last sorted this event (who it's about, shared or not, category)",
       "format": "date-time",
@@ -13,6 +17,10 @@
     "ai_share": {
       "description": "GenCare's sharing pick for this event (used when the person's choice is 'GenCare decides')",
       "type": "boolean"
+    },
+    "ai_sort_v": {
+      "description": "Which version of GenCare's sorting rules last sorted this event; an older one is sorted again on the next sync",
+      "type": "number"
     },
     "ai_trip": {
       "description": "GenCare's read: part of the person's own trip away from home (flights, stays, events while away). Their trips show the family one '<name> traveling' event instead",
