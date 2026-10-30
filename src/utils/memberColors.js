@@ -79,8 +79,14 @@ export function isCareEvent(appt) {
   return ['Appointment', 'Doctor', 'Therapy'].includes(String(appt?.category || ''));
 }
 
-/** The event's color if it's a care event, '' for plain text. */
+/**
+ * The event's color if it's a care event, '' for plain text. An only-you
+ * event always stays gray, care or not, so it's never mistaken for one the
+ * family sees (Anna, Oct 30 2026: with her private plans in plain text it
+ * looked like everything was shared).
+ */
 export function getEventHighlightClass(appt, members = [], accounts = []) {
+  if (appt?.visibility === 'private') return PRIVATE_COLOR;
   return isCareEvent(appt) ? getEventColorClass(appt, members, accounts) : '';
 }
 

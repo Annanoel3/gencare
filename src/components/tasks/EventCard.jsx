@@ -43,7 +43,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
       onKeyDown={(e) => { if (e.key === 'Enter') { if (onOpen) onOpen(appt); else navigate(`/calendar?date=${appt.date}&open=${id}`); } }}
       className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 cursor-pointer`}
     >
-      {color && care && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
+      {color && (care || appt.visibility === 'private') && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
       <div className="flex items-start gap-3 p-3.5 pl-4">
         <div className="mt-0.5 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
           <CalendarDays className="w-3.5 h-3.5 text-primary" />

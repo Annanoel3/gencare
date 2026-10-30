@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNowStrict, parseISO, isValid, format, subDays } from 'date-fns';
-import { Activity, CheckCircle2, BellRing, BellPlus, CalendarPlus, MessageCircle } from 'lucide-react';
+import { Activity, CheckCircle2, BellRing, BellPlus, CalendarPlus, MessageCircle, Smartphone, UserPlus } from 'lucide-react';
 import { serverDate, serverMs } from '@/lib/serverTime';
 import { listReminders, REMINDERS_KEY, fmtClock, ONE_TIME } from '@/lib/reminders';
 import { base44 } from '@/api/base44Client';
@@ -14,9 +14,12 @@ import useEventEditor from '@/components/calendar/useEventEditor';
 // Home's "Who did what" (Anna, Oct 29 2026: the old Recent Activity only
 // repeated the newest messages). The last 3 days of what people in the
 // family actually did: care logged, tasks checked off, reminders marked
-// done, reminders and events added, messages written. Only what each person is allowed to
-// see shows (the database's own sharing rules), and the locked
-// Legal & financial folder never does.
+// done, reminders and events added, messages written, events brought in
+// from someone's phone calendar (one line per person per day, not one per
+// event) and people joining. Only what each person is allowed to see shows
+// (the database's own sharing rules), and the locked Legal & financial folder
+// never does. It checks again every minute while open and whenever the app
+// comes back to the front (Anna, Oct 30 2026: it wasn't updating).
 
 const first = (s) => String(s || '').trim().split(' ')[0];
 const DAYS = 3;
@@ -33,14 +36,16 @@ export default function ActivityFeed({ members = [] }) {
   const [more, setMore] = useState(false);
   const { openEvent, editor } = useEventEditor(members);
   const since = subDays(new Date(), DAYS).toISOString();
+  const live = { refetchOnWindowFocus: true, refetchInterval: 60000 };
 
-  const logs = useQuery({ queryKey: ['careLog', 'activity'], queryFn: () => base44.entities.CareLog.filter({ created_date: { $gte: since } }, '-created_date', 60) });
-  const done = useQuery({ queryKey: ['careTasks', 'activity'], queryFn: () => base44.entities.CareTask.filter({ status: 'completed', completed_at: { $gte: since } }, '-completed_at', 40) });
-  const rems = useQuery({ queryKey: ['medLogs', 'activity'], queryFn: () => base44.entities.MedicationLog.filter({ status: { $in: ['taken', 'skipped'] }, taken_at: { $gte: since } }, '-taken_at', 40) });
-  const events = useQuery({ queryKey: ['appointments', 'activity'], queryFn: () => base44.entities.Appointment.filter({ source: 'app', created_date: { $gte: since } }, '-created_date', 40) });
-  const msgs = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages });
+  const logs = useQuery({ queryKey: ['careLog', 'activity'], queryFn: () => base44.entities.CareLog.filter({ created_date: { $gte: since } }, '-created_date', 60), ...live });
+  const done = useQuery({ queryKey: ['careTasks', 'activity'], queryFn: () => base44.entities.CareTask.filter({ status: 'completed', completed_at: { $gte: since } }, '-completed_at', 40), ...live });
+  const rems = useQuery({ queryKey: ['medLogs', 'activity'], queryFn: () => base44.entities.MedicationLog.filter({ status: { $in: ['taken', 'skipped'] }, taken_at: { $gte: since } }, '-taken_at', 40), ...live });
+  const events = useQuery({ queryKey: ['appointments', 'activity'], queryFn: () => base44.entities.Appointment.filter({ source: 'app', created_date: { $gte: since } }, '-created_date', 40), ...live });
+  const imports = useQuery({ queryKey: ['appointments', 'activity', 'phone'], queryFn: () => base44.entities.Appointment.filter({ source: 'phone', created_date: { $gte: since } }, '-created_date', 300), ...live });
+  const msgs = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages, ...live });
   // Reminders: the same list the To-do page keeps, so adding one updates this too.
-  const meds = useQuery({ queryKey: REMINDERS_KEY, queryFn: listReminders });
+  const meds = useQuery({ queryKey: REMINDERS_KEY, queryFn: listReminders, ...live });
 
   const who = (name, id) => (id && id === me?.id ? 'You' : first(name) || 'Someone');
 
@@ -70,6 +75,30 @@ export default function ActivityFeed({ members = [] }) {
       out.push({ key: `a${a.id}`, at: a.created_date, icon: <CalendarPlus className="w-4 h-4 text-violet-600" />,
         text: <><b>{who(a.created_by_name, a.created_by_user_id)}</b> added {a.title}{day && isValid(day) ? ` · ${format(day, 'EEE, MMM d')}` : ''}</>, go: () => openEvent(a) });
     }
+    // Events brought in from a phone calendar: one line per person per day
+    // ("Pamela brought in 6 events from her phone calendar").
+    const brought = new Map();
+    for (const a of imports.data || []) {
+      if (a.cover_of || a.away_of) continue;
+      const d = serverDate(a.created_date);
+      if (!d) continue;
+      const k = `${a.created_by_user_id || a.created_by_id}|${format(d, 'yyyy-MM-dd')}`;
+      const g = brought.get(k) || { n: 0, at: a.created_date, by: a.created_by_user_id || a.created_by_id, name: a.created_by_name };
+      g.n++;
+      if (serverMs(a.created_date) > serverMs(g.at)) g.at = a.created_date;
+      brought.set(k, g);
+    }
+    for (const [k, g] of brought) {
+      const mine = g.by && g.by === me?.id;
+      out.push({ key: `p${k}`, at: g.at, icon: <Smartphone className="w-4 h-4 text-violet-600" />,
+        text: <><b>{who(g.name, g.by)}</b> brought in {g.n} event{g.n === 1 ? '' : 's'} from {mine ? 'your' : 'their'} phone calendar</>, go: () => navigate('/calendar') });
+    }
+    // Someone new in the family.
+    for (const u of users) {
+      if (!u.created_date || u.id === me?.id || serverMs(u.created_date) < serverMs(since)) continue;
+      out.push({ key: `u${u.id}`, at: u.created_date, icon: <UserPlus className="w-4 h-4 text-emerald-600" />,
+        text: <><b>{first(u.full_name)}</b> joined the family</>, go: () => navigate('/family') });
+    }
     // A reminder someone added ("Anna added a reminder: Order Thanksgiving food").
     for (const r of meds.data || []) {
       if (serverMs(r.created_date) < serverMs(since)) continue;
@@ -85,7 +114,7 @@ export default function ActivityFeed({ members = [] }) {
         text: <><b>{who(m.author_name, m.author_user_id)}</b> wrote: <span className="text-muted-foreground">{m.content}</span></>, go: () => navigate('/messages') });
     }
     return out.filter((x) => x.at).sort((a, b) => serverMs(b.at) - serverMs(a.at));
-  }, [logs.data, done.data, rems.data, events.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [logs.data, done.data, rems.data, events.data, imports.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = [logs, done, rems, events].some((q) => q.isLoading);
   const shown = more ? items.slice(0, 40) : items.slice(0, 8);

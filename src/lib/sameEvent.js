@@ -79,6 +79,9 @@ export function mergeSameEvents(list) {
       family_member_name: keep.family_member_name || others.find((o) => o.family_member_name)?.family_member_name || '',
       also_from: names,
       merged_ids: others.map((o) => o.id),
+      // Their own private event, with GenCare's "<name>: doctor" stand-in for
+      // the family folded into it: say what the family sees instead.
+      family_sees: !keep.cover_of && keep.visibility === 'private' ? (others.find((o) => o.cover_of)?.title || '') : '',
     });
   }
   return out;
