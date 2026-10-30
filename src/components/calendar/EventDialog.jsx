@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat, Copy, CircleStop } from 'lucide-react';
+import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat, Copy, CircleStop, HeartPulse } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import { isCareEvent } from '@/utils/memberColors';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useFamily, orderMembers } from '@/lib/family';
 import { Link } from 'react-router-dom';
@@ -98,6 +100,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
         end_date: appt.end_date || '',
         recurrence: baseRule(appt.recurrence),
         until: untilOf(appt.recurrence),
+        care: isCareEvent(appt),
       };
       setForm(loaded);
       lastSaved.current = saveKey(buildData(loaded));
@@ -149,6 +152,9 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
       shared_with: f.visibility === 'some' && !everyone(f) ? (f.shared_with || []).filter((id) => others.some((u) => u.id === id)) : [],
       last_changed_at: new Date().toISOString(),
     };
+    // Care-related: saved only once the person has picked it (until then it's
+    // GenCare's call, ai_care).
+    if (appt?.id && (touched.current.has('care') || typeof appt.care === 'boolean')) data.care = !!f.care;
     // What GenCare filled in stays marked as its own until the person changes it.
     if (appt?.id) {
       const legacyPrivateImport = !Array.isArray(appt.auto_set) && appt.source === 'phone' && (appt.visibility || 'private') === 'private';
@@ -202,6 +208,11 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
         <div className="space-y-4 mt-2">
           {!editing && prefill?.copyOf && (
             <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">A copy of “{prefill.copyOf}”. Change the day (and anything else), then tap Add.</p>
+          )}
+          {editing && appt?.family_sees && (
+            <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2 flex gap-1.5">
+              <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-px" /> <span>Only you see the details here. Your family just sees "{appt.family_sees}".</span>
+            </p>
           )}
           {fromPhone && (
             <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">
@@ -284,6 +295,24 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               })}
             </div>
           </div>
+
+          {editing && (
+            // Anna, Oct 30 2026: a way to fix it when GenCare calls something
+            // care-related (colored) or not (plain text) wrongly.
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-border/60 p-3">
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium"><HeartPulse className="w-4 h-4 text-primary" /> Care-related</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  {form.care ? 'Shows in color on the calendar.' : 'Shows as plain text on the calendar.'} Turn this {form.care ? 'off' : 'on'} if GenCare got it wrong.
+                </span>
+              </span>
+              <Switch checked={!!form.care} onCheckedChange={(v) => {
+                pick('care', () => set('care', !!v));
+                // The same event from someone else's calendar, shown as one, follows along.
+                for (const id of appt?.merged_ids || []) base44.entities.Appointment.update(id, { care: !!v }).catch(() => {});
+              }} aria-label="Care-related" />
+            </label>
+          )}
 
           <div><Label>Where</Label><AddressField value={form.location} onChange={(v) => set('location', v)} className="mt-1" /></div>
           <NotesField value={form.notes} onChange={(v) => set('notes', v)} resetKey={`${open}${appt?.id || ''}${prefill ? 'copy' : ''}`} />

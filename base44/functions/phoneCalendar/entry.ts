@@ -42,6 +42,9 @@ import { sameEvent } from '../../shared/sameEvent.ts';
 //   { mode: "sort", event } -> sort one new event added in the app: who it's
 //        about, shared or not, category. Saves nothing; the app applies it.
 //   { mode: "status" } -> counts for the settings screen.
+//   { mode: "activity", since } -> for Home's "Who did what": how many events
+//        each person in the family brought in from their phone since then
+//        (counts only, private ones included; no titles), and when.
 
 const DAYS_AHEAD = 365;
 const DAYS_BACK = 7;
@@ -466,6 +469,22 @@ Deno.serve(async (req) => {
       if (!r) return Response.json({ ok: false, error: 'Could not sort' });
       const m = members.find((x) => x.id === r.who);
       return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, cover: r.cover, care: r.care, category: r.category });
+    }
+
+    if (mode === 'activity') {
+      const since = String(body.since || '');
+      const rows = ((await db.Appointment.filter({ family_id: familyId, source: 'phone' })) || [])
+        .filter((a: any) => !a.away_of && !a.cover_of && (!since || new Date(String(a.created_date || '').replace(/(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?)$/, '$1Z')).toISOString() >= since));
+      const by = new Map<string, { user_id: string; name: string; total: number; latest: string }>();
+      for (const a of rows) {
+        const id = String(a.created_by_user_id || a.created_by_id || '');
+        if (!id) continue;
+        const g = by.get(id) || { user_id: id, name: String(a.created_by_name || ''), total: 0, latest: '' };
+        g.total++;
+        if (String(a.created_date || '') > g.latest) g.latest = String(a.created_date || '');
+        by.set(id, g);
+      }
+      return Response.json({ ok: true, people: [...by.values()] });
     }
 
     if (mode === 'prune') {

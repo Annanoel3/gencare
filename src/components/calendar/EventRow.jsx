@@ -84,8 +84,9 @@ export default function EventRow({ appt, members, onClick }) {
           )}
         </div>
         {appt.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{appt.notes}</p>}
-        {appt.family_sees && (
-          <p className="text-xs text-muted-foreground mt-1">Only you see this. The family sees "{appt.family_sees}".</p>
+        {appt.own && (
+          // Their own private event, shown as the family sees it (lib/sameEvent).
+          <p className="text-xs text-muted-foreground mt-1">This is "{appt.own.title}". Your family just sees "{appt.title}".</p>
         )}
         {appt.also_from?.length > 0 && (
           // The same event was on someone else's calendar too (lib/sameEvent).

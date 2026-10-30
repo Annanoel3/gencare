@@ -27,6 +27,7 @@ export function sameEvent(a, b) {
   // A trip's "<name> traveling" spans days and is never one event; a
   // "<name>: doctor" stand-in IS the event it stands for.
   if (a.away_of || b.away_of) return false;
+  if (a.cover_of === b.id || b.cover_of === a.id) return !!(a.cover_of || b.cover_of);
   if (!a.date || a.date !== b.date) return false;
   if (startOf(a) !== startOf(b)) return false;
   if (a.family_member_id && b.family_member_id && a.family_member_id !== b.family_member_id) return false;
@@ -68,8 +69,28 @@ export function mergeSameEvents(list) {
     const [keep, ...others] = [...group].sort(order);
     const mine = keep.created_by_user_id || keep.created_by_id;
     const names = [...new Set(others
-      .filter((o) => (o.created_by_user_id || o.created_by_id) !== mine)
+      .filter((o) => !o.cover_of && (o.created_by_user_id || o.created_by_id) !== mine)
       .map((o) => firstName(o.created_by_name)).filter(Boolean))];
+    // Their own private event with GenCare's "<name>: doctor" stand-in for the
+    // family: it shows as what the family sees (Anna, Oct 30 2026: "I want my
+    // calendar to show what the family is seeing"), and opens their own event
+    // (realEvent below).
+    const cover = keep.cover_of || keep.visibility !== 'private' ? null
+      : others.find((o) => o.cover_of === keep.id) || others.find((o) => o.cover_of);
+    if (cover) {
+      out.push({
+        ...keep,
+        title: cover.title,
+        visibility: cover.visibility || 'family',
+        shared_with: cover.shared_with || [],
+        family_member_id: keep.family_member_id || cover.family_member_id || '',
+        family_member_name: keep.family_member_id ? keep.family_member_name || '' : cover.family_member_name || '',
+        also_from: names,
+        merged_ids: others.map((o) => o.id),
+        own: keep,
+      });
+      continue;
+    }
     out.push({
       ...keep,
       location: longest(group, 'location'),
@@ -79,10 +100,16 @@ export function mergeSameEvents(list) {
       family_member_name: keep.family_member_name || others.find((o) => o.family_member_name)?.family_member_name || '',
       also_from: names,
       merged_ids: others.map((o) => o.id),
-      // Their own private event, with GenCare's "<name>: doctor" stand-in for
-      // the family folded into it: say what the family sees instead.
-      family_sees: !keep.cover_of && keep.visibility === 'private' ? (others.find((o) => o.cover_of)?.title || '') : '',
     });
   }
   return out;
+}
+
+/**
+ * The event to open and edit for an entry from mergeSameEvents. Behind what
+ * the family sees ("Anna: doctor") is the person's own private event: that's
+ * the one that opens, with `family_sees` saying what the family sees instead.
+ */
+export function realEvent(row) {
+  return row?.own ? { ...row.own, family_sees: row.title } : row;
 }

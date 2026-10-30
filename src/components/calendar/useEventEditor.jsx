@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
 import { exportSoon } from '@/lib/calendarSync';
 import { sharingDefaultOf, sortNewEvent } from '@/lib/events';
+import { realEvent } from '@/lib/sameEvent';
 import { withFamily } from '@/lib/family';
 import { track } from '@/lib/activity';
 import { toast } from '@/components/ui/use-toast';
@@ -28,7 +29,9 @@ export default function useEventEditor(members = []) {
   const notify = (action, id) => base44.functions.invoke('notifyFamily', { kind: 'appointment', action, appointment_id: id }).catch(() => {});
   const afterChange = () => { qc.invalidateQueries({ queryKey: ['appointments'] }); exportSoon(); };
 
-  const openEvent = (row) => {
+  const openEvent = (shown) => {
+    // What the family sees of their own private event opens that event.
+    const row = realEvent(shown);
     if (!row?.id) return;
     const v = row.visibility || 'family';
     session.current = { id: row.id, startVisibility: v, visibility: v, changed: false };

@@ -3,6 +3,7 @@ import { track } from '@/lib/activity';
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { listEvents } from "@/lib/events";
+import { realEvent } from "@/lib/sameEvent";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
@@ -257,7 +258,8 @@ export default function Notes() {
   const loadUpcoming = useCallback(async () => {
     try {
       const now = Date.now();
-      const rows = (await listEvents(new Date(now - 61 * DAY), new Date(now + 366 * DAY))) || [];
+      // Their own events by their own names (not what the family sees).
+      const rows = ((await listEvents(new Date(now - 61 * DAY), new Date(now + 366 * DAY))) || []).map(realEvent);
       const withStart = rows.filter((a) => startOf(a) !== null && startOf(a) > now - 60 * DAY);
       setEvents(withStart);
       const soon = withStart

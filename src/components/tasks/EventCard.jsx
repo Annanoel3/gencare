@@ -64,6 +64,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
             {appt.visibility === 'some' && <span className="inline-flex items-center gap-0.5"><Users className="w-3 h-3" />Shared</span>}
             {appt.location && <AddressLink address={appt.location} className="inline-flex items-center gap-1 text-primary max-w-[14rem] min-w-0" />}
           </div>
+          {appt.own && <p className="text-xs text-muted-foreground mt-1">This is "{appt.own.title}". Your family just sees "{appt.title}".</p>}
         </div>
         {canRecord && isRecordable(appt) && (
           <Link

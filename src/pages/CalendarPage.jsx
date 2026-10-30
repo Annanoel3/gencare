@@ -8,6 +8,7 @@ import { exportSoon, syncNow, syncOnOpen } from '@/lib/calendarSync';
 import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isValid, startOfMonth, endOfMonth, min as minDate, max as maxDate } from 'date-fns';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/events';
+import { realEvent } from '@/lib/sameEvent';
 import SharingChoiceDialog from '@/components/calendar/SharingChoice';
 import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import MonthView from '@/components/calendar/MonthView';
@@ -78,7 +79,7 @@ export default function CalendarPage() {
       setParams(next, { replace: true });
     };
     const found = appointments.find((a) => a.id === open);
-    if (found) { setEditing(found); setDialogOpen(true); clear(); return; }
+    if (found) { setEditing(realEvent(found)); setDialogOpen(true); clear(); return; }
     // Not in the days loaded (or not loaded yet): fetch that one event.
     let cancelled = false;
     base44.entities.Appointment.filter({ id: open }).then((rows) => {
@@ -204,7 +205,7 @@ export default function CalendarPage() {
   const openNew = () => { setPrefill(null); setEditing(null); setDialogOpen(true); };
   const duplicate = (data) => { closeDialog(); setTimeout(() => { setPrefill(data); setEditing(null); setDialogOpen(true); }, 200); };
   // An occurrence of a series opens the series itself.
-  const openEdit = (occ) => { setEditing(appointments.find((a) => a.id === rowIdOf(occ)) || occ); setDialogOpen(true); };
+  const openEdit = (occ) => { setEditing(realEvent(appointments.find((a) => a.id === rowIdOf(occ)) || occ)); setDialogOpen(true); };
 
   const onSave = (data, left) => { if (!editing?.id) createMutation.mutate({ data, left }); };
 
@@ -268,6 +269,10 @@ export default function CalendarPage() {
           <span className={`w-2.5 h-2.5 rounded-full ${PRIVATE_COLOR}`} />
           <span className="text-xs text-muted-foreground">Only you</span>
         </div>
+        {/* Anna, Oct 30 2026: say what plain text means, and how to fix it. */}
+        <p className="basis-full text-xs text-muted-foreground">
+          Events in plain text, with no color, aren't care-related. If GenCare got one wrong, tap it and turn on Care-related.
+        </p>
       </div>
 
       <Tabs value={view} onValueChange={setView} className="mb-6">

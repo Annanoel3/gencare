@@ -72,9 +72,12 @@ export function getEventColorClass(appt, members = [], accounts = []) {
  * (Anna, Oct 30 2026: "Ofelia day is when our house cleaner comes. It's not
  * care related so it should just be text"). GenCare's sorter decides
  * (ai_care: health, therapy, doctor/vet visits, medicine, caregiver help);
- * an event it hasn't looked at counts as care when it's an appointment.
+ * an event it hasn't looked at counts as care when it's an appointment. The
+ * person's own pick in the event ("Care-related", Appointment.care) wins over
+ * GenCare's, for when it got one wrong.
  */
 export function isCareEvent(appt) {
+  if (typeof appt?.care === 'boolean') return appt.care;
   if (typeof appt?.ai_care === 'boolean') return appt.ai_care;
   return ['Appointment', 'Doctor', 'Therapy'].includes(String(appt?.category || ''));
 }

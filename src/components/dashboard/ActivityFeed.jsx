@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNowStrict, parseISO, isValid, format, subDays } from 'date-fns';
 import { Activity, CheckCircle2, BellRing, BellPlus, CalendarPlus, MessageCircle, Smartphone, UserPlus } from 'lucide-react';
@@ -10,16 +10,18 @@ import { useFamily } from '@/lib/family';
 import { MESSAGES_KEY, listMessages } from '@/lib/messages';
 import { summarize, isLocked } from '@/lib/careLog';
 import useEventEditor from '@/components/calendar/useEventEditor';
+import { plugin } from '@/lib/phone';
 
 // Home's "Who did what" (Anna, Oct 29 2026: the old Recent Activity only
 // repeated the newest messages). The last 3 days of what people in the
 // family actually did: care logged, tasks checked off, reminders marked
 // done, reminders and events added, messages written, events brought in
-// from someone's phone calendar (one line per person per day, not one per
-// event) and people joining. Only what each person is allowed to see shows
-// (the database's own sharing rules), and the locked Legal & financial folder
-// never does. It checks again every minute while open and whenever the app
-// comes back to the front (Anna, Oct 30 2026: it wasn't updating).
+// from someone's phone calendar (one line per person: how many, counting
+// ones only they see) and people joining. Only what each person is allowed to
+// see shows (the database's own sharing rules), and the locked Legal &
+// financial folder never does. It checks again each time Home opens and each
+// time the app comes back to the front, not on a timer (Anna, Oct 30 2026: it
+// wasn't updating; then "refresh on every open", every minute was a waste).
 
 const first = (s) => String(s || '').trim().split(' ')[0];
 const DAYS = 3;
@@ -36,13 +38,39 @@ export default function ActivityFeed({ members = [] }) {
   const [more, setMore] = useState(false);
   const { openEvent, editor } = useEventEditor(members);
   const since = subDays(new Date(), DAYS).toISOString();
-  const live = { refetchOnWindowFocus: true, refetchInterval: 60000 };
+  const live = { refetchOnMount: 'always', refetchOnWindowFocus: 'always' };
+  // The app coming back to the front doesn't always count as "focus" inside
+  // it, so the phone's own "app is open again" signal checks too.
+  const qc = useQueryClient();
+  useEffect(() => {
+    let handle = null;
+    let gone = false;
+    (async () => {
+      try {
+        const App = plugin('App');
+        if (!App?.addListener) return;
+        const h = await App.addListener('appStateChange', (st) => {
+          if (!st?.isActive) return;
+          qc.refetchQueries({ type: 'active', predicate: ({ queryKey: k }) => k[1] === 'activity' || (k.length === 1 && [MESSAGES_KEY[0], REMINDERS_KEY[0]].includes(k[0])) });
+        });
+        if (gone) h?.remove?.(); else handle = h;
+      } catch (e) { /* not in the app */ }
+    })();
+    return () => { gone = true; try { handle?.remove?.(); } catch (e) { /* fine */ } };
+  }, [qc]);
 
   const logs = useQuery({ queryKey: ['careLog', 'activity'], queryFn: () => base44.entities.CareLog.filter({ created_date: { $gte: since } }, '-created_date', 60), ...live });
   const done = useQuery({ queryKey: ['careTasks', 'activity'], queryFn: () => base44.entities.CareTask.filter({ status: 'completed', completed_at: { $gte: since } }, '-completed_at', 40), ...live });
   const rems = useQuery({ queryKey: ['medLogs', 'activity'], queryFn: () => base44.entities.MedicationLog.filter({ status: { $in: ['taken', 'skipped'] }, taken_at: { $gte: since } }, '-taken_at', 40), ...live });
   const events = useQuery({ queryKey: ['appointments', 'activity'], queryFn: () => base44.entities.Appointment.filter({ source: 'app', created_date: { $gte: since } }, '-created_date', 40), ...live });
   const imports = useQuery({ queryKey: ['appointments', 'activity', 'phone'], queryFn: () => base44.entities.Appointment.filter({ source: 'phone', created_date: { $gte: since } }, '-created_date', 300), ...live });
+  // The real totals (private events counted, never shown): what the line
+  // says someone brought in, with how many of them the viewer can see.
+  const importTotals = useQuery({
+    queryKey: ['appointments', 'activity', 'phone-totals'],
+    queryFn: () => base44.functions.invoke('phoneCalendar', { mode: 'activity', since }).then((r) => (r?.data || r)?.people || []),
+    ...live,
+  });
   const msgs = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages, ...live });
   // Reminders: the same list the To-do page keeps, so adding one updates this too.
   const meds = useQuery({ queryKey: REMINDERS_KEY, queryFn: listReminders, ...live });
@@ -75,23 +103,33 @@ export default function ActivityFeed({ members = [] }) {
       out.push({ key: `a${a.id}`, at: a.created_date, icon: <CalendarPlus className="w-4 h-4 text-violet-600" />,
         text: <><b>{who(a.created_by_name, a.created_by_user_id)}</b> added {a.title}{day && isValid(day) ? ` · ${format(day, 'EEE, MMM d')}` : ''}</>, go: () => openEvent(a) });
     }
-    // Events brought in from a phone calendar: one line per person per day
-    // ("Pamela brought in 6 events from her phone calendar").
-    const brought = new Map();
+    // Events brought in from a phone calendar: one line per person ("Pamela's
+    // phone calendar brought in 18 events · 1 shared with the family"). The
+    // total counts their private ones too (Anna, Oct 30 2026: it only counted
+    // what she could see); how many the family sees comes from what this
+    // person can see.
+    const seen = new Map();
     for (const a of imports.data || []) {
       if (a.cover_of || a.away_of) continue;
-      const d = serverDate(a.created_date);
-      if (!d) continue;
-      const k = `${a.created_by_user_id || a.created_by_id}|${format(d, 'yyyy-MM-dd')}`;
-      const g = brought.get(k) || { n: 0, at: a.created_date, by: a.created_by_user_id || a.created_by_id, name: a.created_by_name };
+      const by = a.created_by_user_id || a.created_by_id;
+      const g = seen.get(by) || { n: 0, shared: 0, at: a.created_date, name: a.created_by_name };
       g.n++;
+      if (a.visibility !== 'private') g.shared++;
       if (serverMs(a.created_date) > serverMs(g.at)) g.at = a.created_date;
-      brought.set(k, g);
+      seen.set(by, g);
     }
-    for (const [k, g] of brought) {
-      const mine = g.by && g.by === me?.id;
-      out.push({ key: `p${k}`, at: g.at, icon: <Smartphone className="w-4 h-4 text-violet-600" />,
-        text: <><b>{who(g.name, g.by)}</b> brought in {g.n} event{g.n === 1 ? '' : 's'} from {mine ? 'your' : 'their'} phone calendar</>, go: () => navigate('/calendar') });
+    const totals = new Map((importTotals.data || []).map((p) => [p.user_id, p]));
+    for (const by of new Set([...seen.keys(), ...totals.keys()])) {
+      const s = seen.get(by) || { n: 0, shared: 0, at: '', name: '' };
+      const t = totals.get(by);
+      const total = Math.max(t?.total || 0, s.n);
+      if (!total) continue;
+      const mine = by === me?.id;
+      const name = s.name || t?.name || '';
+      const at = [s.at, t?.latest].filter(Boolean).sort((x, y) => serverMs(y) - serverMs(x))[0];
+      const sharedNote = mine ? (s.shared < total ? ` · ${s.shared} shared with the family` : '') : (s.n < total ? ` · ${s.n} shared with you` : '');
+      out.push({ key: `p${by}`, at, icon: <Smartphone className="w-4 h-4 text-violet-600" />,
+        text: <>{mine ? <b>Your</b> : <b>{first(name) || 'Someone'}'s</b>} phone calendar brought in {total} event{total === 1 ? '' : 's'}<span className="text-muted-foreground">{sharedNote}</span></>, go: () => navigate('/calendar') });
     }
     // Someone new in the family.
     for (const u of users) {
@@ -114,7 +152,7 @@ export default function ActivityFeed({ members = [] }) {
         text: <><b>{who(m.author_name, m.author_user_id)}</b> wrote: <span className="text-muted-foreground">{m.content}</span></>, go: () => navigate('/messages') });
     }
     return out.filter((x) => x.at).sort((a, b) => serverMs(b.at) - serverMs(a.at));
-  }, [logs.data, done.data, rems.data, events.data, imports.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [logs.data, done.data, rems.data, events.data, imports.data, importTotals.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = [logs, done, rems, events].some((q) => q.isLoading);
   const shown = more ? items.slice(0, 40) : items.slice(0, 8);
