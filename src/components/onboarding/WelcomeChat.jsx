@@ -19,6 +19,7 @@ import useTypewriter from './useTypewriter';
 //   zip    - only when they haven't given their own home ZIP; it keeps place
 //            search and Resources near home (Anna, Oct 29 2026: her dad's new
 //            app never asked)
+//   reach  - new accounts: how to reach Anna (Settings -> Ask for help)
 //   final  - "you're all set", plus the heads-up that the phone is about to
 //            ask about notifications (new accounts that haven't been asked)
 // Answers save as they're given, so closing halfway keeps what was said.
@@ -42,7 +43,7 @@ export default function WelcomeChat({ plan, home, onDone }) {
   const beats = useMemo(() => {
     const list = [];
     if (plan.fresh) {
-      list.push({ id: 'hello', text: "Hi, I'm Anna, and I built GenCare on my own." });
+      list.push({ id: 'hello', text: "Hi, I'm Anna. I built GenCare." });
       list.push({ id: 'intro', text: 'I made it when my family was in a time of need. Keeping appointments and everything else organized gave us more time for what mattered most: being with each other. I hope it does the same for yours.' });
     } else {
       list.push({ id: 'intro', text: 'Quick question so GenCare works better for you.' });
@@ -54,6 +55,11 @@ export default function WelcomeChat({ plan, home, onDone }) {
         input: 'zip',
         text: "What's your home ZIP code? When you add an address, places near you come up first, and Resources can find help nearby. GenCare never tracks where you are.",
       });
+    }
+    // How to reach Anna, in her words (Oct 29 2026): Settings -> Ask for help
+    // (or Report a bug) goes straight to her.
+    if (plan.fresh) {
+      list.push({ id: 'reach', text: "If you ever need me, go to Settings and tap Ask for help or Report a bug. It's just me, so I answer quickly and make changes fast." });
     }
     let last = "You're all set!";
     if (plan.solo) last += ' Next, invite your family so everyone sees the same calendar.';
