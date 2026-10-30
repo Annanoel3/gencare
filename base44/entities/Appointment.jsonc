@@ -41,6 +41,10 @@
       "description": "Set on a '<name> traveling' event GenCare made from that user's trips (their user id); kept in step with their trips",
       "type": "string"
     },
+    "care": {
+      "description": "The person's own pick of whether this is care-related, made in the event (Anna, Oct 30 2026: in case GenCare got it wrong). When set it wins over ai_care; GenCare's sorting never changes it",
+      "type": "boolean"
+    },
     "category": {
       "default": "Appointment",
       "enum": [
