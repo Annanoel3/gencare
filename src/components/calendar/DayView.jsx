@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import EventRow from './EventRow';
 
-export default function DayView({ selectedDate, onPrev, onNext, onAdd, appointments, members, onOpen }) {
+export default function DayView({ selectedDate, onPrev, onNext, onAdd, appointments, members, onOpen, isFocus = () => false }) {
   const dayAppts = appointments
     .filter(a => a.date && isSameDay(parseISO(a.date), selectedDate))
     .sort((a, b) => (a.all_day ? '' : a.time || '').localeCompare(b.all_day ? '' : b.time || ''));
@@ -27,7 +27,7 @@ export default function DayView({ selectedDate, onPrev, onNext, onAdd, appointme
         </div>
       ) : (
         <div className="space-y-3">
-          {dayAppts.map(appt => <EventRow key={appt.id} appt={appt} members={members} onClick={onOpen} />)}
+          {dayAppts.map(appt => <EventRow key={appt.id} appt={appt} members={members} onClick={onOpen} focus={isFocus(appt)} />)}
         </div>
       )}
     </div>

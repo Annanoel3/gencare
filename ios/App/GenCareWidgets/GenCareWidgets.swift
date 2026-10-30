@@ -437,7 +437,7 @@ struct DayList: View {
                 if family == .systemSmall {
                     EventRow(ev: ev, titleSize: 12)
                 } else {
-                    Link(destination: link("/calendar?date=\(Days.key(day))&open=\(ev.id)")) { EventRow(ev: ev) }
+                    Link(destination: link("/calendar?date=\(Days.key(day))&event=\(ev.id)")) { EventRow(ev: ev) }
                 }
             }
             if events.count > limit {

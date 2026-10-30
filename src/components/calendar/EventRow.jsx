@@ -27,7 +27,7 @@ function fmtTime(t) {
   return `${h12}:${String(m || 0).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
-export default function EventRow({ appt, members, onClick }) {
+export default function EventRow({ appt, members, onClick, focus = false }) {
   const canRecord = usePluginPresent('RecorderBridge');
   const { members: accounts } = useFamily();
   const color = getEventColorClass(appt, members, accounts);
@@ -39,7 +39,9 @@ export default function EventRow({ appt, members, onClick }) {
     <div
       role={onClick ? 'button' : undefined}
       onClick={onClick ? () => onClick(appt) : undefined}
-      className={`flex items-start gap-3 p-3 rounded-xl bg-muted/50 ${onClick ? 'cursor-pointer hover:bg-muted active:bg-muted' : ''}`}
+      data-focus={focus ? 'true' : undefined}
+      // The event a notification was about glows for a moment (CalendarPage).
+      className={`flex items-start gap-3 p-3 rounded-xl bg-muted/50 transition-shadow duration-500 ${focus ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : ''} ${onClick ? 'cursor-pointer hover:bg-muted active:bg-muted' : ''}`}
     >
       <div className={`w-2 self-stretch min-h-[40px] rounded-full ${bar || 'bg-transparent'}`} />
       <div className="flex-1 min-w-0">

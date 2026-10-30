@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import EventRow from './EventRow';
 
-export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext, appointments, members, onOpen }) {
+export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext, appointments, members, onOpen, isFocus = () => false }) {
   const weekStart = startOfWeek(selectedDate);
   const weekEnd = endOfWeek(selectedDate);
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -39,7 +39,7 @@ export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext
                 {dayAppts.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-2">No events</p>
                 ) : (
-                  dayAppts.map(appt => <EventRow key={appt.id} appt={appt} members={members} onClick={onOpen} />)
+                  dayAppts.map(appt => <EventRow key={appt.id} appt={appt} members={members} onClick={onOpen} focus={isFocus(appt)} />)
                 )}
               </div>
             </div>

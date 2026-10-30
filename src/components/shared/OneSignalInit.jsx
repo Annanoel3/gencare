@@ -31,7 +31,8 @@ function handleNotificationData(data, navigate) {
   if (!data) return;
   let target = data.screen || '/';
   if ((data.type === 'appointment' || data.type === 'appointment_reminder') && data.date) {
-    target = `/calendar?date=${encodeURIComponent(data.date)}${data.appointmentId ? `&open=${encodeURIComponent(data.appointmentId)}` : ''}`;
+    // That day on the calendar, the event glowing, not its edit popup (Anna, Oct 30 2026).
+    target = `/calendar?date=${encodeURIComponent(data.date)}${data.appointmentId ? `&event=${encodeURIComponent(data.appointmentId)}` : ''}`;
   } else if (data.type === 'task' || data.type === 'task_due') {
     target = `/tasks${data.taskId ? `?open=${encodeURIComponent(data.taskId)}` : ''}`;
   } else if (data.type === 'message') {

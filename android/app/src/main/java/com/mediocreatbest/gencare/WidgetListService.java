@@ -136,7 +136,7 @@ public class WidgetListService extends RemoteViewsService {
             if (ev.optBoolean("p")) meta.append(" · Only you");
             rv.setTextViewText(R.id.meta, meta.toString());
             bar(rv, R.id.bar, ev.optString("c"));
-            fill.putExtra(NotifyBridge.EXTRA_OPEN_PATH, "/calendar?date=" + r.day + "&open=" + ev.optString("id"));
+            fill.putExtra(NotifyBridge.EXTRA_OPEN_PATH, "/calendar?date=" + r.day + "&event=" + ev.optString("id"));
             rv.setOnClickFillInIntent(R.id.row, fill);
             return rv;
         }

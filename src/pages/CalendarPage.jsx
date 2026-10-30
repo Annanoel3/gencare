@@ -65,7 +65,7 @@ export default function CalendarPage() {
   }), [currentMonth, selectedDate]);
   const fromKey = format(range.from, 'yyyy-MM-dd');
   const toKey = format(range.to, 'yyyy-MM-dd');
-  const { data: appointments = [] } = useQuery({
+  const { data: appointments = [], isFetched } = useQuery({
     queryKey: ['appointments', 'calendar', fromKey, toKey],
     queryFn: () => listEvents(range.from, range.to),
     placeholderData: keepPreviousData,
@@ -97,6 +97,28 @@ export default function CalendarPage() {
     }).catch(() => { if (!cancelled) clear(); });
     return () => { cancelled = true; };
   }, [params.get('open')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A tap on a notification (or a widget) about an event lands on its day,
+  // with the event glowing for a moment, not in its edit popup (Anna, Oct 30
+  // 2026: her mom kept landing in the editor). ?date=...&event=<id>
+  const eventParam = params.get('event');
+  const [focus, setFocus] = useState('');
+  useEffect(() => {
+    if (!eventParam) return;
+    setFocus(eventParam);
+    const next = new URLSearchParams(params); next.delete('event'); setParams(next, { replace: true });
+  }, [eventParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Once that stretch of days has loaded: scroll the event (or the day) into view.
+  useEffect(() => {
+    if (!focus || !isFetched) return undefined;
+    const show = setTimeout(() => {
+      (document.querySelector('[data-focus="true"]') || document.getElementById('calendar-day'))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 400);
+    const fade = setTimeout(() => setFocus(''), 6000);
+    return () => { clearTimeout(show); clearTimeout(fade); };
+  }, [focus, isFetched]);
+  // The same event can show under another copy's id (two calendars, or what the family sees).
+  const isFocus = (a) => !!focus && (a.id === focus || rowIdOf(a) === focus || a.own?.id === focus || (a.merged_ids || []).includes(focus));
 
   // The + button's "Event" lands here with ?new=1.
   useEffect(() => {
@@ -298,7 +320,7 @@ export default function CalendarPage() {
             appointments={occurrences}
             members={members}
           />
-          <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6">
+          <div id="calendar-day" className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6 scroll-mt-20">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading text-lg font-semibold">{format(selectedDate, 'EEEE, MMMM d')}</h3>
               <Button variant="outline" size="sm" onClick={openNew} className="rounded-lg gap-1"><Plus className="w-3 h-3" /> Add</Button>
@@ -308,7 +330,7 @@ export default function CalendarPage() {
             ) : (
               <div className="space-y-3">
                 {selectedDayAppointments.map(appt => (
-                  <EventRow key={appt.id} appt={appt} members={members} onClick={openEdit} />
+                  <EventRow key={appt.id} appt={appt} members={members} onClick={openEdit} focus={isFocus(appt)} />
                 ))}
               </div>
             )}
@@ -324,6 +346,7 @@ export default function CalendarPage() {
             appointments={occurrences}
             members={members}
             onOpen={openEdit}
+            isFocus={isFocus}
           />
         </TabsContent>
 
@@ -336,6 +359,7 @@ export default function CalendarPage() {
             appointments={occurrences}
             members={members}
             onOpen={openEdit}
+            isFocus={isFocus}
           />
         </TabsContent>
       </Tabs>
