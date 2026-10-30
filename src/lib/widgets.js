@@ -1,6 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { isNativeApp, plugin, waitForPlugin } from '@/lib/phone';
 import { track } from '@/lib/activity';
+import { appParams } from '@/lib/app-params';
 
 // GenCare's home-screen widgets: Day, Week and Month, on Android and iPhone
 // (Anna, Oct 30 2026). They refresh on their own with the app closed, from
@@ -13,15 +14,8 @@ import { track } from '@/lib/activity';
 
 const bridge = () => plugin('WidgetBridge');
 
-function session() {
-  let appId = '';
-  let serverUrl = '';
-  try {
-    appId = localStorage.getItem('base44_app_id') || '';
-    serverUrl = localStorage.getItem('base44_app_base_url') || '';
-  } catch (e) { /* fine */ }
-  return { appId, serverUrl: serverUrl || window.location.origin };
-}
+// Where the widgets ask: this app on this server (the app calls /api/... on its own origin).
+const session = () => ({ appId: appParams.appId || '', serverUrl: window.location.origin });
 
 let setupFor = '';
 export async function setupWidgets(me) {

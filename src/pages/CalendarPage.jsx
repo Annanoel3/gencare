@@ -39,6 +39,13 @@ export default function CalendarPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [currentMonth, setCurrentMonth] = useState(initialDate);
   const [selectedDate, setSelectedDate] = useState(initialDate);
+  // A tap on a home-screen widget (or a push) while the calendar is already
+  // open lands on that day too.
+  const dateParam = params.get('date');
+  useEffect(() => {
+    const p = dateParam ? parseISO(dateParam) : null;
+    if (p && isValid(p)) { setSelectedDate(p); setCurrentMonth(p); }
+  }, [dateParam]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [prefill, setPrefill] = useState(null); // "Copy to another day"

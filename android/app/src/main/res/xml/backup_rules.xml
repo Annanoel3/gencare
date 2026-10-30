@@ -2,4 +2,5 @@
 <!-- The base44 access token must never leave the device via cloud backup. -->
 <full-backup-content>
     <exclude domain="sharedpref" path="gencare_session.xml" />
+    <exclude domain="sharedpref" path="gencare_widgets.xml" />
 </full-backup-content>

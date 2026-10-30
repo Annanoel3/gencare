@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget colors: the app's own (src/index.css), dark. -->
+<resources>
+    <color name="widget_bg">#181D20</color>
+    <color name="widget_fg">#F4F3F0</color>
+    <color name="widget_muted">#989081</color>
+    <color name="widget_faint">#5A5F61</color>
+    <color name="widget_primary">#53AC82</color>
+    <color name="widget_line">#292F32</color>
+    <color name="widget_today_bg">#1F2E28</color>
+</resources>

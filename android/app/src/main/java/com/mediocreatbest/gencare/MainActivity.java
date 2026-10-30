@@ -51,6 +51,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(CalendarBridge.class);
         registerPlugin(RecorderBridge.class);
         registerPlugin(BillingBridge.class);
+        registerPlugin(WidgetBridge.class);
         super.onCreate(savedInstanceState);
         setupInAppNavigation();
         handleIncomingIntent(getIntent());

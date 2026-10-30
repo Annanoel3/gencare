@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_day_label">Today</string>
+    <string name="widget_week_label">This week</string>
+    <string name="widget_month_label">Month</string>
+    <string name="widget_day_desc">Today\'s family calendar, and tomorrow\'s</string>
+    <string name="widget_week_desc">The family calendar for this week</string>
+    <string name="widget_month_desc">The family calendar for the whole month</string>
+    <string name="widget_loading">Loading…</string>
+    <string name="widget_signed_out">Open GenCare to see your family calendar here.</string>
+    <string name="widget_no_access">Open GenCare to see your family calendar.</string>
+</resources>

@@ -3,8 +3,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="gencare_session.xml" />
+        <exclude domain="sharedpref" path="gencare_widgets.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="gencare_session.xml" />
+        <exclude domain="sharedpref" path="gencare_widgets.xml" />
     </device-transfer>
 </data-extraction-rules>
