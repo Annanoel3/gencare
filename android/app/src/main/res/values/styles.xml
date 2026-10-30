@@ -16,7 +16,11 @@
     </style>
 
 
+    <!-- Launch screen: the GenCare logo on its cream. Android 12 and later show
+         the app icon on windowSplashScreenBackground; older ones show
+         @drawable/splash (same logo and color). -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">#F9F5EC</item>
     </style>
 </resources>

@@ -27,7 +27,8 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
-      backgroundColor: '#ffffff',
+      // The cream behind the GenCare logo on the launch images.
+      backgroundColor: '#F9F5EC',
       showSpinner: false,
     },
     StatusBar: {
