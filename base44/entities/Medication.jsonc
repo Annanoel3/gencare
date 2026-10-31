@@ -6,6 +6,33 @@
       "description": "For an \"until it's done\" reminder: when it starts on its first day (HH:MM, 8 AM to 8 PM); the other push times are worked out from it and the priority",
       "type": "string"
     },
+    "claim_changed_at": {
+      "description": "When someone last said I'll take it, or let go, on this (Who did what reads it)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "claims": {
+      "description": "\"I'll take it\": who said they'd handle it. One entry per day for something that repeats (day = YYYY-MM-DD), or one with an empty day for the whole thing. Their reminders go to them",
+      "items": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "day": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
     "days_of_week": {
       "description": "Weekdays it happens on, 0 = Sunday; empty = every day",
       "items": {
