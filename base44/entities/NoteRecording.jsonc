@@ -41,9 +41,26 @@
       },
       "type": "array"
     },
+    "share_asked_at": {
+      "description": "When the person who recorded it answered 'Share these notes?' (shared or Not now), so it's asked once",
+      "format": "date-time",
+      "type": "string"
+    },
+    "shared_at": {
+      "description": "When it was last shared with someone new (Who did what reads it)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "shared_with": {
+      "description": "Accounts (user ids) these notes are shared with, when it's certain people rather than the whole family",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "shared_with_family": {
-      "default": true,
-      "description": "Family members can read these notes (a doctor's visit for mom is for everyone caring for her)",
+      "default": false,
+      "description": "Everyone in the family can read these notes. Never on by itself (Anna, Oct 30 2026): the person who recorded them picks, after the notes are made",
       "type": "boolean"
     },
     "started_at": {
@@ -108,6 +125,9 @@
           "$or": [
             {
               "data.shared_with_family": true
+            },
+            {
+              "data.shared_with": "{{user.id}}"
             },
             {
               "data.user_id": "{{user.id}}"
