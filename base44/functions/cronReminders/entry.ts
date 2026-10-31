@@ -2,6 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { familyUsers, sendPush, wantsPush, whenText } from '../../shared/push.ts';
 import { canSee } from '../../shared/sharing.ts';
 import { expandAppointments } from '../../shared/recurrence.ts';
+import { sameEvent } from '../../shared/sameEvent.ts';
+import { claimDayFor, claimOn } from '../../shared/claims.ts';
 
 // Runs every 15 minutes (workflow "Reminders every 15 minutes"). Three jobs,
 // each in the family's own time (the owner's timezone, else the first
@@ -21,7 +23,11 @@ import { expandAppointments } from '../../shared/recurrence.ts';
 //      minutes later if nobody marked it, and a "runs out" push once a day
 //      from refill_reminder_days before the runs-out date (refill_date).
 //   5. Wellness: a daily 'how are you holding up?' push for anyone who
-//      set an hour, skipped once they've checked in that day.
+//      set an hour, skipped once they've checked in that day. (Off while the
+//      Wellness page is hidden.)
+//
+// Anything someone said "I'll take it" to (claims, shared/claims.ts) reminds
+// only them, for that day or for the whole thing.
 //
 // Replaces checkDueTasks (Jul 2026), which pushed every task in the whole
 // app to every user at 13:00 UTC.
@@ -104,6 +110,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
       try { series = (await db.Appointment.filter({ family_id: fam.id, recurrence: { $regex: '^RRULE' } })) || []; }
       catch (_) { series = ((await db.Appointment.filter({ family_id: fam.id })) || []).filter((a: any) => a.recurrence); }
       const appts = expandAppointments([...plain, ...series], today, tomorrow);
+      const pushedFor: { a: any; to: string[] }[] = [];
       for (const a of appts) {
         const isSeries = !!a.occurrence_of;
         if (isSeries ? a.reminder_sent_for === a.date : a.reminder_sent) continue;
@@ -116,9 +123,18 @@ const MISSED_AFTER_MS = 90 * 60_000;
         if (now < fireAt || now >= fireAt + WINDOW_MS) continue;
         const forWhom = a.family_member_name ? ` for ${a.family_member_name}` : '';
         const inText = minutes >= 60 ? `in ${Math.round(minutes / 60)} hour${minutes >= 120 ? 's' : ''}` : `in ${minutes} min`;
-        const targets = users.filter((u: any) => canSee(a, u.id));
+        // "I'll take it": the reminder goes to whoever took it (on this row or
+        // on the same event from someone else's calendar).
+        const day = claimDayFor('event', a, a.date);
+        const claim = claimOn(a, day) || (day ? null : appts.filter((b: any) => b !== a && b.date === a.date && sameEvent(a, b)).map((b: any) => claimOn(b, '')).find(Boolean)) || null;
+        const taker = claim ? users.find((u: any) => u.id === claim.user_id && canSee(a, u.id)) : null;
+        const targets = taker ? [taker] : users.filter((u: any) => canSee(a, u.id));
+        // The same event on two calendars reminds each person once.
+        const twins = pushedFor.filter((p) => p.a.date === a.date && sameEvent(a, p.a));
+        const sentTo = new Set(twins.flatMap((p) => p.to));
+        pushedFor.push({ a, to: targets.map((u: any) => u.id) });
         for (const u of targets) {
-          if (!wantsPush(u, 'reminders')) continue;
+          if (!wantsPush(u, 'reminders') || sentTo.has(u.id)) continue;
           await sendPush({
             email: u.email,
             title: `${a.title}${forWhom} ${inText}`,
@@ -168,7 +184,10 @@ const MISSED_AFTER_MS = 90 * 60_000;
           // "Just me" reminders go only to the person who keeps them.
           const isPrivate = m.visibility === 'private';
           const ownerId = m.owner_user_id || m.created_by_id || '';
-          const audience = isPrivate ? users.filter((u: any) => u.id === ownerId) : users;
+          // "I'll take it" (for today, or for the whole thing): just them.
+          const claim = isPrivate ? null : claimOn(m, claimDayFor('reminder', m, today));
+          const taker = claim ? users.find((u: any) => u.id === claim.user_id) : null;
+          const audience = isPrivate ? users.filter((u: any) => u.id === ownerId) : taker ? [taker] : users;
           // "Until it's done" (frequency Once): every day from its start day, at
           // the times its priority set (low 1 a day, medium 3, high every 2
           // hours); the app switches it off (is_active false) when someone marks
@@ -231,7 +250,10 @@ const MISSED_AFTER_MS = 90 * 60_000;
       // 5. Caregiver wellness: a once-a-day "how are you holding up?" at the
       // hour each person picked, skipped if they already checked in today.
       // Each person's own timezone, since this is about them, not the family.
-      for (const u of users) {
+      // Off while the Wellness page is hidden (Oct 30 2026): the push would
+      // open a page nobody can reach. Turn WELLNESS_PUSH back on with it.
+      const WELLNESS_PUSH = false;
+      for (const u of WELLNESS_PUSH ? users : []) {
         // Off is -1 (an hour of 0-23 means on).
         const hour = Number.isInteger(u.wellness_reminder_hour) && u.wellness_reminder_hour >= 0 && u.wellness_reminder_hour <= 23 ? u.wellness_reminder_hour : null;
         if (hour === null || !wantsPush(u, 'reminders')) continue;

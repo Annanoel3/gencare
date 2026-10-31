@@ -1,3 +1,4 @@
+import { mergeClaims } from '@/lib/claims';
 // The same thing on two calendars (Anna, Oct 30 2026: her Mom's speech
 // assessment came in from her calendar as "Austin speech labs" and from her
 // Mom's as "10 speech assessment", 10-11 AM both): shown once.
@@ -88,6 +89,8 @@ export function mergeSameEvents(list) {
         also_from: names,
         merged_ids: others.map((o) => o.id),
         own: keep,
+        cover_id: cover.id,
+        claims: mergeClaims(group),
       });
       continue;
     }
@@ -100,6 +103,8 @@ export function mergeSameEvents(list) {
       family_member_name: keep.family_member_name || others.find((o) => o.family_member_name)?.family_member_name || '',
       also_from: names,
       merged_ids: others.map((o) => o.id),
+      // "I'll take it" on any copy counts for the one shown.
+      claims: mergeClaims(group),
     });
   }
   return out;

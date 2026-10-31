@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { track } from '@/lib/activity';
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { listEvents } from "@/lib/events";
 import { realEvent } from "@/lib/sameEvent";
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { downloadNotesPdf } from "@/components/notes/notesPdf";
 import PrepPointsList from "@/components/notes/PrepPointsList";
+import ShareNotesDialog, { sharingLabel } from "@/components/notes/ShareNotesDialog";
 import { withFamily, useFamily } from "@/lib/family";
 import { plugin } from "@/lib/phone";
 import { isRecordable } from "@/components/calendar/EventRow";
@@ -205,7 +206,14 @@ function searchMatch(r, query) {
 }
 
 export default function Notes() {
-  const { me, access } = useFamily();
+  const { me, access, members: accounts = [] } = useFamily();
+  const location = useLocation();
+  const navigate = useNavigate();
+  // "Share these notes?" (ShareNotesDialog): which recording, and whether it's
+  // the first ask right after the notes were made.
+  const [shareFor, setShareFor] = useState(null);
+  const [shareFirst, setShareFirst] = useState(false);
+  const notNowRef = useRef(new Set());
   const [usage, setUsage] = useState(null);
   const [records, setRecords] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -381,7 +389,7 @@ export default function Notes() {
           title: session.title || "",
           device_session_id: session.id,
           started_at: new Date(session.startedAt || Date.now()).toISOString(),
-          shared_with_family: true,
+          shared_with_family: false,
           ...(sessionLinks.get(session.id) || {}),
           ...fields,
         }));
@@ -535,8 +543,9 @@ export default function Notes() {
       }
       setLive({ sessionId: res.sessionId, paused: false, baseMs: 0, baseAt: Date.now() });
       if (!res.alreadyRecording) {
+        // A Record-more recording is shared exactly like the first one.
         const linkFields = link?.moreOf
-          ? { appointment_id: link.moreOf.appointment_id || "", family_member_id: link.moreOf.family_member_id || "", family_member_name: link.moreOf.family_member_name || "", questions: [], parent_record_id: link.moreOf.id }
+          ? { appointment_id: link.moreOf.appointment_id || "", family_member_id: link.moreOf.family_member_id || "", family_member_name: link.moreOf.family_member_name || "", questions: [], parent_record_id: link.moreOf.id, shared_with_family: link.moreOf.shared_with_family === true, shared_with: Array.isArray(link.moreOf.shared_with) ? link.moreOf.shared_with : [] }
           : link?.appt
             ? { appointment_id: link.appt.id, family_member_id: link.appt.family_member_id || "", family_member_name: link.appt.family_member_name || "", questions: cleanQuestions(link.appt.prep_questions) }
             : {};
@@ -548,7 +557,7 @@ export default function Notes() {
           status: "recording",
           device_session_id: res.sessionId,
           started_at: new Date().toISOString(),
-          shared_with_family: true,
+          shared_with_family: false,
           ...linkFields,
         })).then(() => loadRecords()).catch(() => {});
       }
@@ -733,11 +742,46 @@ export default function Notes() {
     base44.entities.NoteRecording.update(record.id, { notes: next }).catch(() => {});
   };
 
-  const toggleShared = async (record) => {
-    const next = !(record.shared_with_family !== false);
-    setRecords((rows) => rows.map((r) => (r.id === record.id ? { ...r, shared_with_family: next } : r)));
-    try { await base44.entities.NoteRecording.update(record.id, { shared_with_family: next }); }
-    catch (e) { toast({ title: "Couldn't change sharing", description: "Try again in a moment." }); }
+  // Who sees a recording: everyone, certain people, or only its maker. The
+  // Record-more recordings under it follow along; whoever's newly added hears
+  // about it (notifyFamily "notes").
+  const others = (accounts || []).filter((a) => a.id && a.id !== me?.id);
+  const recipientsOf = (r) => (r?.shared_with_family === true ? others.map((o) => o.id) : (Array.isArray(r?.shared_with) ? r.shared_with : []));
+  const saveSharing = async ({ everyone, ids }) => {
+    const record = recordsRef.current.find((r) => r.id === shareFor);
+    if (!record) { setShareFor(null); return; }
+    const before = new Set(recipientsOf(record));
+    const after = everyone ? others.map((o) => o.id) : ids;
+    const added = after.filter((id) => !before.has(id));
+    const now = new Date().toISOString();
+    const sharing = { shared_with_family: !!everyone, shared_with: everyone ? [] : ids };
+    const fields = { ...sharing, share_asked_at: now, ...(added.length ? { shared_at: now } : {}) };
+    try {
+      await base44.entities.NoteRecording.update(record.id, fields);
+      for (const f of followUpsOf(recordsRef.current, record.id)) {
+        await base44.entities.NoteRecording.update(f.id, sharing).catch(() => {});
+      }
+    } catch (e) {
+      toast({ title: "Couldn't change who sees them", description: "Check your connection and try again." });
+      return;
+    }
+    setRecords((rows) => rows.map((r) => (r.id === record.id ? { ...r, ...fields } : r.parent_record_id === record.id ? { ...r, ...sharing } : r)));
+    if (added.length) base44.functions.invoke("notifyFamily", { kind: "notes", record_id: record.id, user_ids: added }).catch(() => {});
+    track("action", everyone ? "notes: shared with family" : ids.length ? "notes: shared with some" : "notes: made private", `${added.length} new`);
+    const label = sharingLabel({ ...record, ...sharing }, accounts);
+    toast({ title: label === "Only you" ? "Only you can see these now" : label, description: added.length ? "They'll get a notification that opens the notes." : undefined });
+    setShareFor(null);
+  };
+  const shareNotNow = () => {
+    const record = recordsRef.current.find((r) => r.id === shareFor);
+    if (record) notNowRef.current.add(record.id);
+    // Asked once: "Not now" right after the notes were made counts as an answer.
+    if (record && shareFirst && !record.share_asked_at) {
+      const at = new Date().toISOString();
+      setRecords((rows) => rows.map((r) => (r.id === record.id ? { ...r, share_asked_at: at } : r)));
+      base44.entities.NoteRecording.update(record.id, { share_asked_at: at }).catch(() => {});
+    }
+    setShareFor(null);
   };
 
   // ── Rendering ──────────────────────────────────────────────────────────────
@@ -842,6 +886,34 @@ export default function Notes() {
     </Dialog>
   );
 
+  const shareRecord = shareFor ? records.find((r) => r.id === shareFor) || null : null;
+  const shareDialog = (
+    <ShareNotesDialog open={!!shareRecord} record={shareRecord} others={others} first={shareFirst} onSave={saveSharing} onNotNow={shareNotNow} />
+  );
+
+  // Notes just made (or never answered): ask once whether to share them.
+  useEffect(() => {
+    if (!open || shareFor) return;
+    if (!mine(open) || open.parent_record_id || open.status !== "ready" || open.share_asked_at) return;
+    if (progress || live || notNowRef.current.has(open.id) || !others.length) return;
+    setShareFirst(true);
+    setShareFor(open.id);
+  }, [open?.id, open?.status, open?.share_asked_at, !!progress, !!live, others.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A "shared notes with you" push lands here with ?open=<id>.
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("open");
+    if (!id || !loaded) return;
+    navigate("/notes", { replace: true });
+    (async () => {
+      let rows = recordsRef.current;
+      if (!rows.some((r) => r.id === id)) rows = await loadRecords();
+      const found = rows.find((r) => r.id === id);
+      if (found) { setOpenId(found.parent_record_id || found.id); setTab("notes"); }
+      else toast({ title: "Those notes aren't shared with you", description: "Whoever recorded them may have stopped sharing them." });
+    })();
+  }, [location.search, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const pagePad = "pb-28 lg:pb-8";
 
   if (!supported) {
@@ -893,6 +965,7 @@ export default function Notes() {
         {capDialog}
         {deleteDialog}
         {linkDialog}
+        {shareDialog}
         <div className="max-w-2xl mx-auto space-y-4">
           <button type="button" onClick={() => { setOpenId(null); setChangeText(""); setChangeSaid(""); }} className={`flex items-center gap-1 text-sm ${soft}`}>
             <ChevronLeft className="w-4 h-4" /> All notes
@@ -910,11 +983,19 @@ export default function Notes() {
                 </button>
               )}
             </div>
-            {mine(open) && (
-              <button type="button" onClick={() => toggleShared(open)} className={`mt-2 inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 ${open.shared_with_family !== false ? "border-primary/40 text-primary" : "border-border text-muted-foreground"}`}>
-                {open.shared_with_family !== false ? <><Users className="w-3 h-3" /> Shared with the family</> : <><Lock className="w-3 h-3" /> Only you</>}
-              </button>
-            )}
+            {mine(open) && (() => {
+              const label = sharingLabel(open, accounts);
+              const isShared = label !== "Only you";
+              return (
+                <button type="button" onClick={() => { setShareFirst(false); setShareFor(open.id); }} className={`mt-2 inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 ${isShared ? "border-primary/40 text-primary" : "border-border text-muted-foreground"}`}>
+                  {isShared ? <Users className="w-3 h-3" /> : <Lock className="w-3 h-3" />} {label} · Change
+                </button>
+              );
+            })()}
+            {!mine(open) && open.user_id && (() => {
+              const by = accounts.find((a) => a.id === open.user_id);
+              return by ? <p className={`mt-2 text-xs ${soft}`}>Recorded by {String(by.display_name || by.full_name || "").split(" ")[0] || "someone in your family"} and shared with you</p> : null;
+            })()}
             {mergedFollowUps.length > 0 && (
               <p className={`mt-1 text-sm ${soft}`}>{mergedFollowUps.length === 1 ? "1 recording added" : `${mergedFollowUps.length} recordings added`} after the first.</p>
             )}
@@ -1181,6 +1262,7 @@ export default function Notes() {
     <div className={pagePad}>
       {capDialog}
       {deleteDialog}
+      {shareDialog}
       <div className="max-w-2xl mx-auto space-y-5">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Record Notes</h1>
@@ -1266,7 +1348,7 @@ export default function Notes() {
                       <div className={`text-sm ${soft}`}>
                         {whenText(r.started_at)}{r.duration_ms ? ` · ${clock(r.duration_ms)}` : ""}{evLabel}
                         {STATUS_TEXT[r.status] ? ` · ${progress?.recordId === r.id ? "Working on it…" : STATUS_TEXT[r.status]}` : ""}
-                        {r.shared_with_family === false ? " · only you" : ""}
+                        {mine(r) && sharingLabel(r, accounts) === "Only you" ? " · only you" : ""}
                       </div>
                       {m.snippet && <div className={`text-xs mt-1 ${soft}`}><span className="font-semibold">{m.snippet.where}:</span> {m.snippet.text}</div>}
                     </div>

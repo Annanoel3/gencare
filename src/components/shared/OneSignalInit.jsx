@@ -30,7 +30,7 @@ async function savePlayerId(playerId) {
 function handleNotificationData(data, navigate) {
   if (!data) return;
   let target = data.screen || '/';
-  if ((data.type === 'appointment' || data.type === 'appointment_reminder') && data.date) {
+  if ((data.type === 'appointment' || data.type === 'appointment_reminder' || (data.type === 'claim' && data.appointmentId)) && data.date) {
     // That day on the calendar, the event glowing, not its edit popup (Anna, Oct 30 2026).
     target = `/calendar?date=${encodeURIComponent(data.date)}${data.appointmentId ? `&event=${encodeURIComponent(data.appointmentId)}` : ''}`;
   } else if (data.type === 'task' || data.type === 'task_due') {

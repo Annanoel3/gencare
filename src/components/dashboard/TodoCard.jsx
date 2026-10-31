@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseISO, isValid, isToday, isPast, startOfDay, format } from 'date-fns';
 import { Check } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
 import { getMemberColorByMemberId } from '@/utils/memberColors';
 import { completeTask } from '@/lib/tasks';

@@ -5,41 +5,19 @@ import { parseISO, isToday, format, isValid } from 'date-fns';
 import { getMemberLightColorByMemberId, getEventLightColorClass } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { expandAppointments } from '@/lib/occurrences';
-import { summarize } from '@/lib/careLog';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import { categoryOf } from '@/components/calendar/EventRow';
 
-function toWhen(entry) {
-  if (entry.timestamp) { const d = parseISO(entry.timestamp); if (isValid(d)) return d; }
-  if (entry.date) { const d = parseISO(entry.date); if (isValid(d)) return d; }
-  return null;
-}
-
-function normalizeLog(entry) {
-  const { label, detail } = summarize(entry);
-  return {
-    id: entry.id,
-    memberId: entry.family_member_id,
-    memberName: entry.family_member_name,
-    label,
-    detail,
-    when: toWhen(entry),
-    href: `/care-log?for=${entry.family_member_id}`,
-  };
-}
-
 export default function CareFeed({ members = [], memberId, scope = 'today', limit = 15, title }) {
   const { members: accounts } = useFamily();
-  const logQ = useQuery({ queryKey: ['careLog', 'feed'], queryFn: () => base44.entities.CareLog.list('-timestamp', 300) });
   const apptQ = useQuery({ queryKey: aroundKey(), queryFn: listEventsAround });
 
   const taskQ = useQuery({ queryKey: ['careTasks', 'feed'], queryFn: () => base44.entities.CareTask.filter({ status: { $in: ['pending', 'in_progress'] } }, '-due_date', 100) });
 
-  const isLoading = [logQ, apptQ, taskQ].some(q => q.isLoading);
+  const isLoading = [apptQ, taskQ].some(q => q.isLoading);
 
   let items = [];
-  // Legal & financial lives in the locked folder; old plain entries never show here.
-  (logQ.data || []).filter(e => e.entry_type !== 'legal').forEach(e => items.push(normalizeLog(e)));
+  // Care Log entries left this feed when the Care Log was hidden (Oct 30 2026).
   // Repeating / multi-day events count on each day they land on: today, or for
   // 'recent' the last 30 days through today (what happened, not a weekly
   // class repeated through next month).
@@ -92,7 +70,7 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       <div className="bg-card rounded-2xl border border-border/50 p-6">
         {title && <h3 className="font-heading text-lg font-semibold mb-2">{title}</h3>}
         <p className="text-sm text-muted-foreground text-center py-6">
-          {scope === 'today' ? 'Nothing scheduled or logged today.' : 'No recent care activity.'}
+          {scope === 'today' ? 'Nothing scheduled today.' : 'No recent care activity.'}
         </p>
       </div>
     );

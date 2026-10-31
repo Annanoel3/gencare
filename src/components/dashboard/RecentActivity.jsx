@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, MessageCircle, BookOpen, ClipboardList } from 'lucide-react';
+import { Activity, MessageCircle, BookOpen } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { Link } from 'react-router-dom';
 

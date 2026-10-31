@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CalendarDays,
   ClipboardList, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, HeartHandshake, Mic, LifeBuoy,
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, LifeBuoy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -30,13 +30,14 @@ function buildNavStructure(members, canRecord, unread = 0) {
       { path: '/family', icon: Users, label: 'Family Members' },
       { path: '/messages', icon: MessageCircle, label: 'Messages', badge: unread },
       { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-      { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [
       { path: '/tasks', icon: ClipboardList, label: 'To-do' },
       { path: '/notes', icon: Mic, label: canRecord ? 'Record Notes' : 'Notes' },
     ]},
-    { type: 'link', path: '/wellness', icon: Heart, label: 'Wellness' },
+    // Wellness and Care Log hidden Oct 30 2026 (Anna: not worth using yet);
+    // their pages are kept in the code. Legal & financial moved to each
+    // person's profile (Info).
     { type: 'link', path: '/resources', icon: LifeBuoy, label: 'Resources' },
     { type: 'link', path: '/settings', icon: SettingsIcon, label: 'Settings' },
   ];
@@ -47,7 +48,7 @@ const mobileBottomNav = [
   { path: '/family', icon: Users, label: 'Family' },
   { path: '/tasks', icon: ClipboardList, label: 'To-do' },
   { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-  { path: '/wellness', icon: Heart, label: 'Wellness' },
+  { path: '/messages', icon: MessageCircle, label: 'Messages', unread: true },
 ];
 
 function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
@@ -274,7 +275,10 @@ function AppShell() {
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
-              <item.icon className="w-5 h-5" />
+              <span className="relative">
+                <item.icon className="w-5 h-5" />
+                {item.unread && unread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center">{unread > 99 ? '99+' : unread}</span>}
+              </span>
               <span className="text-[10px]">{item.label}</span>
             </Link>
           );

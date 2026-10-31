@@ -5,6 +5,7 @@ import { Lock, Smartphone, Mic, Repeat, Users } from 'lucide-react';
 import { getMemberColorByMemberId, getEventColorClass, getEventHighlightClass } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
+import ClaimButton from '@/components/shared/ClaimButton';
 
 // Event categories. 'Doctor' and 'Therapy' were categories before Oct 2026;
 // any row still carrying one reads as a plain Appointment.
@@ -94,6 +95,7 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
           // The same event was on someone else's calendar too (lib/sameEvent).
           <p className="text-xs text-muted-foreground mt-1">Also on {appt.also_from.join(' and ')}'s calendar</p>
         )}
+        <ClaimButton kind="event" item={appt} date={appt.date} className="mt-2" />
       </div>
     </div>
   );

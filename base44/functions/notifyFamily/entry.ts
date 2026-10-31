@@ -8,6 +8,7 @@ import { pushFamily, sendPush, whenText } from '../../shared/push.ts';
 //        -> every other family member who wants family-event pushes
 //   { kind: "task", action: "added"|"assigned"|"completed", task_id }
 //   { kind: "message", message_id }
+//   { kind: "notes", record_id, user_ids }  -> the people the caller's notes were just shared with
 //   { kind: "test" }  -> a push to the caller's own phone, to check the setup
 Deno.serve(async (req) => {
   try {
@@ -87,6 +88,30 @@ Deno.serve(async (req) => {
         message: text,
         data: { type: 'message', messageId: msg.id, screen: '/messages' },
         exceptUserId: user.id,
+        need: 'family_events',
+      });
+      return Response.json({ ok: true, sent });
+    }
+
+    // Visit notes the recorder just shared (Anna, Oct 30 2026: never on their
+    // own; whoever recorded them picks the whole family or certain people).
+    // Only the people newly shared with (user_ids) hear about it, and only
+    // if the notes really are shared with them now.
+    if (kind === 'notes') {
+      const rec = body.record_id ? (await db.NoteRecording.filter({ id: String(body.record_id) }))?.[0] : null;
+      if (!rec || rec.family_id !== familyId) return Response.json({ ok: false, error: 'Not your family' }, { status: 403 });
+      if (rec.user_id && rec.user_id !== user.id) return Response.json({ ok: false, error: 'Not yours' }, { status: 403 });
+      const sharedTo = (uid: string) => rec.shared_with_family === true || (Array.isArray(rec.shared_with) && rec.shared_with.includes(uid));
+      const wanted = Array.isArray(body.user_ids) ? body.user_ids.map(String) : [];
+      const onlyUserIds = wanted.filter((uid: string) => uid !== user.id && sharedTo(uid));
+      if (!onlyUserIds.length) return Response.json({ ok: true, sent: [] });
+      const what = String(rec.title || rec.notes?.title || 'Visit notes');
+      const sent = await pushFamily(db, familyId, {
+        title: `${who} shared notes with you`,
+        message: `${what}${rec.family_member_name ? ` · about ${String(rec.family_member_name).split(' ')[0]}` : ''}`,
+        data: { type: 'notes', recordId: rec.id, screen: `/notes?open=${rec.id}` },
+        exceptUserId: user.id,
+        onlyUserIds,
         need: 'family_events',
       });
       return Response.json({ ok: true, sent });

@@ -8,6 +8,7 @@ import { useFamily } from '@/lib/family';
 import { rowIdOf, repeatLabel } from '@/lib/occurrences';
 import { categoryOf, isRecordable } from '@/components/calendar/EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
+import ClaimButton from '@/components/shared/ClaimButton';
 
 function fmtTime(t) {
   if (!t) return '';
@@ -17,8 +18,8 @@ function fmtTime(t) {
 }
 
 /**
- * An event on the Tasks page, next to the day's tasks. Nothing to tick: tap
- * opens it on the calendar (where it can be shared or given a "For").
+ * An event on the To-do page, next to the day's reminders. Nothing to tick:
+ * tap opens it; "I'll take it" says you'll handle it.
  */
 export default function EventCard({ appt, members = [], showDay = false, onOpen }) {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
             {appt.location && <AddressLink address={appt.location} className="inline-flex items-center gap-1 text-primary max-w-[14rem] min-w-0" />}
           </div>
           {appt.own && <p className="text-xs text-muted-foreground mt-1">This is "{appt.own.title}". Your family just sees "{appt.title}".</p>}
+          <ClaimButton kind="event" item={appt} date={appt.date} className="mt-2" />
         </div>
         {canRecord && isRecordable(appt) && (
           <Link

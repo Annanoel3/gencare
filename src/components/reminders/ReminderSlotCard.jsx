@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import { markSlot, fmtClock, REMINDERS_KEY } from '@/lib/reminders';
+import ClaimButton from '@/components/shared/ClaimButton';
 
 /**
  * One of today's reminders on the To-do page, between the day's events and
  * tasks: Done or Skip (anyone in the family), Undo after. Tap the words to
- * edit the reminder.
+ * edit the reminder. "I'll take it" says you'll do it today (or, for a one-off,
+ * at all), and its pushes come to you.
  */
 export default function ReminderSlotCard({ slot, members = [], onOpen }) {
   const queryClient = useQueryClient();
@@ -64,6 +66,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen }) {
           </>
         )}
       </div>
+      {!done && <ClaimButton kind="reminder" item={s.med} date={s.day} className="ml-[3.25rem] mb-3 -mt-1" />}
     </div>
   );
 }

@@ -2,19 +2,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNowStrict, parseISO, isValid, format, subDays } from 'date-fns';
-import { Activity, CheckCircle2, BellRing, BellPlus, CalendarPlus, MessageCircle, Smartphone, UserPlus } from 'lucide-react';
+import { Activity, CheckCircle2, BellRing, BellPlus, CalendarPlus, MessageCircle, Smartphone, UserPlus, Hand, FileText } from 'lucide-react';
 import { serverDate, serverMs } from '@/lib/serverTime';
 import { listReminders, REMINDERS_KEY, fmtClock, ONE_TIME } from '@/lib/reminders';
 import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
 import { MESSAGES_KEY, listMessages } from '@/lib/messages';
-import { summarize, isLocked } from '@/lib/careLog';
 import useEventEditor from '@/components/calendar/useEventEditor';
 import { plugin } from '@/lib/phone';
+import { claimsOf } from '@/lib/claims';
 
 // Home's "Who did what" (Anna, Oct 29 2026: the old Recent Activity only
 // repeated the newest messages). The last 3 days of what people in the
-// family actually did: care logged, tasks checked off, reminders marked
+// family actually did: who took on what ("I'll take it"), tasks checked off, reminders marked
 // done, reminders and events added, messages written, events brought in
 // from someone's phone calendar (one line per person: how many, counting
 // ones only they see) and people joining. Only what each person is allowed to
@@ -59,7 +59,6 @@ export default function ActivityFeed({ members = [] }) {
     return () => { gone = true; try { handle?.remove?.(); } catch (e) { /* fine */ } };
   }, [qc]);
 
-  const logs = useQuery({ queryKey: ['careLog', 'activity'], queryFn: () => base44.entities.CareLog.filter({ created_date: { $gte: since } }, '-created_date', 60), ...live });
   const done = useQuery({ queryKey: ['careTasks', 'activity'], queryFn: () => base44.entities.CareTask.filter({ status: 'completed', completed_at: { $gte: since } }, '-completed_at', 40), ...live });
   const rems = useQuery({ queryKey: ['medLogs', 'activity'], queryFn: () => base44.entities.MedicationLog.filter({ status: { $in: ['taken', 'skipped'] }, taken_at: { $gte: since } }, '-taken_at', 40), ...live });
   const events = useQuery({ queryKey: ['appointments', 'activity'], queryFn: () => base44.entities.Appointment.filter({ source: 'app', created_date: { $gte: since } }, '-created_date', 40), ...live });
@@ -71,6 +70,11 @@ export default function ActivityFeed({ members = [] }) {
     queryFn: () => base44.functions.invoke('phoneCalendar', { mode: 'activity', since }).then((r) => (r?.data || r)?.people || []),
     ...live,
   });
+  // "I'll take it" on events and reminders in the last few days.
+  const claimedEvents = useQuery({ queryKey: ['appointments', 'activity', 'claims'], queryFn: () => base44.entities.Appointment.filter({ claim_changed_at: { $gte: since } }, '-claim_changed_at', 40), ...live });
+  const claimedReminders = useQuery({ queryKey: ['reminders', 'activity', 'claims'], queryFn: () => base44.entities.Medication.filter({ claim_changed_at: { $gte: since } }, '-claim_changed_at', 40), ...live });
+  // Visit notes someone shared (only the ones shared with this person show).
+  const sharedNotes = useQuery({ queryKey: ['notes', 'activity'], queryFn: () => base44.entities.NoteRecording.filter({ shared_at: { $gte: since } }, '-shared_at', 20), ...live });
   const msgs = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages, ...live });
   // Reminders: the same list the To-do page keeps, so adding one updates this too.
   const meds = useQuery({ queryKey: REMINDERS_KEY, queryFn: listReminders, ...live });
@@ -79,15 +83,6 @@ export default function ActivityFeed({ members = [] }) {
 
   const items = useMemo(() => {
     const out = [];
-    for (const e of logs.data || []) {
-      if (isLocked(e)) continue;
-      const s = summarize(e);
-      const forWhom = first(e.family_member_name);
-      const actor = who(e.logged_by_name, e.logged_by_user_id);
-      const self = forWhom && forWhom === first(e.logged_by_name);
-      out.push({ key: `l${e.id}`, at: e.created_date || e.timestamp, icon: <span className="text-base leading-none">{s.icon}</span>,
-        text: <><b>{actor}</b> logged {s.label}{!self && forWhom ? <> for <b>{forWhom}</b></> : null}</>, go: () => navigate(`/care-log?for=${e.family_member_id}`) });
-    }
     for (const t of done.data || []) {
       if (t.parent_task_id) continue;
       out.push({ key: `t${t.id}`, at: t.completed_at, icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,
@@ -131,6 +126,28 @@ export default function ActivityFeed({ members = [] }) {
       out.push({ key: `p${by}`, at, icon: <Smartphone className="w-4 h-4 text-violet-600" />,
         text: <>{mine ? <b>Your</b> : <b>{first(name) || 'Someone'}'s</b>} phone calendar brought in {total} event{total === 1 ? '' : 's'}<span className="text-muted-foreground">{sharedNote}</span></>, go: () => navigate('/calendar') });
     }
+    // "I'll take it": "Robert took on Pamela's PT · Tue, Nov 3".
+    const dayText = (d) => { const x = d ? parseISO(d) : null; return x && isValid(x) ? ` · ${format(x, 'EEE, MMM d')}` : ''; };
+    for (const a of claimedEvents.data || []) {
+      for (const c of claimsOf(a)) {
+        if (serverMs(c.at) < serverMs(since)) continue;
+        out.push({ key: `c${a.id}${c.day}`, at: c.at, icon: <Hand className="w-4 h-4 text-emerald-600" />,
+          text: <><b>{who(c.name, c.user_id)}</b> took on {a.title}{dayText(c.day || a.date)}</>, go: () => navigate(`/calendar?date=${c.day || a.date}&event=${a.id}`) });
+      }
+    }
+    for (const r of claimedReminders.data || []) {
+      for (const c of claimsOf(r)) {
+        if (serverMs(c.at) < serverMs(since)) continue;
+        out.push({ key: `k${r.id}${c.day}`, at: c.at, icon: <Hand className="w-4 h-4 text-emerald-600" />,
+          text: <><b>{who(c.name, c.user_id)}</b> took on {r.medication_name}{r.family_member_name ? <> for <b>{first(r.family_member_name)}</b></> : null}{dayText(c.day)}</>, go: () => navigate('/tasks') });
+      }
+    }
+    for (const n of sharedNotes.data || []) {
+      if (n.parent_record_id) continue;
+      const by = users.find((u) => u.id === n.user_id);
+      out.push({ key: `s${n.id}`, at: n.shared_at, icon: <FileText className="w-4 h-4 text-primary" />,
+        text: <><b>{who(by?.display_name || by?.full_name, n.user_id)}</b> shared notes: {n.title || n.notes?.title || 'a recording'}{n.family_member_name ? <> about <b>{first(n.family_member_name)}</b></> : null}</>, go: () => navigate(`/notes?open=${n.id}`) });
+    }
     // Someone new in the family.
     for (const u of users) {
       if (!u.created_date || u.id === me?.id || serverMs(u.created_date) < serverMs(since)) continue;
@@ -152,16 +169,16 @@ export default function ActivityFeed({ members = [] }) {
         text: <><b>{who(m.author_name, m.author_user_id)}</b> wrote: <span className="text-muted-foreground">{m.content}</span></>, go: () => navigate('/messages') });
     }
     return out.filter((x) => x.at).sort((a, b) => serverMs(b.at) - serverMs(a.at));
-  }, [logs.data, done.data, rems.data, events.data, imports.data, importTotals.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [done.data, rems.data, events.data, claimedEvents.data, claimedReminders.data, sharedNotes.data, imports.data, importTotals.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loading = [logs, done, rems, events].some((q) => q.isLoading);
+  const loading = [done, rems, events].some((q) => q.isLoading);
   const shown = more ? items.slice(0, 40) : items.slice(0, 8);
 
   return (
     <section className="rounded-2xl border border-border/50 bg-card p-4 shadow-sm">
       <h2 className="font-heading text-lg font-semibold flex items-center gap-2 mb-2"><Activity className="w-5 h-5 text-primary" /> Who did what</h2>
       {loading && !items.length ? <p className="text-sm text-muted-foreground py-4">Loading…</p>
-        : !items.length ? <p className="text-sm text-muted-foreground py-3">Nothing in the last {DAYS} days yet. When someone checks off a task, logs a meal or adds an event, it shows up here.</p>
+        : !items.length ? <p className="text-sm text-muted-foreground py-3">Nothing in the last {DAYS} days yet. When someone checks off a task, does a reminder or adds an event, it shows up here.</p>
         : (
           <ul className="divide-y divide-border/40">
             {shown.map((it) => (

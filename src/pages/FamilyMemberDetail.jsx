@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CareFeed from '@/components/dashboard/CareFeed';
+import VaultSection from '@/components/carelog/VaultSection';
 import PhoneActions from '@/components/shared/PhoneActions';
 import MemberColorPicker from '@/components/family/MemberColorPicker';
 import { getMemberColorClass, isPet, takenColors } from '@/utils/memberColors';
@@ -100,13 +101,15 @@ export default function FamilyMemberDetail() {
     </div>
   );
   const pet = isPet(member);
+  // Who a Legal & financial entry can be about: the people, not pets.
+  const people = members.filter((m) => m.is_active !== false && !isPet(m));
   // School only for someone of school age (under 23), or, with no birthday, a
   // child of the family; and always if school info was already filled in.
   const years = member.birthdate ? (Date.now() - Date.parse(member.birthdate)) / (365.25 * 86400e3) : null;
   const showSchool = !pet && (!!(member.school_name || member.school_phone || member.school_grade || member.school_teacher)
     || (years !== null && !Number.isNaN(years) ? years < 23 : !member.linked_user_id && /^(son|daughter|foster child|grandchild)$/i.test(String(member.relationship || ''))));
   // Contacts and Journal were hidden Oct 29 2026 (family members are the
-  // contacts; Care Log notes and Wellness cover the journal).
+  // contacts).
   const tabs = ['overview', 'info', showSchool && 'school', 'reminders'].filter(Boolean);
 
   return (
@@ -190,7 +193,6 @@ export default function FamilyMemberDetail() {
               <CardTitle className="font-heading flex items-center gap-2"><LayoutDashboard className="w-5 h-5 text-primary" /> {member.name}'s Care Dashboard</CardTitle>
             </CardHeader>
             <CardContent>
-              <Link to={`/care-log?for=${id}`} className="mb-4 flex items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 text-primary text-sm font-medium py-2.5">Open {member.name.split(' ')[0]}'s care log</Link>
               <CareFeed members={members} memberId={id} scope="recent" limit={20} title="Recent Care Activity" />
             </CardContent>
           </Card>
@@ -209,6 +211,9 @@ export default function FamilyMemberDetail() {
               )}
             </CardContent>
           </Card>
+          {/* Legal & financial, behind the family's folder password (moved here
+              from the Care Log when it was hidden, Oct 30 2026). */}
+          {!pet && <div className="mt-4"><VaultSection person={member} people={people} /></div>}
         </TabsContent>
 
 

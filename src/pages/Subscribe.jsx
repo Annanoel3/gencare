@@ -15,7 +15,7 @@ const PERKS = [
   'The whole family on one calendar, with everyone’s phone kept in step',
   'Push notifications when someone adds or changes an appointment',
   'Record notes at appointments and meetings — organized notes plus the full transcript',
-  'Reminders, care logs, checklists and messages, shared with everyone who helps',
+  'Reminders and messages shared with everyone who helps, and “I’ll take it” so everyone knows who’s handling what',
   'One subscription covers every member of the family',
 ];
 
