@@ -9,6 +9,7 @@ import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isVa
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/events';
 import { realEvent } from '@/lib/sameEvent';
+import { snapshotEvent, notifyEvent } from '@/lib/eventChanges';
 import SharingChoiceDialog from '@/components/calendar/SharingChoice';
 import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import MonthView from '@/components/calendar/MonthView';
@@ -131,7 +132,7 @@ export default function CalendarPage() {
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
     exportSoon();
   };
-  const notify = (action, id) => base44.functions.invoke('notifyFamily', { kind: 'appointment', action, appointment_id: id }).catch(() => {});
+  const notify = (action, id, before) => notifyEvent(action, id, before && before !== 'none' ? before : undefined);
   const sharingDefault = sharingDefaultOf(me);
 
   const createMutation = useMutation({
@@ -170,8 +171,11 @@ export default function CalendarPage() {
   const autoSave = async (data) => {
     const id = editing?.id;
     if (!id) return;
-    await base44.entities.Appointment.update(id, data);
     const s = editSession.current;
+    // How it looked before the first change, for the family's push.
+    // (One read per edit, even when saves overlap.)
+    if (s && s.id === id) { s.beforeP = s.beforeP || snapshotEvent(id); s.before = (await s.beforeP) || 'none'; }
+    await base44.entities.Appointment.update(id, data);
     if (s && s.id === id) { s.changed = true; s.visibility = data.visibility; }
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
   };
@@ -182,7 +186,7 @@ export default function CalendarPage() {
     setEditing(null);
     if (!s?.changed) return;
     if (!(s.startVisibility === 'private' && s.visibility === 'private')) {
-      notify(s.visibility === 'private' ? 'removed' : s.startVisibility === 'private' ? 'added' : 'changed', s.id);
+      notify(s.visibility === 'private' ? 'removed' : s.startVisibility === 'private' ? 'added' : 'changed', s.id, s.before);
     }
     afterChange();
   };

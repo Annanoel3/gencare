@@ -116,7 +116,7 @@ async function tellAdder(db: any, people: any[], row: any, kind: string, user: a
   const what = `${title}${forWhom}${when ? ` · ${when}` : ''}`;
   const r = await sendPush({
     email: adder.email,
-    title: action === 'take' ? `${name} will take it` : `${name} can't take it anymore`,
+    title: action === 'take' ? `${first(name)} will take it` : `${first(name)} can't take it anymore`,
     message: action === 'take' ? what : `${what} is open again.`,
     data: kind === 'event'
       ? { type: 'claim', appointmentId: row.id, date: date || row.date, screen: '/calendar' }

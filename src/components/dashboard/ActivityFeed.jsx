@@ -90,7 +90,7 @@ export default function ActivityFeed({ members = [] }) {
     }
     for (const r of rems.data || []) {
       out.push({ key: `r${r.id}`, at: r.taken_at, icon: <BellRing className="w-4 h-4 text-primary" />,
-        text: <><b>{who(r.taken_by_name, r.taken_by_user_id)}</b> {r.status === 'skipped' ? 'skipped' : 'did'} {r.medication_name}{r.family_member_name ? <> for <b>{first(r.family_member_name)}</b></> : null}</>, go: () => navigate('/tasks?tab=reminders') });
+        text: <><b>{who(r.taken_by_name, r.taken_by_user_id)}</b> {r.status === 'skipped' ? 'skipped' : 'did'} {r.medication_name}{r.family_member_name ? <> for <b>{first(r.family_member_name)}</b></> : null}</>, go: () => navigate(`/tasks?highlight=${r.medication_id}`) });
     }
     for (const a of events.data || []) {
       if (a.cover_of || a.away_of) continue; // GenCare's own stand-ins ("Anna traveling")
@@ -139,7 +139,7 @@ export default function ActivityFeed({ members = [] }) {
       for (const c of claimsOf(r)) {
         if (serverMs(c.at) < serverMs(since)) continue;
         out.push({ key: `k${r.id}${c.day}`, at: c.at, icon: <Hand className="w-4 h-4 text-emerald-600" />,
-          text: <><b>{who(c.name, c.user_id)}</b> took on {r.medication_name}{r.family_member_name ? <> for <b>{first(r.family_member_name)}</b></> : null}{dayText(c.day)}</>, go: () => navigate('/tasks') });
+          text: <><b>{who(c.name, c.user_id)}</b> took on {r.medication_name}{r.family_member_name ? <> for <b>{first(r.family_member_name)}</b></> : null}{dayText(c.day)}</>, go: () => navigate(`/tasks?highlight=${r.id}`) });
       }
     }
     for (const n of sharedNotes.data || []) {
@@ -162,7 +162,7 @@ export default function ActivityFeed({ members = [] }) {
       if (!u) continue; // made by GenCare itself (samples), not a person
       const how = r.frequency === 'Once' ? " (until it's done)" : r.frequency === ONE_TIME && r.times?.[0] ? ` for ${fmtClock(r.times[0])}` : '';
       out.push({ key: `n${r.id}`, at: r.created_date, icon: <BellPlus className="w-4 h-4 text-primary" />,
-        text: <><b>{who(u.display_name || u.full_name, u.id)}</b> added a reminder: {r.medication_name}{how}{r.family_member_name ? <> for <b>{first(r.family_member_name)}</b></> : null}{r.visibility === 'private' ? ' (just you)' : ''}</>, go: () => navigate(`/tasks?reminder=${r.id}`) });
+        text: <><b>{who(u.display_name || u.full_name, u.id)}</b> added a reminder: {r.medication_name}{how}{r.family_member_name ? <> for <b>{first(r.family_member_name)}</b></> : null}{r.visibility === 'private' ? ' (just you)' : ''}</>, go: () => navigate(`/tasks?highlight=${r.id}`) });
     }
     for (const m of (msgs.data || []).filter((x) => !x.parent_id && serverMs(x.created_date) >= serverMs(since))) {
       out.push({ key: `m${m.id}`, at: m.created_date, icon: <MessageCircle className="w-4 h-4 text-blue-600" />,

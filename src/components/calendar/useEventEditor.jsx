@@ -5,6 +5,7 @@ import { useFamily } from '@/lib/family';
 import { exportSoon } from '@/lib/calendarSync';
 import { sharingDefaultOf, sortNewEvent } from '@/lib/events';
 import { realEvent } from '@/lib/sameEvent';
+import { snapshotEvent, notifyEvent } from '@/lib/eventChanges';
 import { withFamily } from '@/lib/family';
 import { track } from '@/lib/activity';
 import { toast } from '@/components/ui/use-toast';
@@ -26,7 +27,7 @@ export default function useEventEditor(members = []) {
   const session = useRef(null);
   const today = useMemo(() => new Date(), []);
 
-  const notify = (action, id) => base44.functions.invoke('notifyFamily', { kind: 'appointment', action, appointment_id: id }).catch(() => {});
+  const notify = (action, id, before) => notifyEvent(action, id, before && before !== 'none' ? before : undefined);
   const afterChange = () => { qc.invalidateQueries({ queryKey: ['appointments'] }); exportSoon(); };
 
   const openEvent = (shown) => {
@@ -44,8 +45,11 @@ export default function useEventEditor(members = []) {
   const autoSave = async (data) => {
     const id = editing?.id;
     if (!id) return;
-    await base44.entities.Appointment.update(id, data);
     const s = session.current;
+    // How it looked before the first change, for the family's push.
+    // (One read per edit, even when saves overlap.)
+    if (s && s.id === id) { s.beforeP = s.beforeP || snapshotEvent(id); s.before = (await s.beforeP) || 'none'; }
+    await base44.entities.Appointment.update(id, data);
     if (s && s.id === id) { s.changed = true; s.visibility = data.visibility; }
     qc.invalidateQueries({ queryKey: ['appointments'] });
   };
@@ -56,7 +60,7 @@ export default function useEventEditor(members = []) {
     setOpen(false);
     if (!s?.changed) return;
     if (!(s.startVisibility === 'private' && s.visibility === 'private')) {
-      notify(s.visibility === 'private' ? 'removed' : s.startVisibility === 'private' ? 'added' : 'changed', s.id);
+      notify(s.visibility === 'private' ? 'removed' : s.startVisibility === 'private' ? 'added' : 'changed', s.id, s.before);
     }
     afterChange();
   };

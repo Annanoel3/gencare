@@ -16,7 +16,7 @@ import ClaimButton from '@/components/shared/ClaimButton';
  * edit the reminder. "I'll take it" says you'll do it today (or, for a one-off,
  * at all), and its pushes come to you.
  */
-export default function ReminderSlotCard({ slot, members = [], onOpen }) {
+export default function ReminderSlotCard({ slot, members = [], onOpen, focus = false }) {
   const queryClient = useQueryClient();
   const { me } = useFamily();
   const [busy, setBusy] = useState(false);
@@ -41,7 +41,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen }) {
   const carried = s.med.frequency === 'Once' && s.med.once_date && s.med.once_date < s.day;
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 ${done ? 'opacity-60' : ''}`}>
+    <div data-focus={focus ? 'true' : undefined} className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 ${done ? 'opacity-60' : ''} transition-shadow duration-500 ${focus ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
       {color && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
       <div className="flex items-center gap-3 p-3.5 pl-4">
         <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">

@@ -103,6 +103,26 @@ export default function Tasks() {
     const next = new URLSearchParams(params); next.delete('reminder'); setParams(next, { replace: true });
   }, [wanted, isFetched]);
 
+  // A push (or Who did what) lands on the thing itself, glowing for a moment,
+  // not its edit popup (Anna, Oct 31 2026): ?highlight=<reminder or task id>.
+  const [focusId, setFocusId] = useState('');
+  const highlight = params.get('highlight');
+  useEffect(() => {
+    if (!highlight || !isFetched || isLoading) return;
+    const next = new URLSearchParams(params); next.delete('highlight'); setParams(next, { replace: true });
+    const inToday = slots.some((sl) => sl.med.id === highlight);
+    const reminder = reminders.find((m) => m.id === highlight);
+    const task = rows.find((t) => t.id === highlight);
+    setTab(inToday ? 'open' : reminder ? 'reminders' : task?.status === 'completed' ? 'done' : 'open');
+    setFocusId(highlight);
+  }, [highlight, isFetched, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!focusId) return undefined;
+    const t1 = setTimeout(() => document.querySelector('[data-focus="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+    const t2 = setTimeout(() => setFocusId(''), 6000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [focusId]);
+
   const { stepsByParent, tasks } = useMemo(() => {
     const stepsByParent = {};
     const tasks = [];
@@ -188,8 +208,8 @@ export default function Tasks() {
               <div className="space-y-2">
                 {s.entries.map((e) => (
                   e.kind === 'event' ? <EventCard key={e.key} appt={e.ev} members={members} showDay={s.key === 'week'} onOpen={openOccurrence} />
-                    : e.kind === 'slot' ? <ReminderSlotCard key={e.key} slot={e.slot} members={members} onOpen={openReminder} />
-                    : <TaskCard key={e.key} task={e.task} members={members} onOpen={openTask} stepsPreloaded={stepsByParent[e.task.id] || []} />
+                    : e.kind === 'slot' ? <ReminderSlotCard key={e.key} slot={e.slot} members={members} onOpen={openReminder} focus={!!focusId && e.slot.med.id === focusId} />
+                    : <TaskCard key={e.key} task={e.task} members={members} onOpen={openTask} stepsPreloaded={stepsByParent[e.task.id] || []} focus={!!focusId && e.task.id === focusId} />
                 ))}
               </div>
             </section>
@@ -201,7 +221,7 @@ export default function Tasks() {
             <p className="text-muted-foreground text-center py-10 text-sm">Nothing finished yet.</p>
           ) : (
             <div className="space-y-2">
-              {completed.map((t) => <TaskCard key={t.id} task={t} members={members} onOpen={openTask} stepsPreloaded={stepsByParent[t.id] || []} />)}
+              {completed.map((t) => <TaskCard key={t.id} task={t} members={members} onOpen={openTask} stepsPreloaded={stepsByParent[t.id] || []} focus={!!focusId && t.id === focusId} />)}
             </div>
           )}
         </TabsContent>
@@ -212,13 +232,13 @@ export default function Tasks() {
           {byPerson.map(([who, list]) => (
             <section key={who} className="space-y-2 pt-1">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{who}</h2>
-              {list.map((m) => <ReminderCard key={m.id} item={m} logs={logs} onOpen={() => openReminder(m)} />)}
+              {list.map((m) => <ReminderCard key={m.id} item={m} logs={logs} onOpen={() => openReminder(m)} focus={!!focusId && m.id === focusId} />)}
             </section>
           ))}
           {paused.length > 0 && (
             <>
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-2">Paused ({paused.length})</h2>
-              {paused.map((m) => <ReminderCard key={m.id} item={m} logs={logs} onOpen={() => openReminder(m)} inactive />)}
+              {paused.map((m) => <ReminderCard key={m.id} item={m} logs={logs} onOpen={() => openReminder(m)} inactive focus={!!focusId && m.id === focusId} />)}
             </>
           )}
         </TabsContent>

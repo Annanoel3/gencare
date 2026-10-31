@@ -15,7 +15,7 @@ const prioClass = { urgent: 'text-destructive', high: 'text-orange-600', medium:
  * One task in a list. Tick = done (a repeat brings its next copy), tap = open.
  * A checklist shows its steps right on the card so anyone can tick them.
  */
-export default function TaskCard({ task, members = [], onOpen, stepsPreloaded }) {
+export default function TaskCard({ task, members = [], onOpen, stepsPreloaded, focus = false }) {
   const { me } = useFamily();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -57,7 +57,7 @@ export default function TaskCard({ task, members = [], onOpen, stepsPreloaded })
   const when = due ? `${overdue ? 'Overdue · ' : ''}${format(due, 'EEE, MMM d')}${task.due_time ? ` · ${fmtTime(task.due_time)}` : ''}` : '';
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 ${done ? 'opacity-60' : ''}`}>
+    <div data-focus={focus ? 'true' : undefined} className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 ${done ? 'opacity-60' : ''} transition-shadow duration-500 ${focus ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
       {color && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
       <div className="flex items-start gap-3 p-3.5 pl-4">
         <button

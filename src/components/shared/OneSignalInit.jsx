@@ -33,8 +33,12 @@ function handleNotificationData(data, navigate) {
   if ((data.type === 'appointment' || data.type === 'appointment_reminder' || (data.type === 'claim' && data.appointmentId)) && data.date) {
     // That day on the calendar, the event glowing, not its edit popup (Anna, Oct 30 2026).
     target = `/calendar?date=${encodeURIComponent(data.date)}${data.appointmentId ? `&event=${encodeURIComponent(data.appointmentId)}` : ''}`;
+  } else if (data.reminderId && (/^reminder_/.test(String(data.type || '')) || data.type === 'claim')) {
+    // The reminder on To-do, glowing, not its edit popup (Anna, Oct 31 2026),
+    // including pushes sent before this changed (their screen opened the editor).
+    target = `/tasks?highlight=${encodeURIComponent(data.reminderId)}`;
   } else if (data.type === 'task' || data.type === 'task_due') {
-    target = `/tasks${data.taskId ? `?open=${encodeURIComponent(data.taskId)}` : ''}`;
+    target = `/tasks${data.taskId ? `?highlight=${encodeURIComponent(data.taskId)}` : ''}`;
   } else if (data.type === 'message') {
     target = '/messages';
   }

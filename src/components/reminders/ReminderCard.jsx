@@ -22,11 +22,11 @@ function howText(item) {
 
 // One repeating reminder (what, how often, at what times, how it's gone the
 // last 14 days). Tap to edit.
-export default function ReminderCard({ item, logs, onOpen, inactive }) {
+export default function ReminderCard({ item, logs, onOpen, inactive, focus = false }) {
   const runsOutSoon = item.refill_date && new Date(item.refill_date + 'T12:00:00') <= new Date(Date.now() + 7 * 86400000);
   const a = adherence(item, logs);
   return (
-    <button type="button" onClick={onOpen} className="text-left w-full block">
+    <button type="button" onClick={onOpen} data-focus={focus ? 'true' : undefined} className={`text-left w-full block rounded-2xl transition-shadow duration-500 ${focus ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
       <Card className={`p-4 border-border/50 h-full hover:border-primary/40 transition-colors ${inactive ? 'opacity-60' : ''}`}>
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">

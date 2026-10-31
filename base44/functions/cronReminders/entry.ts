@@ -162,7 +162,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
             email: u.email,
             title: `Due now: ${t.title}`,
             message: t.family_member_name ? `For ${t.family_member_name}` : (t.description || 'Tap to open the task'),
-            data: { type: 'task_due', taskId: t.id, screen: '/tasks' },
+            data: { type: 'task_due', taskId: t.id, screen: `/tasks?highlight=${t.id}` },
             priority: 'high',
           });
           out.task_pushes++;
@@ -180,7 +180,8 @@ const MISSED_AFTER_MS = 90 * 60_000;
           const times: string[] = Array.isArray(m.times) ? m.times.filter((t: string) => /^\d{2}:\d{2}$/.test(t)) : [];
           const days: number[] = Array.isArray(m.days_of_week) ? m.days_of_week : [];
           const label = `${m.medication_name}${m.dosage ? ` (${m.dosage})` : ''}${m.family_member_name ? ` · ${m.family_member_name}` : ''}`;
-          const screen = `/tasks?reminder=${m.id}`;
+          // Lands on the reminder in To-do (glowing), not its edit popup (Anna, Oct 31 2026).
+          const screen = `/tasks?highlight=${m.id}`;
           // "Just me" reminders go only to the person who keeps them.
           const isPrivate = m.visibility === 'private';
           const ownerId = m.owner_user_id || m.created_by_id || '';
