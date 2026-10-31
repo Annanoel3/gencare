@@ -57,6 +57,33 @@
       ],
       "type": "string"
     },
+    "claim_changed_at": {
+      "description": "When someone last said I'll take it, or let go, on this (Who did what reads it)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "claims": {
+      "description": "\"I'll take it\": who said they'd handle it. One entry per day for something that repeats (day = YYYY-MM-DD), or one with an empty day for the whole thing. Their reminders go to them",
+      "items": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "day": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
     "cover_of": {
       "description": "Set on a '<name>: doctor' style event GenCare made so the family sees that a private event is happening without its details; the private event's id",
       "type": "string"
