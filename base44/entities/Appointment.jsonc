@@ -57,6 +57,33 @@
       ],
       "type": "string"
     },
+    "checked_at": {
+      "description": "When someone last checked this off, or un-checked it (Who did what reads it)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "checks": {
+      "description": "Checked off on To-do (Anna, Nov 2 2026: \"there's no way to check some of these off\"): who and when. One entry per day for something that repeats (day = YYYY-MM-DD), or one with an empty day for a one-off. A checked-off event's reminders stop",
+      "items": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "day": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
     "claim_changed_at": {
       "description": "When someone last said I'll take it, or let go, on this (Who did what reads it)",
       "format": "date-time",
