@@ -6,6 +6,7 @@ import { getMemberColorByMemberId, getEventColorClass, getEventHighlightClass } 
 import { useFamily } from '@/lib/family';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ClaimButton from '@/components/shared/ClaimButton';
+import { checkOn, firstName } from '@/lib/claims';
 
 // Event categories. 'Doctor' and 'Therapy' were categories before Oct 2026;
 // any row still carrying one reads as a plain Appointment.
@@ -30,12 +31,14 @@ function fmtTime(t) {
 
 export default function EventRow({ appt, members, onClick, focus = false }) {
   const canRecord = usePluginPresent('RecorderBridge');
-  const { members: accounts } = useFamily();
+  const { me, members: accounts } = useFamily();
   const color = getEventColorClass(appt, members, accounts);
   // The side bar is for care events only; anything else reads as plain text.
   const bar = getEventHighlightClass(appt, members, accounts);
   const memberDot = getMemberColorByMemberId(appt.family_member_id, members);
   const poster = String(appt.created_by_name || '').split(' ')[0];
+  // Checked off on To-do: struck through here too, with who did it.
+  const check = checkOn(appt, appt.date);
   return (
     <div
       role={onClick ? 'button' : undefined}
@@ -47,7 +50,7 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
       <div className={`w-2 self-stretch min-h-[40px] rounded-full ${bar || 'bg-transparent'}`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2">
-          <p className="font-medium text-sm flex-1 min-w-0">{appt.title}</p>
+          <p className={`font-medium text-sm flex-1 min-w-0 ${check ? 'line-through text-muted-foreground' : ''}`}>{appt.title}</p>
           {appt.visibility === 'private' && <Lock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Only you see this" />}
           {appt.visibility === 'some' && <Users className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Shared with certain people" />}
           {appt.source === 'phone' && <Smartphone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="From a phone calendar" />}
@@ -95,7 +98,9 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
           // The same event was on someone else's calendar too (lib/sameEvent).
           <p className="text-xs text-muted-foreground mt-1">Also on {appt.also_from.join(' and ')}'s calendar</p>
         )}
-        <ClaimButton kind="event" item={appt} date={appt.date} className="mt-2" />
+        {check
+          ? <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">Done · checked off by {check.user_id === me?.id ? 'you' : firstName(check.name) || 'someone'}</p>
+          : <ClaimButton kind="event" item={appt} date={appt.date} className="mt-2" />}
       </div>
     </div>
   );

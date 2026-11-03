@@ -31,11 +31,11 @@ export function claimOn(item, day, accounts) {
   return c;
 }
 
-/** Claims from every copy of the same event, one per day (the earliest). */
-export function mergeClaims(rows) {
+/** Claims (or checks) from every copy of the same event, one per day (the earliest). */
+export function mergeClaims(rows, field = 'claims') {
   const byDay = new Map();
   for (const r of rows) {
-    for (const c of claimsOf(r)) {
+    for (const c of (Array.isArray(r?.[field]) ? r[field] : []).filter((x) => x && x.user_id)) {
       const k = String(c.day || '');
       const had = byDay.get(k);
       if (!had || String(c.at || '') < String(had.at || '')) byDay.set(k, c);
@@ -84,3 +84,22 @@ export async function setClaim({ kind, item, date, take }) {
 }
 
 export const firstName = (s) => String(s || '').trim().split(' ')[0];
+
+// Checked off on To-do (Anna, Nov 2 2026: "there's no way to check some of
+// these off"): same shape as claims, kept in `checks`. Anyone who can see the
+// event can check it off or undo it; its reminders stop.
+export function checkOn(item, date) {
+  const day = claimDayFor('event', item, date);
+  return (Array.isArray(item?.checks) ? item.checks : []).find((c) => c && c.user_id && String(c.day || '') === day) || null;
+}
+
+export async function setCheck(item, date, done) {
+  const res = await base44.functions.invoke('claimItem', { kind: 'event', ...eventClaimTarget(item), date, action: done ? 'check' : 'uncheck' }).catch((e) => {
+    const data = e?.response?.data || e?.data;
+    if (data) return { data };
+    throw e;
+  });
+  const out = res?.data ?? res;
+  if (!out?.ok) throw new Error(out?.error || "Couldn't save");
+  return out;
+}

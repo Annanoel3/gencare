@@ -3,10 +3,12 @@ import { familyUsers, sendPush, wantsPush, whenText } from '../../shared/push.ts
 import { canSee } from '../../shared/sharing.ts';
 import { claimDayFor, claimOn, claimsOf, pruneClaims } from '../../shared/claims.ts';
 
-// "I'll take it" and "Let go" (Anna, Oct 30 2026), for events and reminders.
+// "I'll take it" and "Let go" (Anna, Oct 30 2026), for events and reminders,
+// and checking an event off on To-do or undoing that ("check" / "uncheck").
 //
 //   { kind: "event", id, ids?, date, action: "take" | "release" }
 //   { kind: "reminder", id, date, action: "take" | "release" }
+//   { kind: "event", id, ids?, date, action: "check" | "uncheck" }
 //
 // id is the row to put the claim on. For an event shown once for two
 // calendars, ids lists every copy, so a claim on any of them counts and
@@ -33,7 +35,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const kind = body?.kind === 'reminder' ? 'reminder' : body?.kind === 'event' ? 'event' : '';
-    const action = body?.action === 'release' ? 'release' : body?.action === 'take' ? 'take' : '';
+    const action = ['take', 'release', 'check', 'uncheck'].includes(body?.action) ? String(body.action) : '';
     const id = String(body?.id || '');
     const date = String(body?.date || '');
     if (!kind || !action || !id) return Response.json({ ok: false, error: 'kind, id and action are needed' }, { status: 400 });
@@ -51,7 +53,11 @@ Deno.serve(async (req) => {
       ? canSee(row, user.id)
       : row.visibility !== 'private' || row.owner_user_id === user.id || row.created_by_id === user.id;
     if (!visibleTo(target)) return Response.json({ ok: false, error: 'Not found' }, { status: 404 });
-    if (target.visibility === 'private') return Response.json({ ok: false, error: 'private' }, { status: 400 });
+    const checking = action === 'check' || action === 'uncheck';
+    if (checking && kind !== 'event') return Response.json({ ok: false, error: 'Reminders are marked done on their own' }, { status: 400 });
+    // Anything you can see can be checked off (your own "just me" events too);
+    // only shared things can be taken.
+    if (!checking && target.visibility === 'private') return Response.json({ ok: false, error: 'private' }, { status: 400 });
 
     const rows = [target];
     if (kind === 'event' && Array.isArray(body?.ids)) {
@@ -64,6 +70,26 @@ Deno.serve(async (req) => {
 
     const day = claimDayFor(kind, target, date);
     if (day && !DAY.test(day)) return Response.json({ ok: false, error: 'date is needed for something that repeats' }, { status: 400 });
+
+    // Checked off on To-do (Anna, Nov 2 2026: "there's no way to check some
+    // of these off"). Anyone who can see it can check it off or undo that,
+    // like a reminder's Done; its reminders stop (cronReminders).
+    if (checking) {
+      const checksOf = (r: any) => (Array.isArray(r?.checks) ? r.checks : []).filter((c: any) => c && c.user_id);
+      const done = rows.map((r) => checksOf(r).find((c: any) => String(c.day || '') === day)).find(Boolean) || null;
+      if (action === 'check') {
+        if (done) return Response.json({ ok: true, check: done, already: true });
+        const check = { day, user_id: user.id, name, at: now };
+        const kept = pruneClaims(checksOf(target).filter((c: any) => String(c.day || '') !== day), today);
+        await db.Appointment.update(target.id, { checks: [...kept, check], checked_at: now });
+        return Response.json({ ok: true, check });
+      }
+      for (const r of rows) {
+        if (!checksOf(r).some((c: any) => String(c.day || '') === day)) continue;
+        await db.Appointment.update(r.id, { checks: checksOf(r).filter((c: any) => String(c.day || '') !== day), checked_at: now });
+      }
+      return Response.json({ ok: true, unchecked: true });
+    }
 
     // Who has it now, on any copy.
     const holder = rows.map((r) => claimOn(r, day)).find(Boolean) || null;

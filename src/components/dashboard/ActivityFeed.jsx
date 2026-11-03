@@ -70,6 +70,8 @@ export default function ActivityFeed({ members = [] }) {
     queryFn: () => base44.functions.invoke('phoneCalendar', { mode: 'activity', since }).then((r) => (r?.data || r)?.people || []),
     ...live,
   });
+  // Events checked off on To-do in the last few days.
+  const checkedEvents = useQuery({ queryKey: ['appointments', 'activity', 'checks'], queryFn: () => base44.entities.Appointment.filter({ checked_at: { $gte: since } }, '-checked_at', 40), ...live });
   // "I'll take it" on events and reminders in the last few days.
   const claimedEvents = useQuery({ queryKey: ['appointments', 'activity', 'claims'], queryFn: () => base44.entities.Appointment.filter({ claim_changed_at: { $gte: since } }, '-claim_changed_at', 40), ...live });
   const claimedReminders = useQuery({ queryKey: ['reminders', 'activity', 'claims'], queryFn: () => base44.entities.Medication.filter({ claim_changed_at: { $gte: since } }, '-claim_changed_at', 40), ...live });
@@ -135,6 +137,13 @@ export default function ActivityFeed({ members = [] }) {
           text: <><b>{who(c.name, c.user_id)}</b> took on {a.title}{dayText(c.day || a.date)}</>, go: () => navigate(`/calendar?date=${c.day || a.date}&event=${a.id}`) });
       }
     }
+    for (const a of checkedEvents.data || []) {
+      for (const c of (Array.isArray(a.checks) ? a.checks : [])) {
+        if (!c?.user_id || serverMs(c.at) < serverMs(since)) continue;
+        out.push({ key: `x${a.id}${c.day}`, at: c.at, icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,
+          text: <><b>{who(c.name, c.user_id)}</b> checked off {a.title}{dayText(c.day || a.date)}</>, go: () => navigate(`/calendar?date=${c.day || a.date}&event=${a.id}`) });
+      }
+    }
     for (const r of claimedReminders.data || []) {
       for (const c of claimsOf(r)) {
         if (serverMs(c.at) < serverMs(since)) continue;
@@ -169,7 +178,7 @@ export default function ActivityFeed({ members = [] }) {
         text: <><b>{who(m.author_name, m.author_user_id)}</b> wrote: <span className="text-muted-foreground">{m.content}</span></>, go: () => navigate('/messages') });
     }
     return out.filter((x) => x.at).sort((a, b) => serverMs(b.at) - serverMs(a.at));
-  }, [done.data, rems.data, events.data, claimedEvents.data, claimedReminders.data, sharedNotes.data, imports.data, importTotals.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [done.data, rems.data, events.data, claimedEvents.data, claimedReminders.data, checkedEvents.data, sharedNotes.data, imports.data, importTotals.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = [done, rems, events].some((q) => q.isLoading);
   const shown = more ? items.slice(0, 40) : items.slice(0, 8);

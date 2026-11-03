@@ -123,6 +123,15 @@ const MISSED_AFTER_MS = 90 * 60_000;
         if (now < fireAt || now >= fireAt + WINDOW_MS) continue;
         const forWhom = a.family_member_name ? ` for ${a.family_member_name}` : '';
         const inText = minutes >= 60 ? `in ${Math.round(minutes / 60)} hour${minutes >= 120 ? 's' : ''}` : `in ${minutes} min`;
+        // Already checked off on To-do (this copy or the same event from
+        // someone else's calendar): no reminder.
+        const dayKey = claimDayFor('event', a, a.date);
+        const checkedOn = (b: any) => (Array.isArray(b?.checks) ? b.checks : []).some((c: any) => c && c.user_id && String(c.day || '') === dayKey);
+        if (checkedOn(a) || (!dayKey && appts.some((b: any) => b !== a && b.date === a.date && sameEvent(a, b) && checkedOn(b)))) {
+          if (isSeries) await db.Appointment.update(a.occurrence_of, { reminder_sent_for: a.date });
+          else await db.Appointment.update(a.id, { reminder_sent: true });
+          continue;
+        }
         // "I'll take it": the reminder goes to whoever took it (on this row or
         // on the same event from someone else's calendar).
         const day = claimDayFor('event', a, a.date);

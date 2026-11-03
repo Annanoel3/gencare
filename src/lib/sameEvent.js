@@ -91,6 +91,7 @@ export function mergeSameEvents(list) {
         own: keep,
         cover_id: cover.id,
         claims: mergeClaims(group),
+        checks: mergeClaims(group, 'checks'),
       });
       continue;
     }
@@ -103,8 +104,9 @@ export function mergeSameEvents(list) {
       family_member_name: keep.family_member_name || others.find((o) => o.family_member_name)?.family_member_name || '',
       also_from: names,
       merged_ids: others.map((o) => o.id),
-      // "I'll take it" on any copy counts for the one shown.
+      // "I'll take it", or checked off, on any copy counts for the one shown.
       claims: mergeClaims(group),
+      checks: mergeClaims(group, 'checks'),
     });
   }
   return out;
