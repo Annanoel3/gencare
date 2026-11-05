@@ -222,7 +222,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 logsToday.push(log);
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: stillWaiting ? `Still to do: ${label}` : label, message: m.notes ? String(m.notes).split('\n')[0].slice(0, 120) : 'Tap to mark it done', data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: stillWaiting ? `Still to do: ${label}` : label, message: m.notes ? String(m.notes).split('\n')[0].slice(0, 120) : 'Tap to open it in To-do', data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.reminder_pushes++;
                 }
                 continue;
@@ -234,7 +234,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 log.status = 'missed';
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: `Not done yet? ${label}`, message: `The ${fmtClock(t)} reminder wasn't marked done. Tap to mark it, or skip it.`, data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: `Not done yet? ${label}`, message: `The ${fmtClock(t)} reminder isn't marked done yet. Tap to open it in To-do.`, data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.missed_pushes++;
                 }
               }
