@@ -169,8 +169,9 @@ const MISSED_AFTER_MS = 90 * 60_000;
           if (!wantsPush(u, 'reminders')) continue;
           await sendPush({
             email: u.email,
-            title: `Due now: ${t.title}`,
-            message: t.family_member_name ? `For ${t.family_member_name}` : (t.description || 'Tap to open the task'),
+            // The task first, how it stands under it (same as reminders).
+            title: String(t.title || 'Task').slice(0, 90),
+            message: ['Due now', t.family_member_name ? `For ${String(t.family_member_name).split(' ')[0]}` : ''].filter(Boolean).join(' · '),
             data: { type: 'task_due', taskId: t.id, screen: `/tasks?highlight=${t.id}` },
             priority: 'high',
           });
@@ -188,7 +189,13 @@ const MISSED_AFTER_MS = 90 * 60_000;
         for (const m of meds) {
           const times: string[] = Array.isArray(m.times) ? m.times.filter((t: string) => /^\d{2}:\d{2}$/.test(t)) : [];
           const days: number[] = Array.isArray(m.days_of_week) ? m.days_of_week : [];
-          const label = `${m.medication_name}${m.dosage ? ` (${m.dosage})` : ''}${m.family_member_name ? ` · ${m.family_member_name}` : ''}`;
+          // The task itself is the push's title, so a collapsed notification
+          // still says what it is (Anna, Nov 6 2026: on Android it only showed
+          // "Not done yet?" and "The 1:00 PM reminder isn't marked done yet").
+          // The line under it says where it stands, then who it's for.
+          const what = String(m.medication_name || 'Reminder').slice(0, 90);
+          const about = [m.family_member_name ? `For ${String(m.family_member_name).split(' ')[0]}` : '', m.dosage || ''].filter(Boolean).join(' · ');
+          const line = (...parts: string[]) => parts.filter(Boolean).join(' · ').slice(0, 180);
           // Lands on the reminder in To-do (glowing), not its edit popup (Anna, Oct 31 2026).
           const screen = `/tasks?highlight=${m.id}`;
           // "Just me" reminders go only to the person who keeps them.
@@ -215,14 +222,14 @@ const MISSED_AFTER_MS = 90 * 60_000;
               const stillWaiting = until && !!m.once_date && (m.once_date < today || (!!m.anchor_time && t > m.anchor_time));
               const slotMs = localToMs(today, t, tz);
               if (!slotMs) continue;
-              let log = logFor(m, t);
+              let log: any = logFor(m, t);
               // Due now: one push, one 'due' row.
               if (now >= slotMs && now < slotMs + WINDOW_MS && !log) {
                 log = await db.MedicationLog.create({ family_id: fam.id, medication_id: m.id, medication_name: m.medication_name, family_member_id: m.family_member_id, family_member_name: m.family_member_name, day: today, time: t, status: 'due', due_pushed_at: new Date(now).toISOString(), visibility: isPrivate ? 'private' : 'family', owner_user_id: ownerId });
                 logsToday.push(log);
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: stillWaiting ? `Still to do: ${label}` : label, message: m.notes ? String(m.notes).split('\n')[0].slice(0, 120) : 'Tap to open it in To-do', data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: what, message: line(stillWaiting ? 'Still to do' : `Due ${fmtClock(t)}`, about, m.notes ? String(m.notes).split('\n')[0].slice(0, 100) : ''), data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.reminder_pushes++;
                 }
                 continue;
@@ -234,7 +241,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 log.status = 'missed';
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: `Not done yet? ${label}`, message: `The ${fmtClock(t)} reminder isn't marked done yet. Tap to open it in To-do.`, data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: what, message: line(`Not done yet (due ${fmtClock(t)})`, about), data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.missed_pushes++;
                 }
               }
