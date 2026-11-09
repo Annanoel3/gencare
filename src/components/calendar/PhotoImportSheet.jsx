@@ -229,7 +229,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
       qc.invalidateQueries({ queryKey: ['appointments'] });
       exportSoon();
       toast({ title: made.length === 1 ? 'Added 1 event' : `Added ${made.length} events`, description: 'They\'re on the calendar now.' });
-      onAdded?.(chosen[0]?.date);
+      onAdded?.(chosen[0]?.date, made.map((m) => m.created));
       onClose();
       sortAndTell(made);
     } catch (e) {

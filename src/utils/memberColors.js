@@ -68,6 +68,19 @@ export function getEventColorClass(appt, members = [], accounts = []) {
 }
 
 /**
+ * Whose event it is, the way its color says: the profile it's about (any pet:
+ * 'pets'), or, about nobody the app knows, the profile of the person whose
+ * calendar it came from (their account id if they have no profile). The
+ * calendar's "one person's events" choice goes by this.
+ */
+export function whoseEvent(appt, members = []) {
+  const m = appt?.family_member_id ? members.find((x) => x.id === appt.family_member_id) : null;
+  if (m) return isPet(m) ? 'pets' : m.id;
+  const by = appt?.created_by_user_id || appt?.created_by_id || '';
+  return members.find((x) => x.linked_user_id && x.linked_user_id === by)?.id || by;
+}
+
+/**
  * Care events keep their color on the calendar; everything else is plain text
  * (Anna, Oct 30 2026: "Ofelia day is when our house cleaner comes. It's not
  * care related so it should just be text"). GenCare's sorter decides

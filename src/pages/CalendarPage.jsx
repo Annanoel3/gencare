@@ -21,9 +21,20 @@ import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
 import PhotoImportSheet from '@/components/calendar/PhotoImportSheet';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { getMemberColorClass, getUserColorClass, PRIVATE_COLOR, PET_COLOR, isPet } from '@/utils/memberColors';
+import { getMemberColorClass, getUserColorClass, PRIVATE_COLOR, PET_COLOR, isPet, whoseEvent } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { toast } from '@/components/ui/use-toast';
+
+// A name to tap above the calendar: just their events, or (on again) everyone's.
+function PersonChip({ on, dot, onClick, children }) {
+  return (
+    <button type="button" aria-pressed={on} onClick={onClick}
+      className={`h-8 px-3 rounded-full border text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-foreground border-border hover:bg-muted'}`}>
+      {dot && <span className={`w-2.5 h-2.5 rounded-full ${dot} ${on ? 'ring-2 ring-primary-foreground/80' : ''}`} />}
+      {children}
+    </button>
+  );
+}
 
 // The family calendar. Everyone in the family sees shared events; private
 // ones only their owner. Changes tell the family (notifyFamily) and go to this
@@ -75,10 +86,36 @@ export default function CalendarPage() {
     placeholderData: keepPreviousData,
   });
 
-  const { data: members = [] } = useQuery({
+  const { data: members = [], isFetched: membersFetched } = useQuery({
     queryKey: ['familyMembers'],
     queryFn: () => base44.entities.FamilyMember.list('-created_date'),
   });
+
+  // One person's events, or everyone's (Anna, Nov 9 2026: "a toggle where you
+  // can only see one family member's calendar instead of all"). Whose event
+  // it is follows the colors (whoseEvent). Remembered on this device; '' is
+  // everyone, 'pets' is the pets.
+  const [person, setPerson] = useState(() => {
+    try { return localStorage.getItem('gencare_calendar_person') || ''; } catch { return ''; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('gencare_calendar_person', person); } catch {}
+  }, [person]);
+  const unlinked = (accounts || []).filter((u) => u?.id && !members.some((m) => m.linked_user_id === u.id));
+  const people = members.filter((m) => !isPet(m));
+  // Someone who has since been removed: back to everyone.
+  const personKnown = person === 'pets' ? members.some(isPet) : people.some((m) => m.id === person) || unlinked.some((u) => u.id === person);
+  const shown = !person || !membersFetched || personKnown ? person : '';
+  const firsts = people.map((m) => String(m.name || '').trim().split(' ')[0]);
+  const chipName = (m, i) => (firsts.filter((f) => f === firsts[i]).length > 1 ? m.name : firsts[i]) || m.name || '?';
+  const accountName = (u) => String(u.full_name || u.email || '?').split(' ')[0];
+  const shownName = shown === 'pets' ? 'the pets'
+    : people.find((m) => m.id === shown) ? chipName(people.find((m) => m.id === shown), people.findIndex((m) => m.id === shown))
+    : unlinked.find((u) => u.id === shown) ? accountName(unlinked.find((u) => u.id === shown)) : '';
+  const showsFor = (a) => !shown || whoseEvent(a, members) === shown;
+  // Something just added that the picked person's view would hide: show
+  // everyone, so it's never added and then "not there".
+  const revealAdded = (rows) => { if (shown && (rows || []).some((r) => r && !showsFor(r))) setPerson(''); };
 
   // A push tap (or an event tapped on Tasks) lands on that event.
   useEffect(() => {
@@ -148,6 +185,7 @@ export default function CalendarPage() {
     onSuccess: (created, { left }) => {
       track('action', 'add:event');
       if (created?.id && created.visibility !== 'private') notify('added', created.id);
+      revealAdded([created]);
       afterChange();
       setDialogOpen(false);
       setEditing(null);
@@ -236,8 +274,15 @@ export default function CalendarPage() {
   };
   const askSharing = !!me?.id && !sharingDefault && !askClosed && !dialogOpen && !phoneOpen && !photoOpen && !params.get('open') && !params.get('photo');
 
-  // Repeating and multi-day events, one entry per day, for the days in view.
-  const occurrences = useMemo(() => expandAppointments(appointments, range.from, range.to), [appointments, range]);
+  // Repeating and multi-day events, one entry per day, for the days in view
+  // (just the picked person's, when one is picked).
+  const allOccurrences = useMemo(() => expandAppointments(appointments, range.from, range.to), [appointments, range]);
+  const occurrences = useMemo(() => (shown ? allOccurrences.filter(showsFor) : allOccurrences), [allOccurrences, shown, members]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A push or widget tap about an event the picked person's view hides: show everyone.
+  useEffect(() => {
+    if (!focus || !shown || !isFetched) return;
+    if (allOccurrences.some(isFocus) && !occurrences.some(isFocus)) setPerson('');
+  }, [focus, isFetched, shown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedDayAppointments = occurrences
     .filter(a => a.date && isSameDay(parseISO(a.date), selectedDate))
@@ -286,33 +331,26 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* What the colors mean: whose event it is (about them, or from their
-          calendar when it's about nobody the app knows); gray is only you. */}
-      <div className="flex flex-wrap gap-3 mb-4 px-1">
-        {members.filter((m) => !isPet(m)).map(m => (
-          <div key={m.id} className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full ${getMemberColorClass(m, members)}`} />
-            <span className="text-xs text-muted-foreground">{m.name}</span>
-          </div>
+      {/* Whose events to show, and what the colors mean: whose event it is
+          (about them, or from their calendar when it's about nobody the app
+          knows); gray is only you. Tap a name for just their events. */}
+      <div className="flex flex-wrap items-center gap-2 mb-4 px-1" role="group" aria-label="Whose events to show">
+        <PersonChip on={!shown} onClick={() => setPerson('')}>Everyone</PersonChip>
+        {people.map((m, i) => (
+          <PersonChip key={m.id} on={shown === m.id} dot={getMemberColorClass(m, members)} onClick={() => setPerson(shown === m.id ? '' : m.id)}>{chipName(m, i)}</PersonChip>
         ))}
-        {(accounts || []).filter((u) => !members.some((m) => m.linked_user_id === u.id)).map((u) => (
-          <div key={u.id} className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full ${getUserColorClass(u.id, members, accounts)}`} />
-            <span className="text-xs text-muted-foreground">{(u.full_name || u.email || '?').split(' ')[0]}</span>
-          </div>
+        {unlinked.map((u) => (
+          <PersonChip key={u.id} on={shown === u.id} dot={getUserColorClass(u.id, members, accounts)} onClick={() => setPerson(shown === u.id ? '' : u.id)}>{accountName(u)}</PersonChip>
         ))}
         {members.some(isPet) && (
-          <div className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full ${PET_COLOR}`} />
-            <span className="text-xs text-muted-foreground">Pets</span>
-          </div>
+          <PersonChip on={shown === 'pets'} dot={PET_COLOR} onClick={() => setPerson(shown === 'pets' ? '' : 'pets')}>Pets</PersonChip>
         )}
-        <div className="flex items-center gap-1.5">
-          <span className={`w-2.5 h-2.5 rounded-full ${PRIVATE_COLOR}`} />
-          <span className="text-xs text-muted-foreground">Only you</span>
-        </div>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1">
+          <span className={`w-2.5 h-2.5 rounded-full ${PRIVATE_COLOR}`} /> Only you
+        </span>
         {/* Anna, Oct 30 2026: say what plain text means, and how to fix it. */}
         <p className="basis-full text-xs text-muted-foreground">
+          {shown ? `Showing only ${shownName === 'the pets' ? 'the pets\'' : `${shownName}'s`} events. ` : 'Tap a name to see only their events. '}
           Events in plain text, with no color, aren't care-related. If GenCare got one wrong, tap it and turn on Care-related.
         </p>
       </div>
@@ -338,8 +376,14 @@ export default function CalendarPage() {
               <h3 className="font-heading text-lg font-semibold">{format(selectedDate, 'EEEE, MMMM d')}</h3>
               <Button variant="outline" size="sm" onClick={openNew} className="rounded-lg gap-1"><Plus className="w-3 h-3" /> Add</Button>
             </div>
+            {shown && (
+              <p className="text-xs text-muted-foreground -mt-2 mb-3">
+                Only {shownName === 'the pets' ? 'the pets\'' : `${shownName}'s`} events.{' '}
+                <button type="button" onClick={() => setPerson('')} className="text-primary font-medium underline underline-offset-2">Show everyone</button>
+              </p>
+            )}
             {selectedDayAppointments.length === 0 ? (
-              <p className="text-muted-foreground text-sm py-4 text-center">Nothing on this day.</p>
+              <p className="text-muted-foreground text-sm py-4 text-center">{shown ? `Nothing for ${shownName} on this day.` : 'Nothing on this day.'}</p>
             ) : (
               <div className="space-y-3">
                 {selectedDayAppointments.map(appt => (
@@ -393,7 +437,7 @@ export default function CalendarPage() {
       />
       <PhoneCalendarSheet open={phoneOpen} onClose={() => setPhoneOpen(false)} members={members} />
       <PhotoImportSheet open={photoOpen} onClose={() => setPhotoOpen(false)} sharingDefault={sharingDefault}
-        onAdded={(d) => { const p = d ? parseISO(d) : null; if (p && isValid(p)) { setSelectedDate(p); setCurrentMonth(p); } }} />
+        onAdded={(d, rows) => { revealAdded(rows); const p = d ? parseISO(d) : null; if (p && isValid(p)) { setSelectedDate(p); setCurrentMonth(p); } }} />
       <SharingChoiceDialog open={askSharing} onClose={() => setAskClosed(true)} onSaved={() => { setAskClosed(true); refreshFamily?.(); }} />
     </div>
   );
