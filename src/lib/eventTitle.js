@@ -1,4 +1,4 @@
-import { isPet } from '@/utils/memberColors';
+import { isPet, isCareEvent } from '@/utils/memberColors';
 
 // An event's title without the name of the person it's for, where that person
 // is already shown by their color or name next to it (Anna, Nov 9 2026: "The
@@ -36,4 +36,40 @@ export function shortTitle(appt, members = []) {
   out = out.trim();
   if (out === title.trim() || out.length < 2) return title;
   return out.charAt(0).toLocaleUpperCase() + out.slice(1);
+}
+
+// A small picture for the kind of care visit, in front of the title (Anna,
+// Nov 9 2026: "any way to easily make all pt and ot a certain color? Or have
+// an emoji?"). Colors stay one per person, so this is how a PT visit and an
+// OT visit look different at a glance, even cut off in Month view. Care
+// events only (an "OT shift" at work gets none), from the title alone, and
+// nothing for counseling or other sensitive visits. PT, OT and speech can
+// show together ("Spero PT & OT"); otherwise the first match.
+const THERAPY = [
+  [/\b(pt|physical\s+therap\w*|physio\w*)\b/i, '🦵'],
+  [/\b(ot|occupational\s+therap\w*)\b/i, '✋'],
+  [/\bspeech\b/i, '🗣️'],
+];
+const OTHER = [
+  [/\b(dentist\w*|dental|orthodont\w*)\b/i, '🦷'],
+  [/\b(eye|eyes|optometr\w*|ophthalm\w*|vision)\b/i, '👁️'],
+  [/\b(vet|vets|veterinar\w*)\b/i, '🐾'],
+  [/\b(blood\s*work|blood\s+draw|lab\s*work)\b/i, '🩸'],
+  [/\b(pharmacy|prescriptions?|refills?|meds)\b/i, '💊'],
+  [/(\bdr\.?\s|\bdoctor\b|\bcardiolog\w*|\bneurolog\w*|\bdermatolog\w*|\bphysician\b|\bcheck-?up\b)/i, '🩺'],
+];
+
+export function kindEmoji(appt) {
+  const title = String(appt?.title || '');
+  if (!title || !isCareEvent(appt) || /^\s*\p{Extended_Pictographic}/u.test(title)) return '';
+  const therapy = THERAPY.filter(([re]) => re.test(title)).map(([, e]) => e);
+  if (therapy.length) return therapy.slice(0, 2).join('');
+  return OTHER.find(([re]) => re.test(title))?.[1] || '';
+}
+
+/** The title as shown: the kind's emoji, then the title (without the person's name when `short`). */
+export function shownTitle(appt, members = [], short = true) {
+  const t = short ? shortTitle(appt, members) : String(appt?.title || '');
+  const e = kindEmoji(appt);
+  return e ? `${e} ${t}` : t;
 }

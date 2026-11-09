@@ -235,9 +235,9 @@ const SORT_BATCH = 40;
 
 // Sort these events (one AI call per 40) and save what GenCare decided for
 // the fields nobody picked.
-async function sortRows(db: any, user: any, familyId: string, rows: any[], members?: any[]) {
+async function sortRows(db: any, user: any, familyId: string, rows: any[], given?: { members: any[]; known: string[] }) {
   if (!rows.length) return 0;
-  const people = members || (await sortMembers(db, familyId, user.id)).members;
+  const { members: people, known } = given || (await sortMembers(db, familyId, user.id));
   const mode = sharingMode(user);
   const now = new Date().toISOString();
   const batches: any[][] = [];
@@ -246,7 +246,7 @@ async function sortRows(db: any, user: any, familyId: string, rows: any[], membe
     const results = await sortEvents(
       // A "For" someone picked by hand tells the sorter who it's about.
       batch.map((a: any) => ({ key: a.id, title: a.title, notes: a.notes, location: a.location, with: a.doctor_name, date: a.date, time: a.time, for: a.family_member_id && !autoSetOf(a).includes('member') ? a.family_member_id : '' })),
-      { poster: user.display_name || user.full_name || '', posterId: user.id, members: people },
+      { poster: user.display_name || user.full_name || '', posterId: user.id, members: people, known },
     );
     if (!results.size) return 0;
     return inGroups(batch.filter((a: any) => results.has(a.id)), (a: any) => db.Appointment.update(a.id, decisionPatch(a, results.get(a.id)!, mode, people, now)));
@@ -341,13 +341,13 @@ function inSortWindow(a: any, tz: string) {
 // run keeps each sync quick; the rest go on the next sync.
 async function sortImports(db: any, user: any, familyId: string, tz: string) {
   const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
-  const { members, newest } = await sortMembers(db, familyId, user.id);
+  const { members, newest, known } = await sortMembers(db, familyId, user.id);
   const due = mine.filter((a: any) => {
     if (!inSortWindow(a, tz)) return false;
     if (!a.ai_checked_at || Number(a.ai_sort_v || 0) < SORT_VERSION) return true;
     return !a.family_member_id && !!newest && String(a.ai_checked_at) < newest;
   }).sort((a: any, b: any) => String(a.date || '').localeCompare(String(b.date || ''))).slice(0, SORT_BATCH);
-  return sortRows(db, user, familyId, due, members);
+  return sortRows(db, user, familyId, due, { members, known });
 }
 
 // "Sort again" (the app owner's button): every event of theirs in the window,
@@ -468,9 +468,9 @@ Deno.serve(async (req) => {
       const e = body.event || {};
       const title = String(e.title || '').trim();
       if (!title) return Response.json({ ok: false, error: 'No title' }, { status: 400 });
-      const { members } = await sortMembers(db, familyId, user.id);
+      const { members, known } = await sortMembers(db, familyId, user.id);
       // member_id: who the person said it's for, when they picked someone.
-      const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time, for: String(e.member_id || '') }], { poster: user.display_name || user.full_name || '', posterId: user.id, members })).get('e');
+      const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time, for: String(e.member_id || '') }], { poster: user.display_name || user.full_name || '', posterId: user.id, members, known })).get('e');
       if (!r) return Response.json({ ok: false, error: 'Could not sort' });
       const m = members.find((x) => x.id === r.who);
       return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, cover: r.cover, care: r.care, category: r.category });

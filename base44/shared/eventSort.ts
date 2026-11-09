@@ -16,7 +16,7 @@ const MODEL = "gpt-6-astra";
 const BACKUP_MODEL = "gpt-6-luna";
 export const SORT_CATEGORIES = ["Appointment", "School", "Work", "Sports", "Social", "Other"];
 
-const SYSTEM = `You help a family share one calendar. Someone added events (typed in, or brought in from their phone's calendar). For each event, decide who it's about, whether the rest of the family should see it, and its category, the way a thoughtful family assistant who knows this family would. Read the events together: one that names someone ("Mom Spero Assessment") tells you who other visits to the same place are probably for.
+const SYSTEM = `You help a family share one calendar. Someone added events (typed in, or brought in from their phone's calendar). For each event, decide who it's about, whether the rest of the family should see it, and its category, the way a thoughtful family assistant who knows this family would. Read the events together: one that names someone ("Mom Spero Assessment") tells you who other visits to the same place are probably for. "Known events" are ones the family already has, with whose they are: a new event at the same place or clinic, with the same doctor or therapist, or the same kind of visit at that place ("PT Only Spero" when every Spero visit is Mom's) is for that same person, unless it names someone else.
 
 who: the id of the family profile the event is about: the person or pet who has to be there or whose need it serves (Mom's speech therapy is Mom's, even if someone else drives her). When an event has "for", the person who added it already picked that profile: it's who, and an event for someone else is never the adder's own appointment or trip. "Mom", "Dad", "Grandma" and the like mean the people with that relationship to the person who added the event: a profile listed as Mother and written by that same person is their Mom. Pets have profiles too ("Kirito ultrasound" is Kirito's). Use "self" when it's about the person who added it (their own trip, their own appointment). Use "" when it's about someone not in the list, or you can't tell. Never guess a profile just to fill the field.
 
@@ -60,7 +60,7 @@ const clip = (s: unknown, n: number) => String(s || "").replace(/\s+/g, " ").tri
  * a failed call) means "not sorted", which callers treat as: nobody in
  * particular, not shared, category unchanged.
  */
-export async function sortEvents(items: SortItem[], ctx: { poster: string; posterId?: string; members: SortMember[] }): Promise<Map<string, SortResult>> {
+export async function sortEvents(items: SortItem[], ctx: { poster: string; posterId?: string; members: SortMember[]; known?: string[] }): Promise<Map<string, SortResult>> {
   const out = new Map<string, SortResult>();
   if (!items.length) return out;
   const apiKey = Deno.env.get("OPENAI_API_KEY");
@@ -79,7 +79,8 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; poste
     ...(e.notes ? { notes: clip(e.notes, 200) } : {}),
     ...(e.for && memberIds.has(e.for) ? { for: e.for } : {}),
   }));
-  const prompt = `Added by: ${ctx.poster || "a family member"}\n\nFamily profiles:\n${family}\n\nEvents:\n${JSON.stringify(events)}`;
+  const known = (ctx.known || []).length ? `\n\nKnown events (whose they are, newest first):\n${(ctx.known || []).join("\n")}` : "";
+  const prompt = `Added by: ${ctx.poster || "a family member"}\n\nFamily profiles:\n${family}${known}\n\nEvents:\n${JSON.stringify(events)}`;
   for (const model of [MODEL, BACKUP_MODEL]) {
     try {
       const res: any = await openai.chat.completions.create({
@@ -123,8 +124,14 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; poste
   return out;
 }
 
-/** Family profiles as the sorter sees them. */
-export async function sortMembers(db: any, familyId: string, posterId: string): Promise<{ members: SortMember[]; newest: string }> {
+/**
+ * Family profiles as the sorter sees them, and `known`: what the family
+ * already has and whose it is (Anna, Nov 9 2026: "PT Only Spero" from her
+ * phone came out as her own private doctor visit while every Spero visit on
+ * the calendar was her Mom's). Only events the whole family sees, never a
+ * stand-in, one line per title and place, newest first.
+ */
+export async function sortMembers(db: any, familyId: string, posterId: string): Promise<{ members: SortMember[]; newest: string; known: string[] }> {
   const rows = ((await db.FamilyMember.filter({ family_id: familyId })) || []).filter((m: any) => m.is_active !== false);
   const users = (await db.User.filter({ family_id: familyId })) || [];
   const nameOf = (id: string) => {
@@ -136,6 +143,7 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
   // calendar is the family's business too (Anna, Oct 30 2026: her Mom's
   // house cleaner day, a 3:00 appointment and a visit were hidden).
   const caredFor = new Set<string>();
+  const known: string[] = [];
   try {
     const appts = (await db.Appointment.filter({ family_id: familyId })) || [];
     const linked = new Map(rows.map((m: any) => [m.id, String(m.linked_user_id || "")]));
@@ -143,6 +151,21 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
       const who = String(a.family_member_id || "");
       const by = String(a.created_by_user_id || a.created_by_id || "");
       if (who && by && linked.has(who) && linked.get(who) !== by && !a.away_of && !a.cover_of) caredFor.add(who);
+    }
+    const names = new Map(rows.map((m: any) => [m.id, String(m.name || "")]));
+    const seen = new Set<string>();
+    const shared = appts
+      .filter((a: any) => a.visibility === "family" && names.has(String(a.family_member_id || "")) && !a.away_of && !a.cover_of && a.title)
+      .sort((x: any, y: any) => String(y.date || "").localeCompare(String(x.date || "")));
+    for (const a of shared) {
+      const title = clip(a.title, 60);
+      const place = clip(a.location, 60);
+      const withWho = clip(a.doctor_name || (String(a.notes || "").match(/^with\s+(.+)$/im)?.[1] ?? ""), 40);
+      const k = `${title.toLowerCase()}|${place.toLowerCase()}|${a.family_member_id}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      known.push(`- "${title}"${place ? ` at ${place}` : ""}${withWho ? `, with ${withWho}` : ""}: ${names.get(a.family_member_id)} (id ${a.family_member_id})`);
+      if (known.length >= 30) break;
     }
   } catch (_e) { /* sorted without it */ }
   let newest = "";
@@ -161,5 +184,5 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
       cared_for: caredFor.has(m.id),
     };
   });
-  return { members, newest };
+  return { members, newest, known };
 }

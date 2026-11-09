@@ -7,7 +7,7 @@ import { useFamily } from '@/lib/family';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ClaimButton from '@/components/shared/ClaimButton';
 import { checkOn, firstName } from '@/lib/claims';
-import { shortTitle } from '@/lib/eventTitle';
+import { shownTitle } from '@/lib/eventTitle';
 
 // Event categories. 'Doctor' and 'Therapy' were categories before Oct 2026;
 // any row still carrying one reads as a plain Appointment.
@@ -52,7 +52,7 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2">
           {/* Who it's for shows just below, so not in the title too. */}
-          <p className={`font-medium text-sm flex-1 min-w-0 ${check ? 'line-through text-muted-foreground' : ''}`}>{appt.family_member_name ? shortTitle(appt, members) : appt.title}</p>
+          <p className={`font-medium text-sm flex-1 min-w-0 ${check ? 'line-through text-muted-foreground' : ''}`}>{shownTitle(appt, members, !!appt.family_member_name)}</p>
           {appt.visibility === 'private' && <Lock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Only you see this" />}
           {appt.visibility === 'some' && <Users className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Shared with certain people" />}
           {appt.source === 'phone' && <Smartphone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="From a phone calendar" />}
