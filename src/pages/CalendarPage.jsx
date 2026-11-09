@@ -11,13 +11,14 @@ import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/ev
 import { realEvent } from '@/lib/sameEvent';
 import { snapshotEvent, notifyEvent } from '@/lib/eventChanges';
 import SharingChoiceDialog from '@/components/calendar/SharingChoice';
-import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw, Camera } from 'lucide-react';
 import MonthView from '@/components/calendar/MonthView';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
 import EventRow from '@/components/calendar/EventRow';
 import EventDialog from '@/components/calendar/EventDialog';
 import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
+import PhotoImportSheet from '@/components/calendar/PhotoImportSheet';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { getMemberColorClass, getUserColorClass, PRIVATE_COLOR, PET_COLOR, isPet } from '@/utils/memberColors';
@@ -51,6 +52,8 @@ export default function CalendarPage() {
   const [editing, setEditing] = useState(null);
   const [prefill, setPrefill] = useState(null); // "Copy to another day"
   const [phoneOpen, setPhoneOpen] = useState(false);
+  // Add from a photo (Anna, Nov 9 2026); the + button's "From a photo" opens it with ?photo=1.
+  const [photoOpen, setPhotoOpen] = useState(false);
   const queryClient = useQueryClient();
   const { me, members: accounts, refresh: refreshFamily } = useFamily();
 
@@ -127,6 +130,11 @@ export default function CalendarPage() {
     setPrefill(null); setEditing(null); setDialogOpen(true);
     const next = new URLSearchParams(params); next.delete('new'); setParams(next, { replace: true });
   }, [params.get('new')]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!params.get('photo')) return;
+    setPhotoOpen(true);
+    const next = new URLSearchParams(params); next.delete('photo'); setParams(next, { replace: true });
+  }, [params.get('photo')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const afterChange = () => {
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
@@ -226,7 +234,7 @@ export default function CalendarPage() {
       toast({ title: 'Could not sort', description: e?.message || 'Try again', variant: 'destructive' });
     } finally { setResorting(false); }
   };
-  const askSharing = !!me?.id && !sharingDefault && !askClosed && !dialogOpen && !phoneOpen && !params.get('open');
+  const askSharing = !!me?.id && !sharingDefault && !askClosed && !dialogOpen && !phoneOpen && !photoOpen && !params.get('open') && !params.get('photo');
 
   // Repeating and multi-day events, one entry per day, for the days in view.
   const occurrences = useMemo(() => expandAppointments(appointments, range.from, range.to), [appointments, range]);
@@ -273,6 +281,7 @@ export default function CalendarPage() {
           )}
           <Button variant="outline" onClick={() => setPhoneOpen(true)} className="rounded-xl gap-2"><Smartphone className="w-4 h-4" /> Phone calendar</Button>
           <Button variant="outline" onClick={sync} disabled={syncing} className="rounded-xl gap-2" aria-label="Sync with your phone calendar"><RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> Sync</Button>
+          <Button variant="outline" onClick={() => setPhotoOpen(true)} className="rounded-xl gap-2"><Camera className="w-4 h-4" /> From a photo</Button>
           <Button onClick={openNew} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Event</Button>
         </div>
       </div>
@@ -383,6 +392,8 @@ export default function CalendarPage() {
         sharingDefault={sharingDefault}
       />
       <PhoneCalendarSheet open={phoneOpen} onClose={() => setPhoneOpen(false)} members={members} />
+      <PhotoImportSheet open={photoOpen} onClose={() => setPhotoOpen(false)} sharingDefault={sharingDefault}
+        onAdded={(d) => { const p = d ? parseISO(d) : null; if (p && isValid(p)) { setSelectedDate(p); setCurrentMonth(p); } }} />
       <SharingChoiceDialog open={askSharing} onClose={() => setAskClosed(true)} onSaved={() => { setAskClosed(true); refreshFamily?.(); }} />
     </div>
   );

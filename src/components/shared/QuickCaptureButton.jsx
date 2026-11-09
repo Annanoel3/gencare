@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Calendar, BellRing } from 'lucide-react';
+import { Plus, X, Calendar, BellRing, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // page itself uses (one form per kind, so there's one simple way to add each).
 const captureOptions = [
   { icon: Calendar, label: 'Event', to: '/calendar?new=1', color: 'bg-purple-500' },
+  { icon: Camera, label: 'Events from a photo', to: '/calendar?photo=1', color: 'bg-sky-500' },
   { icon: BellRing, label: 'Reminder', to: '/tasks?reminder=new', color: 'bg-emerald-500' },
 ];
 

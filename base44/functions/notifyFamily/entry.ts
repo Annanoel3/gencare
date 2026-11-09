@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
-import { pushFamily, sendPush, whenText } from '../../shared/push.ts';
+import { familyUsers, pushFamily, sendPush, wantsPush, whenText } from '../../shared/push.ts';
+import { canSee } from '../../shared/sharing.ts';
 
 // Pushes a signed-in person may send: only to their OWN family, with text the
 // server composes from the record (never free text to someone else's phone).
@@ -10,6 +11,7 @@ import { pushFamily, sendPush, whenText } from '../../shared/push.ts';
 //        -> every other family member who wants family-event pushes
 //   { kind: "task", action: "added"|"assigned"|"completed", task_id }
 //   { kind: "message", message_id }
+//   { kind: "appointments", appointment_ids }  -> one push per person for several events added at once
 //   { kind: "notes", record_id, user_ids }  -> the people the caller's notes were just shared with
 //   { kind: "test" }  -> a push to the caller's own phone, to check the setup
 const first = (s: unknown) => String(s || '').trim().split(' ')[0];
@@ -156,6 +158,34 @@ Deno.serve(async (req) => {
         exceptUserId: user.id,
         need: 'family_events',
       });
+      return Response.json({ ok: true, sent });
+    }
+
+    // Several events added at once (from a photo, Anna Nov 9 2026): one push
+    // per person naming how many they can see, not one push per event.
+    if (kind === 'appointments') {
+      const ids = (Array.isArray(body.appointment_ids) ? body.appointment_ids : []).map(String).slice(0, 40);
+      const rows: any[] = [];
+      for (const aid of ids) {
+        const a = (await db.Appointment.filter({ id: aid }))?.[0];
+        if (a && a.family_id === familyId && a.visibility !== 'private') rows.push(a);
+      }
+      if (!rows.length) return Response.json({ ok: true, sent: [] });
+      rows.sort((x, y) => String(x.date || '').localeCompare(String(y.date || '')) || String(x.time || '').localeCompare(String(y.time || '')));
+      const people = await familyUsers(db, familyId);
+      const sent: string[] = [];
+      for (const u of people) {
+        if (u.id === user.id || !wantsPush(u, 'family_events')) continue;
+        const theirs = rows.filter((a) => canSee(a, u.id));
+        if (!theirs.length) continue;
+        const firstOne = theirs[0];
+        const title = theirs.length === 1 ? `${who} added ${cut(firstOne.title, 60)}` : `${who} added ${theirs.length} events`;
+        const message = theirs.length === 1
+          ? whenText(firstOne.date, firstOne.time, firstOne.timezone || user.timezone, !!firstOne.all_day)
+          : cut(theirs.slice(0, 3).map((a) => `${cut(a.title, 40)} (${whenText(a.date, '', user.timezone, true)})`).join(' · ') + (theirs.length > 3 ? ` · and ${theirs.length - 3} more` : ''), 220);
+        const r = await sendPush({ email: u.email, title, message, data: { type: 'appointment', action: 'added', appointmentId: firstOne.id, screen: '/calendar', date: firstOne.date || '' } });
+        if (r.ok) sent.push(u.id);
+      }
       return Response.json({ ok: true, sent });
     }
 
