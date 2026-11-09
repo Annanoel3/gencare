@@ -13,6 +13,7 @@ import { rowIdOf, repeatLabel } from '@/lib/occurrences';
 import { categoryOf, isRecordable } from '@/components/calendar/EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ClaimButton from '@/components/shared/ClaimButton';
+import { shortTitle } from '@/lib/eventTitle';
 
 function fmtTime(t) {
   if (!t) return '';
@@ -90,7 +91,8 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
           {busy ? <Loader2 className="w-3 h-3 animate-spin text-primary" /> : done ? <Check className="w-3 h-3 text-white" /> : null}
         </button>
         <div className="flex-1 min-w-0">
-          <p className={`font-medium text-sm leading-snug ${done ? 'line-through' : ''}`}>{appt.title}</p>
+          {/* Who it's for shows just below, so not in the title too. */}
+          <p className={`font-medium text-sm leading-snug ${done ? 'line-through' : ''}`}>{appt.family_member_name ? shortTitle(appt, members) : appt.title}</p>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-muted-foreground">
             {appt.family_member_name
               ? <span className="inline-flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${memberDot}`} />{appt.family_member_name}</span>

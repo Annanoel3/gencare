@@ -2,7 +2,8 @@ import React from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, parseISO, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getEventHighlightClass } from '@/utils/memberColors';
+import { getEventHighlightClass, PRIVATE_COLOR } from '@/utils/memberColors';
+import { shortTitle } from '@/lib/eventTitle';
 import { useFamily } from '@/lib/family';
 
 // Month grid with WORDS in the cells (the event titles), not dots — the same
@@ -52,13 +53,17 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
                 {shown.map(a => {
                   // Care events are colored chips; the rest are plain text.
                   const color = getEventHighlightClass(a, members, accounts);
+                  // A chip in the person's color doesn't need their name in
+                  // it ("Mom's Speech Therapy" -> "Speech Therapy"); a plain
+                  // or gray one keeps it, since nothing else says whose it is.
+                  const label = color && color !== PRIVATE_COLOR ? shortTitle(a, members) : a.title;
                   return (
                     <span
                       key={a.id}
                       className={`block truncate rounded px-1 text-[10px] md:text-[11px] leading-4 ${color ? `text-white ${color}` : 'text-foreground/80'}`}
                       title={a.title}
                     >
-                      {a.title}
+                      {label}
                     </span>
                   );
                 })}
