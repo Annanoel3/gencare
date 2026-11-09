@@ -163,7 +163,10 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
           family_member_name: memberId ? nameOf(memberId) : '',
           location: place.trim() || e.location || '',
           doctor_name: e.with || '',
-          notes: e.notes || '',
+          // Who it's with goes in the notes too: the event screens show notes,
+          // not the "with" field (Anna, Nov 9 2026: "did it save ... the
+          // therapist's name?").
+          notes: [e.with ? `With ${e.with}` : '', e.notes || ''].filter(Boolean).join('\n'),
           reminder_minutes: 60,
           end_date: '',
           recurrence: e.recurrence || '',

@@ -31,7 +31,7 @@ Rules:
 - title: short, the way a person writes it on a calendar ("Dentist", "Eye doctor follow-up", "Field trip", "Picture day"). Don't put the date or time in it.
 - with: the doctor, teacher, coach or person it's with, if named.
 - location: the place as written, with the full address when one is shown. When the place is only a code or part of an address ("7112-C Austin"), put the business or clinic name from the page in front of it so it can be found on a map.
-- notes: what they need to know or bring: prep instructions, what to bring, phone number, confirmation or account number shown for this event, cost. Short. Empty when there's nothing.
+- notes: everything else on the page about this event, short, one item per line: what kind of visit it is when the title leaves it out (like a case or visit name), the phone number to call to reschedule or cancel, prep instructions, what to bring, a confirmation or account number, cost, a cancellation rule. Empty when there's nothing. (Who it's with goes in "with", not here.)
 - member_id: the id of the family member it's for, only when the photo names them (a patient, student or player name, or "Mom"/"Dad" when that's clear). Otherwise "".
 - repeats: only when the photo says it repeats ("every Tuesday", "Mon/Wed/Fri through May 15"). freq is "daily", "weekly" or "monthly"; days are two-letter weekdays (MO TU WE TH FR SA SU) for weekly; until is the last date if shown. Otherwise freq "".
 - Several dates for the same thing listed out (a season schedule) are separate events unless the photo says it's a weekly repeat.
