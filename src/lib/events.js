@@ -63,7 +63,7 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeo
  * null when there was nothing to do or the sorting failed (then the event
  * just stays as saved).
  */
-export async function sortNewEvent(created, left = {}, mode = '') {
+export async function sortNewEvent(created, left = {}, mode = '', opts = {}) {
   if (!created?.id || !created.title) return null;
   const wantShare = !!left.visibility && mode === 'auto';
   if (!wantShare && !left.member && !left.category) return null;
@@ -92,9 +92,11 @@ export async function sortNewEvent(created, left = {}, mode = '') {
   patch.auto_set = [...auto];
   await base44.entities.Appointment.update(created.id, patch);
   // Part of a trip, or a private appointment the family still sees as
-  // "<name>: doctor": the family's stand-in follows.
-  if (r.trip || r.cover) await base44.functions.invoke('phoneCalendar', { mode: 'away' }).catch(() => {});
-  return { patch, becameShared, shared: wantShare ? !!r.share : null, memberName: patch.family_member_name || '' };
+  // "<name>: doctor": the family's stand-in follows (opts.away === false:
+  // the caller does that once for several events).
+  const needsAway = !!(r.trip || r.cover);
+  if (needsAway && opts.away !== false) await base44.functions.invoke('phoneCalendar', { mode: 'away' }).catch(() => {});
+  return { patch, becameShared, shared: wantShare ? !!r.share : null, memberName: patch.family_member_name || '', needsAway };
 }
 
 /** One line telling the person what GenCare picked (for a toast). */

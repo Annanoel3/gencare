@@ -144,13 +144,49 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
   const update = (key, patch) => setFound((list) => list.map((e) => (e.key === key ? { ...e, ...patch } : e)));
   const chosen = found.filter((e) => e.on);
 
+  // After they're on the calendar: GenCare fills in what was left (category,
+  // care, and with "GenCare decides", sharing), once for each kind of event
+  // with the same answer for its twins (a run of PT visits is sorted once, not
+  // 12 times), a few kinds at a time. Then one push per person for the lot.
+  const sortAndTell = async (made) => {
+    const groups = new Map();
+    for (const m of made) {
+      const k = `${m.created.title}|${m.created.location}|${m.created.family_member_id}|${m.left.member}`;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(m);
+    }
+    const lists = [...groups.values()];
+    const results = [];
+    for (let i = 0; i < lists.length; i += 4) {
+      results.push(...await Promise.all(lists.slice(i, i + 4).map(async (list) => {
+        const r = await sortNewEvent(list[0].created, list[0].left, sharingDefault, { away: false }).catch(() => null);
+        if (r?.patch) await Promise.all(list.slice(1).map((m) => base44.entities.Appointment.update(m.created.id, r.patch).catch(() => {})));
+        return { r, n: list.length };
+      })));
+    }
+    // The family's "<name>: doctor" stand-ins, made once for the lot.
+    if (results.some((x) => x.r?.needsAway)) await base44.functions.invoke('phoneCalendar', { mode: 'away' }).catch(() => {});
+    base44.functions.invoke('notifyFamily', { kind: 'appointments', appointment_ids: made.map((m) => m.created.id) }).catch(() => {});
+    qc.invalidateQueries({ queryKey: ['appointments'] });
+    exportSoon();
+    if (sharingDefault !== 'auto') return;
+    const shared = results.filter((x) => x.r?.shared === true).reduce((s, x) => s + x.n, 0);
+    const kept = made.length - shared;
+    toast(shared && kept
+      ? { title: `${shared} shared with the family, ${kept} kept just for you`, description: 'Tap an event to change it.' }
+      : shared ? { title: 'Shared with the whole family', description: 'Tap an event to change it.' }
+      : { title: 'Kept just for you', description: 'Tap an event to share it.' });
+  };
+
   const add = async () => {
     if (!chosen.length) return;
     setStep('saving');
     const now = new Date().toISOString();
     const made = [];
     try {
-      for (const e of chosen) {
+      // Saved a few at a time, side by side (one by one, 19 visits took
+      // seconds before anything showed).
+      const rows = chosen.map((e) => {
         const memberId = who === KEEP ? e.member_id : who === NOBODY ? '' : who;
         const data = {
           title: e.title.trim() || 'Appointment',
@@ -177,32 +213,33 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
         };
         const left = { visibility: sharingDefault === 'auto', member: !memberId, category: true };
         data.auto_set = [left.visibility && 'visibility', 'category'].filter(Boolean);
-        const created = await base44.entities.Appointment.create(withFamily(data));
-        if (created?.id) made.push({ created, left });
+        return { key: e.key, data, left };
+      });
+      for (let i = 0; i < rows.length; i += 6) {
+        const saved = await Promise.all(rows.slice(i, i + 6).map(({ key, data, left }) => base44.entities.Appointment.create(withFamily(data))
+          .then((created) => (created?.id ? { key, created, left } : null), (err) => ({ err }))));
+        made.push(...saved.filter((s) => s?.created));
+        const failed = saved.find((s) => s?.err);
+        if (failed) throw failed.err;
       }
-      // GenCare fills in what was left (category, care, and with "GenCare
-      // decides", sharing) — once for each kind of event, then the same
-      // answer for its twins (a run of PT visits is sorted once, not 12 times).
-      const groups = new Map();
-      for (const m of made) {
-        const k = `${m.created.title}|${m.created.location}|${m.created.family_member_id}|${m.left.member}`;
-        if (!groups.has(k)) groups.set(k, []);
-        groups.get(k).push(m);
-      }
-      for (const list of groups.values()) {
-        const r = await sortNewEvent(list[0].created, list[0].left, sharingDefault).catch(() => null);
-        if (!r?.patch) continue;
-        for (const m of list.slice(1)) await base44.entities.Appointment.update(m.created.id, r.patch).catch(() => {});
-      }
-      // One push per person for the lot (not one per event).
-      base44.functions.invoke('notifyFamily', { kind: 'appointments', appointment_ids: made.map((m) => m.created.id) }).catch(() => {});
+      // On the calendar right away (Anna, Nov 9 2026: "it showed up late.
+      // Just make sure it shows up instantly"); the sorting and the family's
+      // push follow in the background.
       track('action', 'photo import: added', `${made.length}`);
       qc.invalidateQueries({ queryKey: ['appointments'] });
       exportSoon();
       toast({ title: made.length === 1 ? 'Added 1 event' : `Added ${made.length} events`, description: 'They\'re on the calendar now.' });
       onAdded?.(chosen[0]?.date);
       onClose();
+      sortAndTell(made);
     } catch (e) {
+      // The ones that did save stay saved (and get sorted); they're unticked
+      // here so trying again adds only the rest.
+      if (made.length) {
+        const done = new Set(made.map((m) => m.key));
+        setFound((list) => list.map((x) => (done.has(x.key) ? { ...x, on: false } : x)));
+        sortAndTell(made);
+      }
       qc.invalidateQueries({ queryKey: ['appointments'] });
       toast({ title: made.length ? `Added ${made.length}, then something went wrong` : "Couldn't add them", description: 'Check the calendar, then try the rest again.', variant: 'destructive' });
       setStep('review');
