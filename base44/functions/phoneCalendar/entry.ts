@@ -244,7 +244,8 @@ async function sortRows(db: any, user: any, familyId: string, rows: any[], membe
   for (let i = 0; i < rows.length; i += SORT_BATCH) batches.push(rows.slice(i, i + SORT_BATCH));
   const counts = await Promise.all(batches.map(async (batch) => {
     const results = await sortEvents(
-      batch.map((a: any) => ({ key: a.id, title: a.title, notes: a.notes, location: a.location, with: a.doctor_name, date: a.date, time: a.time })),
+      // A "For" someone picked by hand tells the sorter who it's about.
+      batch.map((a: any) => ({ key: a.id, title: a.title, notes: a.notes, location: a.location, with: a.doctor_name, date: a.date, time: a.time, for: a.family_member_id && !autoSetOf(a).includes('member') ? a.family_member_id : '' })),
       { poster: user.display_name || user.full_name || '', posterId: user.id, members: people },
     );
     if (!results.size) return 0;
@@ -274,10 +275,13 @@ async function syncAway(db: any, user: any, familyId: string) {
   };
   const make = (extra: Record<string, unknown>) => db.Appointment.create({ ...base, ...extra, family_id: familyId, source: 'app', created_by_user_id: user.id, created_by_name: user.display_name || user.full_name || '', auto_set: ['visibility'] });
   const differs = (m: any, f: Record<string, unknown>) => Object.keys(f).some((k) => String(m[k] ?? '') !== String(f[k] ?? ''));
+  // Only their own events (or ones for nobody in particular) stand in as
+  // theirs: Mom's PT that Anna added is never "Anna: doctor".
+  const own = (a: any) => !a.family_member_id || (!!profile?.id && a.family_member_id === profile.id);
 
   // Trips
   const trips = real
-    .filter((a: any) => a.ai_trip === true)
+    .filter((a: any) => a.ai_trip === true && own(a))
     .map((a: any) => ({ s: String(a.date), e: a.end_date && a.end_date > a.date ? String(a.end_date) : String(a.date) }))
     .sort((x: any, y: any) => x.s.localeCompare(y.s));
   const spans: { s: string; e: string }[] = [];
@@ -297,7 +301,7 @@ async function syncAway(db: any, user: any, familyId: string) {
 
   // Private appointments the family should know are happening
   const covered = real
-    .filter((a: any) => a.visibility === 'private' && String(a.ai_cover || '').trim() && !a.recurrence)
+    .filter((a: any) => a.visibility === 'private' && String(a.ai_cover || '').trim() && !a.recurrence && own(a))
     .sort((x: any, y: any) => String(x.date).localeCompare(String(y.date)) || String(x.time || '').localeCompare(String(y.time || '')));
   const groups: { ids: string[]; date: string; s: string; e: string; allDay: boolean; labels: Set<string> }[] = [];
   for (const a of covered) {
@@ -465,7 +469,8 @@ Deno.serve(async (req) => {
       const title = String(e.title || '').trim();
       if (!title) return Response.json({ ok: false, error: 'No title' }, { status: 400 });
       const { members } = await sortMembers(db, familyId, user.id);
-      const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time }], { poster: user.display_name || user.full_name || '', posterId: user.id, members })).get('e');
+      // member_id: who the person said it's for, when they picked someone.
+      const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time, for: String(e.member_id || '') }], { poster: user.display_name || user.full_name || '', posterId: user.id, members })).get('e');
       if (!r) return Response.json({ ok: false, error: 'Could not sort' });
       const m = members.find((x) => x.id === r.who);
       return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, cover: r.cover, care: r.care, category: r.category });

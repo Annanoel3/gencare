@@ -71,7 +71,9 @@ export async function sortNewEvent(created, left = {}, mode = '') {
   try {
     const res = await withTimeout(base44.functions.invoke('phoneCalendar', {
       mode: 'sort',
-      event: { title: created.title, notes: created.notes, location: created.location, with: created.doctor_name, date: created.date, time: created.time },
+      // Who the person picked it's for, so Mom's PT is sorted as Mom's
+      // (Anna, Nov 9 2026: her Mom's visits came out as "Anna: doctor").
+      event: { title: created.title, notes: created.notes, location: created.location, with: created.doctor_name, date: created.date, time: created.time, member_id: left.member ? '' : created.family_member_id || '' },
     }), 20000);
     r = res?.data || res;
   } catch (e) { r = null; }

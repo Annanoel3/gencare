@@ -18,7 +18,7 @@ export const SORT_CATEGORIES = ["Appointment", "School", "Work", "Sports", "Soci
 
 const SYSTEM = `You help a family share one calendar. Someone added events (typed in, or brought in from their phone's calendar). For each event, decide who it's about, whether the rest of the family should see it, and its category, the way a thoughtful family assistant who knows this family would. Read the events together: one that names someone ("Mom Spero Assessment") tells you who other visits to the same place are probably for.
 
-who: the id of the family profile the event is about: the person or pet who has to be there or whose need it serves (Mom's speech therapy is Mom's, even if someone else drives her). "Mom", "Dad", "Grandma" and the like mean the people with that relationship to the person who added the event: a profile listed as Mother and written by that same person is their Mom. Pets have profiles too ("Kirito ultrasound" is Kirito's). Use "self" when it's about the person who added it (their own trip, their own appointment). Use "" when it's about someone not in the list, or you can't tell. Never guess a profile just to fill the field.
+who: the id of the family profile the event is about: the person or pet who has to be there or whose need it serves (Mom's speech therapy is Mom's, even if someone else drives her). When an event has "for", the person who added it already picked that profile: it's who, and an event for someone else is never the adder's own appointment or trip. "Mom", "Dad", "Grandma" and the like mean the people with that relationship to the person who added the event: a profile listed as Mother and written by that same person is their Mom. Pets have profiles too ("Kirito ultrasound" is Kirito's). Use "self" when it's about the person who added it (their own trip, their own appointment). Use "" when it's about someone not in the list, or you can't tell. Never guess a profile just to fill the field.
 
 share: the shared calendar is for what the rest of the family needs to know or plan around, not everything on someone's phone. Share (true): events about the people being cared for, the kids or the pets; family plans and gatherings the family takes part in; household matters, including help that comes to the house (a house cleaner's day, lawn care, repairs, deliveries); and the person's own flights (the family wants the flight numbers and times).
 
@@ -37,7 +37,8 @@ category: Appointment, School, Work, Sports, Social or Other. The person's own j
 Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id, self, or empty>","share":false,"trip":false,"cover":"","care":false,"category":"Appointment"}]} with one entry for every event.`;
 
 export type SortMember = { id: string; name: string; relationship?: string; added_by?: string; added_by_id?: string; is_poster?: boolean; is_pet?: boolean; cared_for?: boolean };
-export type SortItem = { key: string; title: string; notes?: string; location?: string; with?: string; date?: string; time?: string };
+// for: the profile id the person picked as who it's for, when they did.
+export type SortItem = { key: string; title: string; notes?: string; location?: string; with?: string; date?: string; time?: string; for?: string };
 export type SortResult = { who: string; self: boolean; share: boolean; trip: boolean; cover: string; care: boolean; category: string };
 
 // "Mom"/"Dad" in a title the model left without a profile: the one Mother /
@@ -76,6 +77,7 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; poste
     ...(e.location ? { where: clip(e.location, 80) } : {}),
     ...(e.with ? { with: clip(e.with, 60) } : {}),
     ...(e.notes ? { notes: clip(e.notes, 200) } : {}),
+    ...(e.for && memberIds.has(e.for) ? { for: e.for } : {}),
   }));
   const prompt = `Added by: ${ctx.poster || "a family member"}\n\nFamily profiles:\n${family}\n\nEvents:\n${JSON.stringify(events)}`;
   for (const model of [MODEL, BACKUP_MODEL]) {
@@ -89,21 +91,27 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; poste
       } as any);
       const parsed = JSON.parse(res?.choices?.[0]?.message?.content || "{}");
       const posterProfile = ctx.members.find((m) => m.is_poster)?.id || "";
-      const titles = new Map(items.map((e) => [e.key, e.title]));
+      const byKey = new Map(items.map((e) => [e.key, e]));
       for (const r of Array.isArray(parsed?.events) ? parsed.events : []) {
         const key = String(r?.key || "");
         if (!key) continue;
+        const item = byKey.get(key);
+        const picked = item?.for && memberIds.has(item.for) ? item.for : "";
         const raw = String(r?.who || "");
-        const self = raw === "self";
-        let who = self ? posterProfile : memberIds.has(raw) ? raw : "";
-        if (!who && !self) who = parentFor(String(titles.get(key) || ""), ctx.members, ctx.posterId || "");
+        let who = picked || (raw === "self" ? posterProfile : memberIds.has(raw) ? raw : "");
+        if (!who && raw !== "self") who = parentFor(String(item?.title || ""), ctx.members, ctx.posterId || "");
+        const self = picked ? picked === posterProfile : raw === "self";
+        // A trip and a "<name>: doctor" stand-in are only ever for the
+        // adder's own events (Anna, Nov 9 2026: her Mom's PT visits from a
+        // photo came out as "Anna: doctor").
+        const own = !who || who === posterProfile;
         out.set(key, {
           who,
           self,
           share: r?.share === true,
-          trip: r?.trip === true,
+          trip: own && r?.trip === true,
           care: r?.care === true,
-          cover: r?.share === true ? "" : String(r?.cover || "").replace(/[^\p{L}\p{N} '-]/gu, "").trim().slice(0, 30),
+          cover: r?.share === true || !own ? "" : String(r?.cover || "").replace(/[^\p{L}\p{N} '-]/gu, "").trim().slice(0, 30),
           category: SORT_CATEGORIES.includes(String(r?.category)) ? String(r.category) : "",
         });
       }
