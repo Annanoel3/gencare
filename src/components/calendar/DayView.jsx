@@ -11,7 +11,7 @@ export default function DayView({ selectedDate, onPrev, onNext, onAdd, appointme
   const today = isToday(selectedDate);
 
   return (
-    <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6">
+    <div className="bg-card -mx-4 border-y border-border/50 px-3 py-4 md:mx-0 md:rounded-2xl md:border md:p-6">
       <div className="flex items-center justify-between mb-6">
         <Button variant="ghost" size="icon" onClick={onPrev}><ChevronLeft className="w-5 h-5" /></Button>
         <h2 className="font-heading text-lg font-semibold flex items-center gap-2">
