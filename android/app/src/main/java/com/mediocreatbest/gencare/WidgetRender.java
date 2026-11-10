@@ -132,8 +132,8 @@ final class WidgetRender {
             rv.setInt(MonthIds.CELL[i], "setBackgroundResource", isToday ? R.drawable.widget_today_cell : 0);
 
             JSONArray list = note == null ? WidgetStore.eventsOn(days, key) : new JSONArray();
-            chip(c, rv, list.optJSONObject(0), MonthIds.CHIP_A[i], MonthIds.COLOR_A[i], MonthIds.TEXT_A[i], inMonth);
-            chip(c, rv, list.optJSONObject(1), MonthIds.CHIP_B[i], MonthIds.COLOR_B[i], MonthIds.TEXT_B[i], inMonth);
+            chip(c, rv, list.optJSONObject(0), MonthIds.CHIP_A[i], MonthIds.COLOR_A[i], MonthIds.TEXT_A[i], inMonth, over(list.optJSONObject(0), key));
+            chip(c, rv, list.optJSONObject(1), MonthIds.CHIP_B[i], MonthIds.COLOR_B[i], MonthIds.TEXT_B[i], inMonth, over(list.optJSONObject(1), key));
             int more = list.length() - 2;
             rv.setViewVisibility(MonthIds.MORE[i], more > 0 ? View.VISIBLE : View.GONE);
             rv.setTextViewText(MonthIds.MORE[i], more > 0 ? "+" + more : "");
@@ -148,7 +148,7 @@ final class WidgetRender {
         return c.getString(R.string.widget_loading);
     }
 
-    private static void chip(Context c, RemoteViews rv, JSONObject ev, int chipId, int colorId, int textId, boolean inMonth) {
+    private static void chip(Context c, RemoteViews rv, JSONObject ev, int chipId, int colorId, int textId, boolean inMonth, boolean faded) {
         if (ev == null) {
             rv.setViewVisibility(chipId, View.GONE);
             return;
@@ -159,12 +159,45 @@ final class WidgetRender {
         if (color != 0) {
             rv.setViewVisibility(colorId, View.VISIBLE);
             rv.setInt(colorId, "setColorFilter", color);
-            rv.setInt(colorId, "setImageAlpha", inMonth ? 255 : 120);
+            rv.setInt(colorId, "setImageAlpha", inMonth && !faded ? 255 : 120);
             rv.setTextColor(textId, Color.WHITE);
         } else {
             // Not care-related: plain text, no color.
             rv.setViewVisibility(colorId, View.INVISIBLE);
-            textColor(c, rv, textId, inMonth ? R.color.widget_fg : R.color.widget_faint);
+            textColor(c, rv, textId, inMonth && !faded ? R.color.widget_fg : R.color.widget_faint);
+        }
+    }
+
+    /**
+     * Over already, the way the app shows it (src/lib/eventTiming.js; Anna,
+     * Nov 9 2026: "show when items have already been done/past"): checked off
+     * that day ("d" from widgetFeed), its day gone by, or past its end time
+     * (an hour after it starts when there's no end). An all-day or several-day
+     * event only once its day is over.
+     */
+    static boolean over(JSONObject ev, String day) {
+        if (ev == null || day == null) return false;
+        if (ev.optBoolean("d")) return true;
+        int cmp = day.compareTo(WidgetStore.ymd(WidgetStore.today()));
+        if (cmp < 0) return true;
+        if (cmp > 0 || ev.optBoolean("a") || !ev.optString("n").isEmpty()) return false;
+        int start = minutes(ev.optString("s"));
+        if (start < 0) return false;
+        int end = minutes(ev.optString("e"));
+        if (end <= start) end = start + 60;
+        Calendar now = Calendar.getInstance();
+        return now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE) >= end;
+    }
+
+    /** "09:30" -> 570; -1 when it isn't a time. */
+    private static int minutes(String hm) {
+        if (hm == null) return -1;
+        String[] p = hm.trim().split(":");
+        if (p.length < 2 || p[1].length() < 2) return -1;
+        try {
+            return Integer.parseInt(p[0]) * 60 + Integer.parseInt(p[1].substring(0, 2));
+        } catch (NumberFormatException e) {
+            return -1;
         }
     }
 

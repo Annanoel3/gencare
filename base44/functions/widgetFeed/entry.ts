@@ -2,7 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { canSee } from '../../shared/sharing.ts';
 import { expandAppointments } from '../../shared/recurrence.ts';
 import { mergeSameEvents } from '../../shared/eventMerge.ts';
-import { eventHighlightHex } from '../../shared/eventColors.ts';
+import { eventHighlightHex, PRIVATE_HEX } from '../../shared/eventColors.ts';
+import { shownTitle } from '../../shared/eventTitle.ts';
 import { familyUsers } from '../../shared/push.ts';
 import { accessOf } from '../../shared/access.ts';
 
@@ -19,7 +20,8 @@ import { accessOf } from '../../shared/access.ts';
 //
 // An event: { id, t: title, s: "HH:MM" start or "", e: end, a: all day,
 // c: "#hex" color or "" for plain text (not care-related), p: only you see
-// it, w: who it's for (or whose it is), n: "Day 2 of 3" for a multi-day one }.
+// it, w: who it's for (or whose it is), n: "Day 2 of 3" for a multi-day one,
+// d: checked off for that day }.
 // The same event on two calendars comes once, the way the app shows it.
 
 const MAX_DAYS = 62;
@@ -92,13 +94,20 @@ Deno.serve(async (req) => {
     const days: Record<string, any[]> = {};
     for (const a of occ) {
       const poster = a.created_by_user_id && a.created_by_user_id !== user.id ? first(a.created_by_name) : '';
+      const c = eventHighlightHex(a, members || [], accounts || []);
+      // Checked off on To-do that day (the widget fades it, like the app).
+      const day = a.recurrence ? String(a.date || '') : '';
+      const done = (Array.isArray(a.checks) ? a.checks : []).some((x: any) => x?.user_id && String(x.day || '') === day);
       const item = {
         id: String(a.occurrence_of || a.id),
-        t: String(a.title || ''),
+        // As the calendar shows it: the visit's emoji, and no "Mom" in front
+        // when the chip is in that person's color (Anna, Nov 9-10 2026).
+        t: shownTitle(a, members || [], !!c && c !== PRIVATE_HEX),
         s: a.all_day ? '' : String(a.time || '').slice(0, 5),
         e: a.all_day ? '' : String(a.end_time || '').slice(0, 5),
         a: !!a.all_day || !a.time,
-        c: eventHighlightHex(a, members || [], accounts || []),
+        c,
+        d: done,
         p: a.visibility === 'private',
         w: first(a.family_member_name) || (a.visibility !== 'private' ? poster : ''),
         n: a.span_days > 1 ? `Day ${a.span_index + 1} of ${a.span_days}` : '',

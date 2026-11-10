@@ -136,6 +136,11 @@ public class WidgetListService extends RemoteViewsService {
             if (ev.optBoolean("p")) meta.append(" · Only you");
             rv.setTextViewText(R.id.meta, meta.toString());
             bar(rv, R.id.bar, ev.optString("c"));
+            // Over or checked off: faded, like the app.
+            if (WidgetRender.over(ev, r.day)) {
+                WidgetRender.textColor(c, rv, R.id.title, R.color.widget_muted);
+                rv.setInt(R.id.bar, "setImageAlpha", 110);
+            }
             fill.putExtra(NotifyBridge.EXTRA_OPEN_PATH, "/calendar?date=" + r.day + "&event=" + ev.optString("id"));
             rv.setOnClickFillInIntent(R.id.row, fill);
             return rv;
@@ -158,7 +163,7 @@ public class WidgetListService extends RemoteViewsService {
                 JSONObject ev = r.events.optJSONObject(i);
                 if (ev == null) continue;
                 String when = ev.optBoolean("a") ? "" : WidgetRender.clock(c, ev.optString("s")) + "  ";
-                rv.addView(R.id.events, lineView(pkg, when + ev.optString("t"), ev.optString("c"), false));
+                rv.addView(R.id.events, lineView(pkg, when + ev.optString("t"), ev.optString("c"), false, WidgetRender.over(ev, r.day)));
             }
             if (n > WEEK_LINES) rv.addView(R.id.events, lineView(pkg, "+" + (n - WEEK_LINES) + " more", "", true));
             fill.putExtra(NotifyBridge.EXTRA_OPEN_PATH, "/calendar?date=" + r.day);
@@ -167,10 +172,16 @@ public class WidgetListService extends RemoteViewsService {
         }
 
         private RemoteViews lineView(String pkg, String text, String color, boolean quiet) {
+            return lineView(pkg, text, color, quiet, false);
+        }
+
+        // faded: an event that's over or checked off (WidgetRender.over).
+        private RemoteViews lineView(String pkg, String text, String color, boolean quiet, boolean faded) {
             RemoteViews line = new RemoteViews(pkg, R.layout.widget_line);
             line.setTextViewText(R.id.text, text);
-            WidgetRender.textColor(c, line, R.id.text, quiet ? R.color.widget_muted : R.color.widget_fg);
+            WidgetRender.textColor(c, line, R.id.text, quiet || faded ? R.color.widget_muted : R.color.widget_fg);
             bar(line, R.id.bar, quiet ? "" : color);
+            if (faded) line.setInt(R.id.bar, "setImageAlpha", 110);
             return line;
         }
 
