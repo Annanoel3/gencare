@@ -35,9 +35,23 @@ public class WidgetRefreshWorker extends Worker {
     public Result doWork() {
         Context c = getApplicationContext();
         if (!WidgetRender.anyWidgets(c)) return Result.success();
-        WidgetStore.fetch(c);
+        boolean calendar = WidgetRender.ids(c, DayWidget.class).length + WidgetRender.ids(c, WeekWidget.class).length + WidgetRender.ids(c, MonthWidget.class).length > 0;
+        if (calendar) WidgetStore.fetch(c);
+        // The Care Log widget: who's cared for, their latest and their buttons.
+        if (WidgetRender.ids(c, CareWidget.class).length > 0) CareStore.fetch(c);
         WidgetRender.updateAll(c);
         return Result.success();
+    }
+
+    static final String LATER = "gencare_widgets_later";
+
+    /** Refresh again in a few minutes (the Care Log widget's "logged" note goes away then). */
+    static void refreshIn(Context c, int minutes) {
+        OneTimeWorkRequest req = new OneTimeWorkRequest.Builder(WidgetRefreshWorker.class)
+                .setInitialDelay(minutes, TimeUnit.MINUTES)
+                .build();
+        WorkManager.getInstance(c.getApplicationContext())
+                .enqueueUniqueWork(LATER, ExistingWorkPolicy.REPLACE, req);
     }
 
     /** The every-30-minutes refresh, while any widget is on the home screen. */

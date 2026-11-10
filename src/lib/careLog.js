@@ -59,7 +59,7 @@ const CONTACT = (label = 'Contact') => ({ key: 'contact', kind: 'text', label })
 // A plain note: anything worth writing down that no other tile fits.
 // What was given and how much, so two people don't both give a dose ("Last
 // time" shows it). A log, not a reminder: daily ones go in Reminders.
-const MEDICINE = { type: 'medicine', label: 'Medicine', icon: '💊', fields: [TITLE('Medicine', 'e.g. vitamin D drops'), { key: 'response', kind: 'text', label: 'How much', placeholder: 'e.g. 1 mL' }, NOTES] };
+const MEDICINE = { type: 'medicine', label: 'Medicine', icon: '💊', fields: [TITLE('Medicine', 'e.g. vitamin D drops'), { key: 'response', kind: 'text', label: 'How much', placeholder: 'e.g. 2 drops' }, NOTES] };
 const NOTE = { type: 'note', label: 'Note', icon: '📝', fields: [TITLE('What', 'e.g. what you noticed today'), NOTES, { key: 'photos', kind: 'photos', label: 'Photos' }] };
 
 export const CATALOG = {
@@ -71,7 +71,14 @@ export const CATALOG = {
       { ...MIN('Minutes'), when: (f) => f.sub_type !== 'solid' },
       NOTES,
     ] },
-    { type: 'pumping', label: 'Pumping', icon: '🫙', fields: [{ key: 'side', kind: 'side', label: 'Side' }, { key: 'amount', kind: 'number', label: 'Amount', unit: 'oz', step: 0.5 }, MIN(), NOTES] },
+    { type: 'pumping', label: 'Pumping', icon: '🫙', fields: [
+      { key: 'side', kind: 'side', label: 'Side' },
+      { key: 'amount', kind: 'number', label: 'Amount', unit: 'oz', step: 0.5 },
+      // Straight into the milk stash (lib/milkStash). Only on a new entry; the
+      // page takes it off the row and adds the bag (CareLogPage).
+      { key: 'stash', kind: 'select', label: 'Put it in the milk stash', options: ['no', 'fridge', 'freezer'], newOnly: true, when: (f) => Number(f.amount) > 0 },
+      MIN(), NOTES,
+    ] },
     // Poop color (Nov 10 2026): what baby trackers ask for; parents read it.
     { type: 'diaper', label: 'Diaper', icon: '🧷', fields: [SUB('Type', ['wet', 'dirty', 'mixed']), { key: 'color', kind: 'select', label: 'Color', options: ['yellow', 'green', 'brown', 'pale', 'red_or_black'], when: (f) => f.sub_type !== 'wet' }, NOTES] },
     { type: 'tummy_time', label: 'Tummy time', icon: '🤸', fields: [MIN(), NOTES] },
@@ -240,6 +247,8 @@ export function upcoming(logs) {
 // long, what happened). `daily` things (meals, a shower) that were already
 // logged today open that entry instead of logging a second one. `last` puts
 // it in "Last time" (when did Mom last shower, when did the baby last eat).
+// The home-screen Care Log widget's server has a TWIN of these buttons
+// (base44/shared/careQuick.ts): change a button here, change it there too.
 const Q = (key, label, icon, row, opts = {}) => ({ key, label, icon, row, ...opts });
 const meal = (key, label, icon, type = 'care_log') => Q(key, label, icon, type === 'food' ? { entry_type: 'food', sub_type: key, title: label } : { entry_type: 'care_log', sub_type: 'meal', title: label }, { daily: true });
 const GOOD = Q('good', 'Good day', '😊', { entry_type: 'mood', mood: 'happy' }, { mood: ['happy', 'calm'] });

@@ -463,6 +463,11 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					AppIntents,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mediocreatbest.gencare.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -484,6 +489,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					AppIntents,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mediocreatbest.gencare.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";

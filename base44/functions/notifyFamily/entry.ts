@@ -174,12 +174,19 @@ Deno.serve(async (req) => {
       if (!msg || msg.family_id !== familyId) return Response.json({ ok: false, error: 'Not your family' }, { status: 403 });
       // An announcement: the whole thing, to everyone, right away (Anna, Nov
       // 10 2026), opening Home where it sits at the top.
+      // One set for later goes out from cronReminders at its time; once it's
+      // gone out (announce_sent) it isn't sent again.
       if (msg.category === 'Announcement' && !msg.parent_id) {
+        const at = msg.announce_at ? new Date(String(msg.announce_at)).getTime() : 0;
+        if (at && at > Date.now() + 60_000) return Response.json({ ok: true, sent: [], skipped: 'scheduled' });
+        if (msg.announce_sent) return Response.json({ ok: true, sent: [], skipped: 'already_sent' });
+        await db.FamilyMessage.update(msg.id, { announce_sent: true });
+        const author = first(msg.author_name) || who;
         const sent = await pushFamily(db, familyId, {
-          title: `Announcement from ${who}`,
+          title: `Announcement from ${author}`,
           message: String(msg.content || '').replace(/\s+/g, ' ').trim().slice(0, 300),
           data: { type: 'announcement', messageId: msg.id, screen: '/' },
-          exceptUserId: user.id,
+          exceptUserId: msg.author_user_id || user.id,
           need: 'announcements',
           priority: 'high',
         });

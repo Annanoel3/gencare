@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { format, parseISO, isValid, isToday, isYesterday, differenceInCalendarDays } from 'date-fns';
@@ -15,6 +15,9 @@ import BabyTimers from '@/components/carelog/BabyTimers';
 import PersonToday from '@/components/carelog/PersonToday';
 import WeekSummary from '@/components/carelog/WeekSummary';
 import Trackers from '@/components/carelog/Trackers';
+import MilkStash from '@/components/carelog/MilkStash';
+import { addBag, STASH_KEY } from '@/lib/milkStash';
+import { reloadWidgets } from '@/lib/widgets';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { youngerThan18 } from '@/components/family/CaredForSwitch';
@@ -51,6 +54,9 @@ export default function CareLogPage() {
   const [personId, setPersonId] = useState(params.get('for') || '');
   const person = active.find((m) => m.id === personId) || active[0] || null;
   useEffect(() => { if (person && person.id !== personId) setPersonId(person.id); }, [person?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Opened again on someone else (from the home-screen widget, with the page already open).
+  const forParam = params.get('for') || '';
+  useEffect(() => { if (forParam && forParam !== personId && active.some((m) => m.id === forParam)) setPersonId(forParam); }, [forParam, active.length]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!personId) return;
     const next = new URLSearchParams(params); next.set('for', personId); setParams(next, { replace: true });
@@ -83,13 +89,25 @@ export default function CareLogPage() {
   const soon = useMemo(() => upcoming(logs).slice(0, 6), [logs]);
   const first = firstName(person?.name);
 
-  const refresh = () => { queryClient.invalidateQueries({ queryKey: ['careLog'] }); };
+  // The Care Log widget on this phone's home screen shows it too.
+  const refresh = () => { queryClient.invalidateQueries({ queryKey: ['careLog'] }); reloadWidgets(); };
   const openEntry = (e) => setDialog({ open: true, entry: e, type: e.entry_type, preset: null });
   const save = useMutation({
-    mutationFn: ({ form, def }) => {
-      const row = cleanLog(form, def, person, me);
+    mutationFn: async ({ form, def }) => {
+      // "Put it in the milk stash" isn't part of the entry: it adds a bag.
+      const { stash, ...row } = cleanLog(form, def, person, me);
       if (dialog.entry?.id) { delete row.logged_by_user_id; delete row.logged_by_name; return updateLog(dialog.entry.id, row); }
-      return createLog(row);
+      const saved = await createLog(row);
+      if (row.entry_type === 'pumping' && ['fridge', 'freezer'].includes(stash) && row.amount > 0) {
+        try {
+          await addBag({ person, amount: row.amount, place: stash, pumpedAt: row.timestamp, me, pumpingLogId: saved?.id });
+          queryClient.invalidateQueries({ queryKey: STASH_KEY });
+          toast({ title: `${row.amount} oz in the ${stash}`, description: 'Added to the milk stash.' });
+        } catch {
+          toast({ title: "The pumping is logged, but it didn't go in the stash", description: 'Add it with Add milk in the milk stash.', variant: 'destructive' });
+        }
+      }
+      return saved;
     },
     onSuccess: (saved) => {
       refresh();
@@ -131,6 +149,22 @@ export default function CareLogPage() {
       toast({ title: "Couldn't log it", description: e?.message || 'Try again', variant: 'destructive' });
     } finally { setBusyKey(''); }
   };
+
+  // From the home-screen widget: /care-log?for=<person>&log=<button>. A button
+  // that needs details opens its form; one that doesn't (on an iPhone too old
+  // for buttons that work right on the widget) logs it, with Undo. Once.
+  const logParam = params.get('log') || '';
+  const handled = useRef('');
+  useEffect(() => {
+    if (!logParam || !person || isLoading || busyKey) return;
+    if (forParam && person.id !== forParam) return;
+    const tag = `${person.id}:${logParam}:${params.toString()}`;
+    if (handled.current === tag) return;
+    handled.current = tag;
+    const next = new URLSearchParams(params); next.delete('log'); setParams(next, { replace: true });
+    const q = fitsAge.find((x) => x.key === logParam);
+    if (q) { track('action', 'widget: opened to log', q.key); tap(q); }
+  }, [logParam, person?.id, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const grouped = useMemo(() => {
     const map = new Map();
@@ -214,6 +248,8 @@ export default function CareLogPage() {
                   : todays.length === 0 ? <p className="text-sm text-muted-foreground px-2 py-3">Nothing logged for {first} today. When someone taps {quick[0]?.label} or {quick[3]?.label || quick[1]?.label}, it shows up here with who did it.</p>
                   : todays.map((l) => <LogRow key={l.id} entry={l} onOpen={openEntry} />)}
               </section>
+
+              {band === 'baby' && <MilkStash person={person} logs={logs} me={me} offer={quick.some((q) => q.key === 'pumping')} onLogged={refresh} />}
 
               {lastTimes.length > 0 && (
                 <section className="rounded-2xl border border-border/50 bg-card p-4">

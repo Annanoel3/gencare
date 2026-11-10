@@ -18,7 +18,9 @@ import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import PrivateImage from '@/components/journal/PrivateImage';
 import { uploadPhoto } from '@/lib/journal';
-import { CATEGORIES, categoryColor, MESSAGES_KEY, listMessages, postMessage, editMessage, deleteMessage, togglePin, markMessagesSeen } from '@/lib/messages';
+import { CATEGORIES, categoryColor, MESSAGES_KEY, listMessages, postMessage, editMessage, deleteMessage, togglePin, markMessagesSeen, shownMessages, postedAt, isScheduled } from '@/lib/messages';
+import { AnnounceDialog } from '@/components/dashboard/Announcements';
+import { serverMs } from '@/lib/serverTime';
 
 const NOBODY = '__nobody__';
 
@@ -35,11 +37,14 @@ export default function Messages() {
   const [uploading, setUploading] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [announcing, setAnnouncing] = useState(false);
   const fileRef = useRef(null);
   const queryClient = useQueryClient();
   const { me, family, apply } = useFamily();
 
-  const { data: messages = [], isFetching, refetch } = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages, refetchInterval: 30_000 });
+  const { data: all = [], isFetching, refetch } = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages, refetchInterval: 30_000 });
+  // Other people's announcements set for later stay out of sight until then.
+  const messages = shownMessages(all, me);
   const { data: members = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list() });
 
   // Opening the page clears the unread badge.
@@ -56,7 +61,7 @@ export default function Messages() {
     onError: (e) => toast({ title: "Couldn't post", description: e?.message || 'Try again', variant: 'destructive' }),
   });
   const pin = useMutation({ mutationFn: togglePin, onSuccess: refresh });
-  const remove = useMutation({ mutationFn: (msg) => deleteMessage(msg, messages), onSuccess: refresh });
+  const remove = useMutation({ mutationFn: (msg) => deleteMessage(msg, all), onSuccess: refresh });
   const edit = useMutation({ mutationFn: ({ id, text }) => editMessage(id, text), onSuccess: refresh });
 
   const pickFiles = async (e) => {
@@ -74,12 +79,13 @@ export default function Messages() {
   };
 
   const { pinned, posts, repliesOf } = useMemo(() => {
-    const top = messages.filter((m) => !m.parent_id);
+    // Newest first by when it went out (an announcement set for later counts from then).
+    const top = messages.filter((m) => !m.parent_id).sort((a, b) => serverMs(postedAt(b)) - serverMs(postedAt(a)));
     const map = {};
     for (const m of messages) if (m.parent_id) (map[m.parent_id] ||= []).push(m);
     for (const k of Object.keys(map)) map[k].sort((a, b) => (a.created_date || '').localeCompare(b.created_date || ''));
     return { pinned: top.filter((m) => m.is_pinned), posts: top.filter((m) => !m.is_pinned), repliesOf: (id) => map[id] || [] };
-  }, [messages]);
+  }, [all, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canPost = content.trim().length > 0 && !post.isPending && !uploading;
 
@@ -141,8 +147,12 @@ export default function Messages() {
           <Button onClick={() => post.mutate()} disabled={!canPost} className="rounded-xl gap-2 h-9"><Send className="w-4 h-4" /> {replyTo ? 'Reply' : 'Post'}</Button>
         </div>
         {!replyTo && category === 'Announcement' && (
-          // Same as Home's Announce (lib/messages): 3 days on Home, everyone notified.
-          <p className="text-xs text-muted-foreground mt-2">Everyone gets a notification right away, and it stays at the top of their Home for 3 days.</p>
+          // Same as Home's Announce (lib/messages): 3 days on Home, everyone
+          // notified. Home's Announce box also picks a later time or how long.
+          <p className="text-xs text-muted-foreground mt-2">
+            Everyone gets a notification right away, and it stays at the top of their Home for 3 days.{' '}
+            <button type="button" className="text-primary font-medium" onClick={() => setAnnouncing(true)}>Send it later or change how long</button>
+          </p>
         )}
       </div>
 
@@ -166,6 +176,9 @@ export default function Messages() {
           <p className="text-muted-foreground">Post the first update for your family.</p>
         </div>
       )}
+
+      <AnnounceDialog open={announcing} onClose={() => setAnnouncing(false)} initialText={content}
+        onPosted={() => { setContent(''); setCategory('General'); setAboutId(''); setPhotos([]); }} />
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-3xl p-2 bg-black/90 border-0">
@@ -205,7 +218,7 @@ function Post({ msg, replies, me, members, onPin, onReply, onDelete, onEdit, onV
             </div>
           )}
           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-            <span>{when(msg.created_date)}{msg.edited_at ? ' · edited' : ''}</span>
+            <span>{isScheduled(msg) ? `Goes out ${when(msg.announce_at)} · only you can see it` : when(postedAt(msg))}{msg.edited_at ? ' · edited' : ''}</span>
             <button type="button" onClick={onReply} className="hover:text-foreground inline-flex items-center gap-1"><Reply className="w-3 h-3" /> Reply</button>
             <button type="button" onClick={onPin} className="hover:text-foreground inline-flex items-center gap-1"><Pin className="w-3 h-3" /> {msg.is_pinned ? 'Unpin' : 'Pin'}</button>
             {mine && <DeleteButton onConfirm={() => onDelete(msg)} replies={replies.length} />}

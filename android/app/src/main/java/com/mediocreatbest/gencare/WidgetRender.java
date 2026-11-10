@@ -44,7 +44,7 @@ final class WidgetRender {
     }
 
     static boolean anyWidgets(Context c) {
-        return ids(c, DayWidget.class).length + ids(c, WeekWidget.class).length + ids(c, MonthWidget.class).length > 0;
+        return ids(c, DayWidget.class).length + ids(c, WeekWidget.class).length + ids(c, MonthWidget.class).length + ids(c, CareWidget.class).length > 0;
     }
 
     static void updateAll(Context c) {
@@ -52,6 +52,7 @@ final class WidgetRender {
         updateList(c, m, ids(c, DayWidget.class), KIND_DAY);
         updateList(c, m, ids(c, WeekWidget.class), KIND_WEEK);
         updateMonth(c, m, ids(c, MonthWidget.class));
+        CareRender.update(c, m, ids(c, CareWidget.class));
         WidgetMidnight.schedule(c);
     }
 

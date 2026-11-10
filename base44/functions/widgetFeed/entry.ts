@@ -6,6 +6,7 @@ import { eventHighlightHex, PRIVATE_HEX } from '../../shared/eventColors.ts';
 import { shownTitle } from '../../shared/eventTitle.ts';
 import { familyUsers } from '../../shared/push.ts';
 import { accessOf } from '../../shared/access.ts';
+import { carePeople, buttonsFor, matchesQuick, quickRowFor, dayIn } from '../../shared/careQuick.ts';
 
 // What GenCare's home-screen widgets show (Day, Week and Month, on Android
 // and iPhone; Anna, Oct 30 2026). The widgets refresh on their own, with the
@@ -23,6 +24,17 @@ import { accessOf } from '../../shared/access.ts';
 // it, w: who it's for (or whose it is), n: "Day 2 of 3" for a multi-day one,
 // d: checked off for that day }.
 // The same event on two calendars comes once, the way the app shows it.
+//
+// The Care Log widget (Anna, Nov 10 2026: "a log widget. It should work for
+// any type of care and be sorted accordingly by the app") uses the same key,
+// which can also add a one-tap Care Log entry as this person and take back
+// one they added in the last 15 minutes. Nothing else.
+//
+//   { key, mode: "care" }                      -> { ok, people }   (shared/careQuick.ts carePeople)
+//   { key, mode: "log", member_id, button }    -> { ok, id, i, l, at, already?, people }
+//   { key, mode: "unlog", id }                 -> { ok, people }
+// A button that needs details (how much, what happened) isn't logged here:
+// the widget opens the app on it instead.
 
 const MAX_DAYS = 62;
 const KEEP_KEYS = 6;
@@ -64,9 +76,49 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, key });
     }
 
-    // The feed.
     const key = String(body.key || '');
     if (key.length < 32) return Response.json({ ok: false, error: 'no_key' }, { status: 401 });
+
+    if (mode === 'care' || mode === 'log' || mode === 'unlog') {
+      const user = (await db.User.filter({ widget_keys: await sha256(key) }))?.[0];
+      if (!user?.id) return Response.json({ ok: false, error: 'no_key' }, { status: 401 });
+      const familyId = user.family_id;
+      if (!familyId) return Response.json({ ok: true, people: [] });
+      const family = (await db.Family.filter({ id: familyId }))?.[0];
+      if (!accessOf(family, user).access) return Response.json({ ok: false, error: 'no_access' });
+      const tz = (() => { try { new Intl.DateTimeFormat('en-US', { timeZone: user.timezone || '' }); return String(user.timezone); } catch (_) { return 'America/Chicago'; } })();
+      const now = new Date();
+      const members = (await db.FamilyMember.filter({ family_id: familyId })) || [];
+      const recent = async () => ((await db.CareLog.filter({ family_id: familyId, timestamp: { $gte: new Date(now.getTime() - 14 * 86400000).toISOString() } }, '-timestamp', 1000)) || []).filter((l: any) => l.entry_type !== 'legal');
+      let out: Record<string, unknown> = { ok: true };
+
+      if (mode === 'log') {
+        const member = members.find((m: any) => String(m.id) === String(body.member_id || ''));
+        if (!member) return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+        const q = buttonsFor(member, now).find((b) => b.key === String(body.button || ''));
+        if (!q || q.ask) return Response.json({ ok: false, error: 'needs_app' }, { status: 400 });
+        // A once-a-day one (breakfast, a shower) already logged today isn't logged twice.
+        if (q.daily) {
+          const today = dayIn(tz, now);
+          const done = ((await recent()) as any[]).find((l) => l.family_member_id === member.id && matchesQuick(q, l) && dayIn(tz, new Date(l.timestamp)) === today);
+          if (done) out = { ok: true, already: true, id: done.id, i: q.icon, l: q.label, at: done.timestamp, by: first(done.logged_by_name) };
+        }
+        if (!out.id) {
+          const made = await db.CareLog.create(quickRowFor(q, member, user, now));
+          out = { ok: true, id: made?.id, i: q.icon, l: q.label, at: now.toISOString() };
+        }
+      } else if (mode === 'unlog') {
+        const row = (await db.CareLog.filter({ id: String(body.id || '') }))?.[0];
+        const fresh = row && now.getTime() - Date.parse(String(row.timestamp || '')) < 15 * 60000;
+        if (!row || row.family_id !== familyId || row.logged_by_user_id !== user.id || !fresh) return Response.json({ ok: false, error: 'cant_undo' }, { status: 400 });
+        await db.CareLog.delete(row.id);
+      }
+      out.people = carePeople(members, await recent(), tz, now);
+      out.at = out.at || now.toISOString();
+      return Response.json(out);
+    }
+
+    // The feed.
     const from = String(body.from || ''), to = String(body.to || '');
     if (!isDay(from) || !isDay(to) || dayCount(from, to) < 0 || dayCount(from, to) > MAX_DAYS) {
       return Response.json({ ok: false, error: 'bad_range' }, { status: 400 });

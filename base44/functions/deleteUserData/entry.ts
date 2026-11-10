@@ -16,6 +16,10 @@ const CREATED_BY_ME = [
   'CareJournal', 'FamilyMessage', 'Checklist', 'ChecklistItem', 'QuickNote',
   'BabyCareLog', 'ToddlerCareLog', 'SchoolAgeLog', 'PreteenLog', 'TeenLog', 'SeniorLog',
   'NoteRecording', 'CalendarExportLink', 'Invite', 'EmailChangeRequest',
+  // Added Nov 10 2026: the Care Log, its milk stash, reminder check-offs,
+  // wellness check-ins, the vault and the app's record of what they did were
+  // left behind before.
+  'CareLog', 'MilkStash', 'MedicationLog', 'WellnessCheckin', 'Vault', 'VaultItem', 'AppActivity',
 ];
 
 Deno.serve(async (req) => {
@@ -39,6 +43,11 @@ Deno.serve(async (req) => {
     for (const name of CREATED_BY_ME) {
       await attempt(name, () => db[name].deleteMany({ created_by_id: user.id }));
     }
+
+    // Care Log entries and milk added from a home-screen widget are saved by
+    // the server, so they're theirs by who logged them, not who created the row.
+    await attempt('CareLog (widget)', () => db.CareLog.deleteMany({ logged_by_user_id: user.id }));
+    await attempt('MilkStash (added)', () => db.MilkStash.deleteMany({ added_by_user_id: user.id }));
 
     if (mode === 'data') {
       return Response.json({ success: true, mode, deleted });

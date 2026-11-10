@@ -36,6 +36,7 @@ public class WidgetBridge extends Plugin {
             return;
         }
         WidgetStore.setKey(getContext(), key, call.getString("userId", ""), appId, serverUrl);
+        CareStore.clearAll(getContext());
         WidgetRender.updateAll(getContext());
         WidgetRefreshWorker.refreshNow(getContext());
         call.resolve();
@@ -50,6 +51,7 @@ public class WidgetBridge extends Plugin {
     @PluginMethod
     public void clear(PluginCall call) {
         String old = WidgetStore.clear(getContext());
+        CareStore.clearAll(getContext());
         WidgetRender.updateAll(getContext());
         JSObject r = new JSObject();
         if (old != null) r.put("key", old);

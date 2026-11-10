@@ -9,4 +9,10 @@
     <string name="widget_loading">Loading…</string>
     <string name="widget_signed_out">Open GenCare to see your family calendar here.</string>
     <string name="widget_no_access">Open GenCare to see your family calendar.</string>
+    <string name="widget_care_label">Care Log</string>
+    <string name="widget_care_desc">Log care for the people the family takes care of, right from the home screen</string>
+    <string name="widget_care_undo">Undo</string>
+    <string name="widget_care_signed_out">Open GenCare to log care from here.</string>
+    <string name="widget_care_no_access">Open GenCare to log care.</string>
+    <string name="widget_care_nobody">No one to log for yet. Open GenCare and, on the profile of the person the family takes care of, turn on the care switch.</string>
 </resources>

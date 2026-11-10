@@ -8,4 +8,5 @@
     <color name="widget_primary">#53AC82</color>
     <color name="widget_line">#292F32</color>
     <color name="widget_today_bg">#1F2E28</color>
+    <color name="widget_button_bg">#242A2D</color>
 </resources>

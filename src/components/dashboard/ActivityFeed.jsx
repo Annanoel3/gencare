@@ -7,7 +7,7 @@ import { serverDate, serverMs } from '@/lib/serverTime';
 import { listReminders, REMINDERS_KEY, fmtClock, ONE_TIME } from '@/lib/reminders';
 import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
-import { MESSAGES_KEY, listMessages } from '@/lib/messages';
+import { MESSAGES_KEY, listMessages, isScheduled, postedAt } from '@/lib/messages';
 import useEventEditor from '@/components/calendar/useEventEditor';
 import { plugin } from '@/lib/phone';
 import { claimsOf } from '@/lib/claims';
@@ -173,8 +173,8 @@ export default function ActivityFeed({ members = [] }) {
       out.push({ key: `n${r.id}`, at: r.created_date, icon: <BellPlus className="w-4 h-4 text-primary" />,
         text: <><b>{who(u.display_name || u.full_name, u.id)}</b> added a reminder: {r.medication_name}{how}{r.family_member_name ? <> for <b>{first(r.family_member_name)}</b></> : null}{r.visibility === 'private' ? ' (just you)' : ''}</>, go: () => navigate(`/tasks?highlight=${r.id}`) });
     }
-    for (const m of (msgs.data || []).filter((x) => !x.parent_id && serverMs(x.created_date) >= serverMs(since))) {
-      out.push({ key: `m${m.id}`, at: m.created_date, icon: <MessageCircle className="w-4 h-4 text-blue-600" />,
+    for (const m of (msgs.data || []).filter((x) => !x.parent_id && !isScheduled(x) && serverMs(postedAt(x)) >= serverMs(since))) {
+      out.push({ key: `m${m.id}`, at: postedAt(m), icon: <MessageCircle className="w-4 h-4 text-blue-600" />,
         text: <><b>{who(m.author_name, m.author_user_id)}</b> wrote: <span className="text-muted-foreground">{m.content}</span></>, go: () => navigate('/messages') });
     }
     return out.filter((x) => x.at).sort((a, b) => serverMs(b.at) - serverMs(a.at));

@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
-import { familyUsers, sendPush, wantsPush, whenText } from '../../shared/push.ts';
+import { familyUsers, pushFamily, sendPush, wantsPush, whenText } from '../../shared/push.ts';
 import { canSee } from '../../shared/sharing.ts';
 import { expandAppointments } from '../../shared/recurrence.ts';
 import { sameEvent } from '../../shared/sameEvent.ts';
@@ -22,6 +22,12 @@ import { claimDayFor, claimOn } from '../../shared/claims.ts';
 //      something to flip), a "not done yet?" push and 'missed' status 90
 //      minutes later if nobody marked it, and a "runs out" push once a day
 //      from refill_reminder_days before the runs-out date (refill_date).
+//   7. Milk stash: once a day at 8 AM, the stored milk whose use-by is
+//      today, to whoever has been adding to that baby's stash.
+//   6. Announcements set for later (Anna, Nov 10 2026): at their time, the
+//      same push an announcement gets when it's posted, to everyone but the
+//      person who wrote it. The app only offers quarter-hour times, so they
+//      land on time with this 15-minute run.
 //   5. Wellness: a daily 'how are you holding up?' push for anyone who
 //      set an hour, skipped once they've checked in that day. (Off while the
 //      Wellness page is hidden.)
@@ -73,7 +79,7 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const db = base44.asServiceRole.entities;
   const now = Date.now();
-  const out: Record<string, number> = { families: 0, appointment_reminders: 0, task_pushes: 0, digests: 0, reminder_pushes: 0, missed_pushes: 0, runs_out_pushes: 0 };
+  const out: Record<string, number> = { families: 0, appointment_reminders: 0, task_pushes: 0, digests: 0, reminder_pushes: 0, missed_pushes: 0, runs_out_pushes: 0, announcements: 0 };
 const MISSED_AFTER_MS = 90 * 60_000;
   try {
     // Record keeping is kept 90 days (AppActivity), cleared once a day.
@@ -96,6 +102,31 @@ const MISSED_AFTER_MS = 90 * 60_000;
       const local = partsIn(tz, new Date(now));
       const today = local.day;
       const tomorrow = addDays(today, 1);
+
+      // 6. Announcements set for later whose time has come (up to a minute
+      //    early, since the run can start a little before the quarter hour).
+      //    More than 12 hours late (the run was down) they show on Home but
+      //    don't buzz anyone's phone.
+      try {
+        const due = (await db.FamilyMessage.filter({ family_id: fam.id, category: 'Announcement', announce_at: { $lte: new Date(now + 60_000).toISOString() } }, '-announce_at', 50)) || [];
+        for (const m of due) {
+          if (m.parent_id || m.announce_sent) continue;
+          const at = new Date(String(m.announce_at)).getTime();
+          if (!at) continue;
+          await db.FamilyMessage.update(m.id, { announce_sent: true });
+          if (now - at > 12 * 3_600_000) continue;
+          const author = String(m.author_name || '').trim().split(' ')[0] || 'someone';
+          await pushFamily(db, fam.id, {
+            title: `Announcement from ${author}`,
+            message: String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 300),
+            data: { type: 'announcement', messageId: m.id, screen: '/' },
+            exceptUserId: m.author_user_id,
+            need: 'announcements',
+            priority: 'high',
+          });
+          out.announcements++;
+        }
+      } catch (e) { console.warn('[cronReminders] announcements:', (e as Error).message); }
 
       // 1. Appointment reminders (today's and tomorrow's rows; a reminder can
       //    land the evening before an early event).
@@ -262,6 +293,44 @@ const MISSED_AFTER_MS = 90 * 60_000;
             }
           }
         }
+      }
+
+      // 7. Milk stash (Anna, Nov 10 2026): once a day at 8 AM, the milk that
+      //    has to be used today (its use-by falls today: 4 days from pumping
+      //    in the fridge, 24 hours once thawed, 12 months in the freezer),
+      //    to whoever has been adding milk to that baby's stash.
+      if (local.hour === DIGEST_HOUR + 1 && local.minute < 15) {
+        try {
+          const bags = ((await db.MilkStash.filter({ family_id: fam.id, status: 'in' })) || []) as any[];
+          const DAY = 86_400_000;
+          const useByOf = (b: any) => {
+            const pumped = new Date(String(b.pumped_at || '')).getTime();
+            if (b.place === 'thawed') return (new Date(String(b.thawed_at || b.pumped_at || '')).getTime() || 0) + DAY;
+            if (b.place === 'freezer') { const d = new Date(pumped); d.setUTCMonth(d.getUTCMonth() + 12); return d.getTime(); }
+            return pumped + 4 * DAY;
+          };
+          const today_ = bags.filter((b) => b.reminded_on !== today && useByOf(b) > now && partsIn(tz, new Date(useByOf(b))).day === today);
+          const byBaby = new Map<string, any[]>();
+          for (const b of today_) { const k = String(b.family_member_id || ''); if (!byBaby.has(k)) byBaby.set(k, []); byBaby.get(k)!.push(b); }
+          for (const [babyId, list] of byBaby) {
+            const oz = Math.round(list.reduce((a, b) => a + (Number(b.amount) || 0), 0) * 10) / 10;
+            const soonest = Math.min(...list.map(useByOf));
+            const at = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(soonest));
+            const name = String(list[0].family_member_name || '').trim().split(' ')[0];
+            const adders = new Set(bags.filter((b) => b.family_member_id === babyId).map((b) => b.added_by_user_id).filter(Boolean));
+            for (const u of users) {
+              if (!adders.has(u.id) || !wantsPush(u, 'reminders')) continue;
+              await sendPush({
+                email: u.email,
+                title: `Milk to use today${name ? ` for ${name}` : ''}`,
+                message: `${oz} oz (${list.length} bag${list.length === 1 ? '' : 's'}) · the first one by ${at}`,
+                data: { type: 'milk_stash', screen: `/care-log?for=${babyId}` },
+              });
+              out.milk_pushes = (out.milk_pushes || 0) + 1;
+            }
+            for (const b of list) await db.MilkStash.update(b.id, { reminded_on: today });
+          }
+        } catch (e) { console.warn('[cronReminders] milk stash:', (e as Error).message); }
       }
 
       // 5. Caregiver wellness: a once-a-day "how are you holding up?" at the

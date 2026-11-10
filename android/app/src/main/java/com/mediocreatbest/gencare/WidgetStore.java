@@ -53,6 +53,17 @@ final class WidgetStore {
     }
 
     static String key(Context c) { return prefs(c).getString(K_KEY, null); }
+    static String appId(Context c) { return prefs(c).getString(K_APP, null); }
+    static String serverUrl(Context c) { return prefs(c).getString(K_SERVER, null); }
+
+    /** The server no longer knows this key: drop it (the app gets a new one when it opens). */
+    static void dropKey(Context c) {
+        prefs(c).edit().remove(K_KEY).remove(K_FEED).remove(K_FETCHED).putString(K_STATE, "no_key").apply();
+    }
+
+    static void setState(Context c, String state) {
+        prefs(c).edit().putString(K_STATE, state == null ? "" : state).apply();
+    }
     static String userId(Context c) { return prefs(c).getString(K_USER, ""); }
     static long fetchedAt(Context c) { return prefs(c).getLong(K_FETCHED, 0L); }
     static String state(Context c) { return prefs(c).getString(K_STATE, ""); }

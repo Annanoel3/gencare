@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Care Log widget (CareRender): who it's for, their latest, a note
+     about the last tap, and their buttons (2 or 3 rows of 3, by size). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:paddingStart="11dp"
+    android:paddingTop="11dp"
+    android:paddingEnd="11dp"
+    android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="3dp"
+        android:paddingEnd="3dp">
+
+        <LinearLayout
+            android:id="@+id/widget_header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:background="@drawable/widget_logo_bg">
+                <ImageView
+                    android:layout_width="13dp"
+                    android:layout_height="13dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_stat_gencare" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:maxLines="1"
+                android:text="@string/widget_care_label"
+                android:textColor="@color/widget_fg"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/care_person"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:textColor="@color/widget_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/care_status1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingStart="3dp"
+        android:paddingEnd="3dp"
+        android:textColor="@color/widget_muted"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/care_status2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingStart="3dp"
+        android:paddingEnd="3dp"
+        android:textColor="@color/widget_muted"
+        android:textSize="12sp" />
+
+    <LinearLayout
+        android:id="@+id/care_note"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="3dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="3dp"
+        android:background="@drawable/widget_today_cell"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="9dp"
+        android:paddingTop="5dp"
+        android:paddingEnd="9dp"
+        android:paddingBottom="5dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/care_note_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/widget_fg"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/care_undo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:text="@string/widget_care_undo"
+            android:textColor="@color/widget_primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="4dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/care_grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+        <LinearLayout
+            android:id="@+id/care_row0"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <LinearLayout
+                android:id="@+id/care_b0"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l0"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/care_b1"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/care_b2"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/care_row1"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <LinearLayout
+                android:id="@+id/care_b3"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/care_b4"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l4"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/care_b5"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l5"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/care_row2"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+            <LinearLayout
+                android:id="@+id/care_b6"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l6"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/care_b7"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i7"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l7"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/care_b8"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_margin="3dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_button"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp">
+                <TextView
+                    android:id="@+id/care_i8"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp" />
+                <TextView
+                    android:id="@+id/care_l8"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="@color/widget_fg"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/care_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textColor="@color/widget_muted"
+            android:textSize="13sp"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>
