@@ -9,6 +9,10 @@
       "description": "Important info: anything the family should know about this person",
       "type": "string"
     },
+    "cared_for": {
+      "description": "Gets care from the family (asked when the profile is added). Unset: GenCare works it out from who adds their events. Pets always do.",
+      "type": "boolean"
+    },
     "color": {
       "description": "Profile color code",
       "type": "string"
