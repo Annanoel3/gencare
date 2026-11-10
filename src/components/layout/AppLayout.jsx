@@ -27,9 +27,10 @@ function buildNavStructure(members, canRecord, unread = 0) {
   return [
     { type: 'link', path: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { type: 'group', label: 'Family', icon: Users, children: [
-      { path: '/family', icon: Users, label: 'Family Members' },
       { path: '/messages', icon: MessageCircle, label: 'Feed', badge: unread },
       { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
+      // Family last (Anna, Nov 10 2026), here and in the bottom bar.
+      { path: '/family', icon: Users, label: 'Family Members' },
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [
       { path: '/tasks', icon: ClipboardList, label: 'To-do' },
@@ -45,10 +46,11 @@ function buildNavStructure(members, canRecord, unread = 0) {
 
 const mobileBottomNav = [
   { path: '/', icon: LayoutDashboard, label: 'Home' },
-  { path: '/family', icon: Users, label: 'Family' },
   { path: '/tasks', icon: ClipboardList, label: 'To-do' },
   { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { path: '/messages', icon: MessageCircle, label: 'Feed', unread: true },
+  // Family at the end (Anna, Nov 10 2026).
+  { path: '/family', icon: Users, label: 'Family' },
 ];
 
 function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
