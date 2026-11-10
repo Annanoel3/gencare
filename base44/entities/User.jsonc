@@ -1,6 +1,13 @@
 {
   "name": "User",
   "properties": {
+    "announcements_done": {
+      "description": "Announcements this person tapped Got it on (hidden from their Home)",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "app_build": {
       "description": "Build number of the phone app last seen on this account (Android versionCode or iPhone build); 0/unset = website",
       "type": "number"
@@ -103,7 +110,7 @@
       "type": "string"
     },
     "messages_seen_at": {
-      "description": "When this person last opened Messages (unread badge)",
+      "description": "When this person last opened the Feed (unread badge)",
       "format": "date-time",
       "type": "string"
     },
