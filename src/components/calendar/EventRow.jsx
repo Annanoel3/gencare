@@ -1,4 +1,5 @@
 import React from 'react';
+import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import AddressLink from '@/components/shared/AddressLink';
 import { Lock, Smartphone, Mic, Repeat, Users } from 'lucide-react';
@@ -8,6 +9,7 @@ import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ClaimButton from '@/components/shared/ClaimButton';
 import { checkOn, firstName } from '@/lib/claims';
 import { shownTitle } from '@/lib/eventTitle';
+import { eventTiming, useNow } from '@/lib/eventTiming';
 
 // Event categories. 'Doctor' and 'Therapy' were categories before Oct 2026;
 // any row still carrying one reads as a plain Appointment.
@@ -40,13 +42,19 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
   const poster = String(appt.created_by_name || '').split(' ')[0];
   // Checked off on To-do: struck through here too, with who did it.
   const check = checkOn(appt, appt.date);
+  // Over (or going on now): faded once it's done or past, with a word by the
+  // time today (an earlier day is plainly over already).
+  const now = useNow();
+  const timing = eventTiming(appt, now);
+  const today = String(appt.date || '') === format(now, 'yyyy-MM-dd');
+  const over = !!check || timing === 'past';
   return (
     <div
       role={onClick ? 'button' : undefined}
       onClick={onClick ? () => onClick(appt) : undefined}
       data-focus={focus ? 'true' : undefined}
       // The event a notification was about glows for a moment (CalendarPage).
-      className={`flex items-start gap-3 p-3 rounded-xl bg-muted/50 transition-shadow duration-500 ${focus ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : ''} ${onClick ? 'cursor-pointer hover:bg-muted active:bg-muted' : ''}`}
+      className={`flex items-start gap-3 p-3 rounded-xl bg-muted/50 transition-shadow duration-500 ${over && !focus ? 'opacity-60' : ''} ${focus ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : ''} ${onClick ? 'cursor-pointer hover:bg-muted active:bg-muted' : ''}`}
     >
       <div className={`w-2 self-stretch min-h-[40px] rounded-full ${bar || 'bg-transparent'}`} />
       <div className="flex-1 min-w-0">
@@ -67,6 +75,8 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
               {fmtTime(appt.time)}{appt.end_time ? ` – ${fmtTime(appt.end_time)}` : ''}
             </span>
           ) : null}
+          {today && !check && timing === 'past' && <span className="text-xs text-muted-foreground">· Past</span>}
+          {timing === 'now' && !check && <span className="text-xs font-semibold text-primary">· Now</span>}
           {appt.family_member_name ? (
             <span className="inline-flex items-center gap-1 text-xs">
               <span className={`w-2 h-2 rounded-full ${memberDot}`} />
@@ -102,7 +112,7 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
         )}
         {check
           ? <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">Done · checked off by {check.user_id === me?.id ? 'you' : firstName(check.name) || 'someone'}</p>
-          : <ClaimButton kind="event" item={appt} date={appt.date} className="mt-2" />}
+          : <ClaimButton kind="event" item={appt} date={appt.date} className="mt-2" over={timing === 'past'} />}
       </div>
     </div>
   );

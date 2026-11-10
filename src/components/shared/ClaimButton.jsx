@@ -13,7 +13,9 @@ import { canClaim, claimDayFor, claimOn, firstName, setClaim } from '@/lib/claim
  * them, and only they can let it go. `date` is the day it happens (for
  * something that repeats, taking it is for that day only).
  */
-export default function ClaimButton({ kind, item, date, className = '' }) {
+// over: the event has already happened today (lib/eventTiming), so there's
+// nothing left to take, same as a day that's gone by.
+export default function ClaimButton({ kind, item, date, className = '', over = false }) {
   const qc = useQueryClient();
   const { me, members: accounts } = useFamily();
   const [busy, setBusy] = useState(false);
@@ -26,7 +28,7 @@ export default function ClaimButton({ kind, item, date, className = '' }) {
   const claim = local === undefined ? saved : local;
   const mine = claim && claim.user_id === me.id;
   // Nothing to take once it's over; who had it still shows.
-  const past = kind === 'event' && !!date && date < todayStr() && !(item.end_date && item.end_date >= todayStr());
+  const past = over || (kind === 'event' && !!date && date < todayStr() && !(item.end_date && item.end_date >= todayStr()));
   if (!claim && past) return null;
 
   const run = async (take, e) => {

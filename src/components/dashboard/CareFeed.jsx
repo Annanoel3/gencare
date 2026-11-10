@@ -7,9 +7,14 @@ import { useFamily } from '@/lib/family';
 import { expandAppointments } from '@/lib/occurrences';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import { categoryOf } from '@/components/calendar/EventRow';
+import { Check } from 'lucide-react';
+import { checkOn } from '@/lib/claims';
+import { shownTitle } from '@/lib/eventTitle';
+import { eventTiming, useNow } from '@/lib/eventTiming';
 
 export default function CareFeed({ members = [], memberId, scope = 'today', limit = 15, title }) {
   const { members: accounts } = useFamily();
+  const now = useNow();
   const apptQ = useQuery({ queryKey: aroundKey(), queryFn: listEventsAround });
 
   const taskQ = useQuery({ queryKey: ['careTasks', 'feed'], queryFn: () => base44.entities.CareTask.filter({ status: { $in: ['pending', 'in_progress'] } }, '-due_date', 100) });
@@ -33,9 +38,15 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       memberName: a.family_member_name || (a.visibility === 'private' ? 'You' : String(a.created_by_name || '').split(' ')[0]),
       label: cat && cat !== 'Other' ? cat : 'Event',
       tint: a.visibility === 'private' ? 'bg-muted/40' : getEventLightColorClass(a, members, accounts),
-      detail: [a.title, a.all_day ? 'All day' : ''].filter(Boolean).join(' · '),
+      // The name is on the line above, so not in the title too; the
+      // picture for the kind of visit in front (lib/eventTitle).
+      detail: [shownTitle(a, members, !!a.family_member_name), a.all_day ? 'All day' : ''].filter(Boolean).join(' · '),
       allDay: !!a.all_day || !a.time,
       when,
+      // Already happened, happening now, or checked off on To-do (Anna, Nov 9
+      // 2026: "Should we somehow show when items have already been done/past").
+      timing: eventTiming(a, now),
+      done: !!checkOn(a, a.date),
     });
   });
 
@@ -55,7 +66,15 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
 
   if (memberId) items = items.filter(i => i.memberId === memberId);
   if (scope === 'today') items = items.filter(i => i.when && isToday(i.when));
-  items.sort((a, b) => (b.when ? b.when.getTime() : 0) - (a.when ? a.when.getTime() : 0));
+  if (scope === 'today') {
+    // The day in order, what's still coming first; what's over or checked
+    // off goes to the bottom, faded.
+    const over = (i) => i.done || i.timing === 'past';
+    const at = (i) => (i.allDay ? 0 : i.when ? i.when.getTime() : 0);
+    items.sort((a, b) => (over(a) - over(b)) || (at(a) - at(b)));
+  } else {
+    items.sort((a, b) => (b.when ? b.when.getTime() : 0) - (a.when ? a.when.getTime() : 0));
+  }
   if (scope === 'recent') {
     const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
     items = items.filter(i => !i.when || i.when <= endOfToday).slice(0, limit);
@@ -80,8 +99,10 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
     <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6">
       {title && <h3 className="font-heading text-lg font-semibold mb-4">{title}</h3>}
       <div className="space-y-2">
-        {items.map(i => (
-          <div key={i.id} className={`flex items-center gap-3 p-2.5 rounded-xl ${i.tint || getMemberLightColorByMemberId(i.memberId, members)}`}>
+        {items.map(i => {
+          const over = scope === 'today' && (i.done || i.timing === 'past');
+          return (
+          <div key={i.id} className={`flex items-center gap-3 p-2.5 rounded-xl ${i.tint || getMemberLightColorByMemberId(i.memberId, members)} ${over ? 'opacity-60' : ''}`}>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
                 {i.memberName || 'Family'} <span className="text-muted-foreground font-normal">· {i.label}</span>
@@ -89,12 +110,18 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
               {i.detail && <p className="text-xs text-muted-foreground truncate">{i.detail}</p>}
             </div>
             {i.when && (
-              <span className="text-xs text-muted-foreground flex-shrink-0">
-                {scope === 'today' ? (i.allDay ? '' : format(i.when, 'h:mm a')) : format(i.when, 'MMM d')}
+              <span className="flex flex-col items-end flex-shrink-0 text-xs text-muted-foreground">
+                <span className={over ? 'line-through' : ''}>{scope === 'today' ? (i.allDay ? '' : format(i.when, 'h:mm a')) : format(i.when, 'MMM d')}</span>
+                {scope === 'today' && (i.done
+                  ? <span className="inline-flex items-center gap-0.5 font-medium text-emerald-700 dark:text-emerald-300"><Check className="w-3 h-3" /> Done</span>
+                  : i.timing === 'past' ? <span>Past</span>
+                  : i.timing === 'now' ? <span className="font-semibold text-primary">Now</span>
+                  : null)}
               </span>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getEventHighlightClass, PRIVATE_COLOR } from '@/utils/memberColors';
 import { shownTitle } from '@/lib/eventTitle';
+import { eventTiming, useNow } from '@/lib/eventTiming';
+import { checkOn } from '@/lib/claims';
 import { useFamily } from '@/lib/family';
 
 // Month grid with WORDS in the cells (the event titles), not dots — the same
@@ -11,6 +13,8 @@ import { useFamily } from '@/lib/family';
 // words and is easier to read. Two titles a day, then "+N".
 export default function MonthView({ currentMonth, setCurrentMonth, selectedDate, setSelectedDate, appointments, members }) {
   const { members: accounts } = useFamily();
+  // Over or checked off: the chip fades (lib/eventTiming).
+  const now = useNow();
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -60,7 +64,7 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
                   return (
                     <span
                       key={a.id}
-                      className={`block truncate rounded px-1 text-[10px] md:text-[11px] leading-4 ${color ? `text-white ${color}` : 'text-foreground/80'}`}
+                      className={`block truncate rounded px-1 text-[10px] md:text-[11px] leading-4 ${color ? `text-white ${color}` : 'text-foreground/80'} ${checkOn(a, a.date) || eventTiming(a, now) === 'past' ? 'opacity-50' : ''}`}
                       title={a.title}
                     >
                       {label}
