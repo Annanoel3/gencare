@@ -19,6 +19,7 @@ import FamilyMemberDetail from '@/pages/FamilyMemberDetail';
 import Reminders from '@/pages/Reminders';
 import CalendarPage from '@/pages/CalendarPage';
 import Tasks from '@/pages/Tasks';
+import CareLogPage from './pages/CareLogPage';
 import Messages from '@/pages/Messages';
 import Resources from '@/pages/Resources';
 import JoinPage from '@/pages/JoinPage';
@@ -82,10 +83,14 @@ const AuthenticatedApp = () => {
           <Route path="/checklists" element={<Navigate to="/tasks" replace />} />
           {/* Journal hidden Oct 29 2026 (page code kept in pages/Journal.jsx). */}
           <Route path="/journal" element={<Navigate to="/" replace />} />
-          {/* Care Log (and the six age pages before it) and Wellness hidden Oct 30
-              2026; page code kept in pages/CareLogPage.jsx and pages/Wellness.jsx.
-              Old links and pushes land on Home. */}
-          {['/care-log', '/wellness', '/baby-care', '/toddler-care', '/school-age-care', '/preteen-care', '/teen-management', '/senior-care'].map((p) => (
+          {/* Care Log back Nov 10 2026 (Anna: trimmed, for the people the family
+              takes care of; the six old age pages land on it). Wellness hidden
+              Oct 30 2026; page code kept in pages/Wellness.jsx. */}
+          <Route path="/care-log" element={<CareLogPage />} />
+          {['/baby-care', '/toddler-care', '/school-age-care', '/preteen-care', '/teen-management', '/senior-care'].map((p) => (
+            <Route key={p} path={p} element={<Navigate to="/care-log" replace />} />
+          ))}
+          {['/wellness'].map((p) => (
             <Route key={p} path={p} element={<Navigate to="/" replace />} />
           ))}
           <Route path="/messages" element={<Messages />} />

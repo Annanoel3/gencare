@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CalendarDays,
   ClipboardList, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, LifeBuoy,
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, LifeBuoy, HeartHandshake,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -34,6 +34,8 @@ function buildNavStructure(members, canRecord, unread = 0) {
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [
       { path: '/tasks', icon: ClipboardList, label: 'To-do' },
+      // Back Nov 10 2026, for the people the family takes care of.
+      { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
       { path: '/notes', icon: Mic, label: canRecord ? 'Record Notes' : 'Notes' },
     ]},
     // Wellness and Care Log hidden Oct 30 2026 (Anna: not worth using yet);

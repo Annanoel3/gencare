@@ -129,6 +129,10 @@ export default function FamilyMemberDetail() {
         <div className="flex-1">
           <h1 className="font-heading text-2xl font-bold">{member.name}</h1>
           <p className="text-muted-foreground">{[relationshipLabel(member, me?.id), member.birthdate && isValid(parseISO(member.birthdate)) ? `Born ${format(parseISO(member.birthdate), 'MMM d, yyyy')}` : ''].filter(Boolean).join(' · ')}</p>
+          {/* Their Care Log, for the people the family takes care of and pets (Nov 10 2026). */}
+          {(pet || caredForShown(member.cared_for, member.birthdate)) && (
+            <Link to={`/care-log?for=${member.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 dark:text-rose-400 mt-1 mr-3 hover:underline">Care Log</Link>
+          )}
           {pet ? null : member.linked_user_id ? (
             <p className="text-xs text-primary font-medium mt-1">{member.linked_user_id === me?.id ? 'This is you' : 'Uses GenCare'}</p>
           ) : (

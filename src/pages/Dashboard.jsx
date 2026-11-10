@@ -13,6 +13,7 @@ import CareFeed from '@/components/dashboard/CareFeed';
 import TodoCard from '@/components/dashboard/TodoCard';
 import ClaimProfilePrompt from '@/components/family/ClaimProfilePrompt';
 import { AnnouncementList, AnnounceDialog } from '@/components/dashboard/Announcements';
+import CareLogToday from '@/components/dashboard/CareLogToday';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -74,6 +75,7 @@ export default function Dashboard() {
         {/* Announcements first (Anna, Nov 10 2026). */}
         <AnnouncementList />
         <CareFeed members={members} scope="today" />
+        <CareLogToday members={members} />
         <AnnounceDialog open={announcing} onClose={() => setAnnouncing(false)} />
       </div>
 

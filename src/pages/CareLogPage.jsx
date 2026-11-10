@@ -11,11 +11,16 @@ import { formatAge } from '@/utils/age';
 import { getMemberColorClass, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import LogDialog from '@/components/carelog/LogDialog';
 import LogRow from '@/components/carelog/LogRow';
-import VaultSection from '@/components/carelog/VaultSection';
+import BabyTimers from '@/components/carelog/BabyTimers';
+import { youngerThan18 } from '@/components/family/CaredForSwitch';
 import { track } from '@/lib/activity';
-import { bandOf, cleanLog, createLog, updateLog, deleteLog, upcoming, summarize, isLocked, QUICK, matchesQuick, quickRow } from '@/lib/careLog';
+import { bandOf, ageMonths, cleanLog, createLog, updateLog, deleteLog, upcoming, summarize, isLocked, QUICK, matchesQuick, quickRow } from '@/lib/careLog';
 
 const isPet = (m) => /^pet$/i.test(String(m?.relationship || ''));
+// Who has a Care Log (Anna, Nov 10 2026): the people the family takes care of
+// (their profile says so, or they're under 18 and it doesn't say otherwise)
+// and the pets. Not everyone in the family.
+const caredFor = (m) => isPet(m) || m?.cared_for === true || (m?.cared_for !== false && youngerThan18(m?.birthdate));
 const firstName = (s) => String(s || '').split(' ')[0];
 
 /**
@@ -37,10 +42,9 @@ export default function CareLogPage() {
   const { data: members = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list('-created_date') });
   // Same order as everywhere else (you, the other people, then pets); the
   // page opens on the first person who isn't you, since that's who you log for.
-  const active = useMemo(() => orderMembers(members.filter((m) => m.is_active !== false), me?.id), [members, me?.id]);
-  const people = useMemo(() => active.filter((m) => !isPet(m)), [active]);
+  const active = useMemo(() => orderMembers(members.filter((m) => m.is_active !== false && caredFor(m)), me?.id), [members, me?.id]);
   const [personId, setPersonId] = useState(params.get('for') || '');
-  const person = active.find((m) => m.id === personId) || active.find((m) => !(m.linked_user_id && m.linked_user_id === me?.id)) || active[0] || null;
+  const person = active.find((m) => m.id === personId) || active[0] || null;
   useEffect(() => { if (person && person.id !== personId) setPersonId(person.id); }, [person?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!personId) return;
@@ -53,7 +57,9 @@ export default function CareLogPage() {
   const earlier = useMemo(() => logs.filter((l) => !(l.timestamp && isToday(parseISO(l.timestamp)))), [logs]);
 
   const band = bandOf(person);
-  const quick = QUICK[band] || QUICK.general;
+  // Some buttons wait for an age (solid food from about 4 months).
+  const months = ageMonths(person?.birthdate);
+  const quick = (QUICK[band] || QUICK.general).filter((q) => !q.minMonths || (months !== null && months >= q.minMonths));
   const doneToday = (q) => todays.find((e) => matchesQuick(q, e));
   const lastTimes = useMemo(() => quick.filter((q) => q.last).map((q) => [q, logs.find((e) => matchesQuick(q, e))]).filter(([, e]) => e), [quick, logs]);
   const soon = useMemo(() => upcoming(logs).slice(0, 6), [logs]);
@@ -119,9 +125,9 @@ export default function CareLogPage() {
 
       {active.length === 0 ? (
         <div className="bg-card rounded-2xl border border-border/50 p-10 text-center">
-          <h3 className="font-heading text-lg font-semibold mb-2">No family members yet</h3>
-          <p className="text-sm text-muted-foreground mb-6">Add the people you care for, with a birthdate, and this page sets itself up for each of them.</p>
-          <Button asChild className="rounded-xl gap-2"><Link to="/family"><Plus className="w-4 h-4" /> Add family member</Link></Button>
+          <h3 className="font-heading text-lg font-semibold mb-2">Who does the family take care of?</h3>
+          <p className="text-sm text-muted-foreground mb-6">Open their profile on the Family page and turn on "The family helps take care of them." Babies, kids and pets show up here on their own.</p>
+          <Button asChild className="rounded-xl gap-2"><Link to="/family"><Plus className="w-4 h-4" /> Go to Family</Link></Button>
         </div>
       ) : (
         <>
@@ -133,6 +139,8 @@ export default function CareLogPage() {
               </button>
             ))}
           </div>
+
+          <p className="text-xs text-muted-foreground -mt-2 mb-4">Someone missing? On their profile, turn on "The family helps take care of them."</p>
 
           {person && (
             <div className="space-y-5">
@@ -146,6 +154,8 @@ export default function CareLogPage() {
                 </div>
                 <Link to={`/family/${person.id}`} className="text-sm text-primary">Profile</Link>
               </div>
+
+              {band === 'baby' && <BabyTimers person={person} logs={logs} me={me} onChanged={refresh} />}
 
               <section>
                 <h2 className="text-sm font-semibold text-muted-foreground mb-2">Tap when it happens</h2>
@@ -184,7 +194,7 @@ export default function CareLogPage() {
                       <li key={q.key}>
                         <button type="button" onClick={() => openEntry(e)} className="w-full flex items-center gap-3 text-left">
                           <span className="text-lg w-6 text-center">{q.icon}</span>
-                          <span className="text-sm font-medium flex-1">{q.label}</span>
+                          <span className="text-sm font-medium flex-1 min-w-0">{q.label}{lastDetail(e) && <span className="block text-xs text-muted-foreground font-normal truncate">{lastDetail(e)}</span>}</span>
                           <span className="text-sm text-muted-foreground text-right">{sinceText(e.timestamp)}{e.logged_by_name ? ` · ${firstName(e.logged_by_name)}` : ''}</span>
                         </button>
                       </li>
@@ -210,8 +220,6 @@ export default function CareLogPage() {
                   </div>
                 </section>
               )}
-
-              {!isPet(person) && <VaultSection person={person} people={people} />}
 
               {earlier.length > 0 && (
                 <section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
@@ -245,6 +253,17 @@ export default function CareLogPage() {
       )}
     </div>
   );
+}
+
+// What "Last time" adds under the button's name: which side the baby nursed
+// on (start on the other one), what medicine and how much (so nobody gives a
+// second dose).
+function lastDetail(e) {
+  if (e.entry_type === 'feeding' && e.sub_type === 'nursing' && e.side) return e.side === 'both' ? 'Both sides' : `${e.side[0].toUpperCase()}${e.side.slice(1)} side`;
+  if (e.entry_type === 'feeding' && e.amount) return `${e.amount} oz`;
+  if (e.entry_type === 'medicine') return [e.title, e.response].filter(Boolean).join(' · ');
+  if (e.entry_type === 'diaper' && e.color) return e.color.replace(/_/g, ' ');
+  return '';
 }
 
 function dayLabel(day) {

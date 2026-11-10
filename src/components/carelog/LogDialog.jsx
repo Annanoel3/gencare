@@ -105,7 +105,7 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
           {def.fields.filter((f) => !f.when || f.when(form)).map((f) => <Field key={f.key} f={f} value={form[f.key]} onChange={(v) => set(f.key, v)} uploading={uploading} fileRef={fileRef} pickFiles={pickFiles} />)}
 
           <div>
-            <Label>When</Label>
+            <Label>{def.whenLabel || 'When'}</Label>
             <Input type="datetime-local" value={form.timestamp || ''} onChange={(e) => set('timestamp', e.target.value)} className="mt-1" />
           </div>
 
