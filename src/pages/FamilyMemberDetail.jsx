@@ -17,6 +17,7 @@ import PhoneActions from '@/components/shared/PhoneActions';
 import MemberColorPicker from '@/components/family/MemberColorPicker';
 import { getMemberColorClass, isPet, takenColors } from '@/utils/memberColors';
 import { frequencyLabel, fmtClock } from '@/lib/reminders';
+import CaredForSwitch, { caredForShown } from '@/components/family/CaredForSwitch';
 import InviteModal from '@/components/family/InviteModal';
 import { useFamily, relationshipLabel, RELATIONSHIPS } from '@/lib/family';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -172,6 +173,12 @@ export default function FamilyMemberDetail() {
               </div>
             )}
             <div><Label>{pet ? 'Birthday' : 'Date of birth'}</Label><Input type="date" value={form.birthdate || ''} onChange={(e) => setForm({ ...form, birthdate: e.target.value })} className="mt-1" /></div>
+            {/* Saved only when changed here (CaredForSwitch). */}
+            {!pet && (
+              <div className="sm:col-span-3">
+                <CaredForSwitch name={form.name || member.name} checked={caredForShown(typeof form.cared_for === 'boolean' ? form.cared_for : member.cared_for, form.birthdate)} onChange={(v) => setForm({ ...form, cared_for: v })} />
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

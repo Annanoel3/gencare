@@ -5,6 +5,7 @@ import { withFamily, useFamily, relationshipLabel, orderMembers, RELATIONSHIPS }
 import { Link, useSearchParams } from 'react-router-dom';
 import { Users, Plus, School, QrCode, StickyNote, PawPrint } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
+import CaredForSwitch, { caredForShown } from '@/components/family/CaredForSwitch';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -42,8 +43,16 @@ export default function Family() {
   const peopleShown = shown.filter((m) => !isPet(m));
   const petsShown = shown.filter(isPet);
 
+  // Cared for: saved when they answered, or when the age answers it (under
+  // 18); otherwise left for GenCare to work out (CaredForSwitch).
+  const toSave = (f) => {
+    const { cared_for: answer, ...rest } = f;
+    if (isPet(f)) return rest;
+    const shown = caredForShown(answer, f.birthdate);
+    return typeof answer === 'boolean' || shown ? { ...rest, cared_for: shown } : rest;
+  };
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.FamilyMember.create(withFamily(data)),
+    mutationFn: (data) => base44.entities.FamilyMember.create(withFamily(toSave(data))),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
       setDialogOpen(false);
@@ -116,7 +125,7 @@ export default function Family() {
                   </Avatar>
                   <div>
                     <h3 className="font-semibold text-lg">{member.name}</h3>
-                    <p className="text-sm text-muted-foreground">{[relationshipLabel(member, me?.id), member.linked_user_id && member.linked_user_id !== me?.id ? 'On GenCare' : ''].filter(Boolean).join(' · ')}</p>
+                    <p className="text-sm text-muted-foreground">{[relationshipLabel(member, me?.id), member.linked_user_id && member.linked_user_id !== me?.id ? 'On GenCare' : '', !isPet(member) && member.cared_for === true ? 'Family helps care for them' : ''].filter(Boolean).join(' · ')}</p>
                   </div>
                 </div>
                 <div className="space-y-2 text-sm">
@@ -168,6 +177,9 @@ export default function Family() {
               <Label>{petMode ? 'Birthday' : 'Date of Birth'}</Label>
               <Input type="date" value={form.birthdate} onChange={e => setForm({...form, birthdate: e.target.value})} className="mt-1" />
             </div>
+            {!petMode && (
+              <CaredForSwitch name={form.name} checked={caredForShown(form.cared_for, form.birthdate)} onChange={(v) => setForm({ ...form, cared_for: v })} />
+            )}
             <div>
               <Label>Important info</Label>
               <Textarea value={form.care_notes} onChange={e => setForm({...form, care_notes: e.target.value})} placeholder={petMode ? 'Food, medicine, vet, anything the family should know' : 'Anything the family should know about them'} className="mt-1" />

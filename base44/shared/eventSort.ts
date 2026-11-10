@@ -181,7 +181,10 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
       added_by_id: addedBy,
       is_poster: !!posterId && m.linked_user_id === posterId,
       is_pet: /^pet$/i.test(String(m.relationship || "")),
-      cared_for: caredFor.has(m.id),
+      // The family's own answer when they gave one (Anna, Nov 10 2026: "offer
+      // an opportunity to indicate whether someone is being cared for");
+      // otherwise worked out from who adds their events.
+      cared_for: typeof m.cared_for === "boolean" ? m.cared_for : caredFor.has(m.id),
     };
   });
   return { members, newest, known };
