@@ -5,6 +5,13 @@
       "format": "date",
       "type": "string"
     },
+    "care_hidden": {
+      "description": "Care Log buttons the family hid for this person (e.g. Nursing for a formula-fed baby)",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "care_notes": {
       "description": "Important info: anything the family should know about this person",
       "type": "string"
