@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Megaphone } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { expandAppointments } from '@/lib/occurrences';
@@ -10,9 +12,20 @@ import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import CareFeed from '@/components/dashboard/CareFeed';
 import TodoCard from '@/components/dashboard/TodoCard';
 import ClaimProfilePrompt from '@/components/family/ClaimProfilePrompt';
+import { AnnouncementList, AnnounceDialog } from '@/components/dashboard/Announcements';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
+  // The + menu's "Announcement" lands here with ?announce=1.
+  const [params, setParams] = useSearchParams();
+  const [announcing, setAnnouncing] = useState(false);
+  useEffect(() => {
+    if (params.get('announce') !== '1') return;
+    setAnnouncing(true);
+    const next = new URLSearchParams(params);
+    next.delete('announce');
+    setParams(next, { replace: true });
+  }, [params]);
 
   useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
@@ -51,8 +64,17 @@ export default function Dashboard() {
       <TodoCard tasks={tasks} members={members} />
 
       <div className="mb-6">
-        <h2 className="font-heading text-lg font-semibold mb-3">Today Across the Family</h2>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h2 className="font-heading text-lg font-semibold">Today Across the Family</h2>
+          <button type="button" onClick={() => setAnnouncing(true)}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-border bg-card text-sm font-medium hover:bg-muted">
+            <Megaphone className="w-4 h-4 text-purple-500" /> Announce
+          </button>
+        </div>
+        {/* Announcements first (Anna, Nov 10 2026). */}
+        <AnnouncementList />
         <CareFeed members={members} scope="today" />
+        <AnnounceDialog open={announcing} onClose={() => setAnnouncing(false)} />
       </div>
 
       {/* Family members live on the Family page (Anna: "there's already a whole page for that"). */}

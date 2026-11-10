@@ -28,7 +28,7 @@ function buildNavStructure(members, canRecord, unread = 0) {
     { type: 'link', path: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { type: 'group', label: 'Family', icon: Users, children: [
       { path: '/family', icon: Users, label: 'Family Members' },
-      { path: '/messages', icon: MessageCircle, label: 'Messages', badge: unread },
+      { path: '/messages', icon: MessageCircle, label: 'Feed', badge: unread },
       { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [
@@ -48,7 +48,7 @@ const mobileBottomNav = [
   { path: '/family', icon: Users, label: 'Family' },
   { path: '/tasks', icon: ClipboardList, label: 'To-do' },
   { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
-  { path: '/messages', icon: MessageCircle, label: 'Messages', unread: true },
+  { path: '/messages', icon: MessageCircle, label: 'Feed', unread: true },
 ];
 
 function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {

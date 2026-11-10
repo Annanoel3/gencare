@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
+import { serverDate } from '@/lib/serverTime';
 
-// The family feed: posts and replies, with an unread count for the sidebar.
+// The family feed ("Feed" in the app; Anna, Nov 10 2026): posts and replies,
+// with an unread count for the tab, and announcements.
 
 export const CATEGORIES = [
   { value: 'Update', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
@@ -22,7 +24,7 @@ export function listMessages() {
   return base44.entities.FamilyMessage.list('-created_date', 200);
 }
 
-export async function postMessage({ content, category, member, photos, parentId, taskId }, me) {
+export async function postMessage({ content, category, member, photos, parentId, taskId, announceDays }, me) {
   const row = withFamily({
     content: content.trim(),
     category: category || 'General',
@@ -34,6 +36,9 @@ export async function postMessage({ content, category, member, photos, parentId,
     parent_id: parentId || null,
     task_id: taskId || null,
   });
+  // An announcement (not a reply to one) goes to the top of everyone's Home
+  // for a few days; notifyFamily sends it to everyone right away.
+  if (category === 'Announcement' && !parentId) row.announce_until = announceUntil(announceDays);
   const created = await base44.entities.FamilyMessage.create(row);
   // The rest of the family hears about it (notifyFamily skips the author).
   if (created?.id) base44.functions.invoke('notifyFamily', { kind: 'message', message_id: created.id }).catch(() => {});
@@ -55,7 +60,37 @@ export async function togglePin(msg) {
   return base44.entities.FamilyMessage.update(msg.id, { is_pinned: !msg.is_pinned });
 }
 
-/** Posts newer than the last time this person opened Messages, by other people. */
+// ── Announcements (Anna, Nov 10 2026: "a person can post an announcement to
+// the family ... at the top of Today Across the Family. And it will send a
+// notification with the announcement to everyone instantly.") ──────────────
+// A feed post in the Announcement category. It also stays in the Feed, where
+// people can reply. On Home it shows until `announce_until`, or until that
+// person taps Got it (kept on their account, so it's gone on every phone);
+// whoever posted it can take it down for everyone.
+export const ANNOUNCE_DAYS = [1, 3, 7];
+export const announceUntil = (days = 3) => new Date(Date.now() + (ANNOUNCE_DAYS.includes(days) ? days : 3) * 86400000).toISOString();
+
+export function activeAnnouncements(messages, me, now = new Date()) {
+  const done = new Set(Array.isArray(me?.announcements_done) ? me.announcements_done : []);
+  return (messages || [])
+    .filter((m) => m.category === 'Announcement' && !m.parent_id && !done.has(m.id))
+    .filter((m) => { const until = serverDate(m.announce_until); return !!until && until > now; })
+    .sort((a, b) => String(b.created_date || '').localeCompare(String(a.created_date || '')));
+}
+
+/** Got it: off this person's Home (the last 50 are remembered). */
+export async function markAnnouncementDone(me, id) {
+  const list = [...new Set([...(Array.isArray(me?.announcements_done) ? me.announcements_done : []), id])].slice(-50);
+  await base44.auth.updateMe({ announcements_done: list });
+  return list;
+}
+
+/** Off everyone's Home; it stays in the Feed. */
+export function takeDownAnnouncement(id) {
+  return base44.entities.FamilyMessage.update(id, { announce_until: new Date().toISOString() });
+}
+
+/** Posts newer than the last time this person opened the Feed, by other people. */
 export function countUnread(messages, me) {
   if (!me) return 0;
   const since = me.messages_seen_at || '';

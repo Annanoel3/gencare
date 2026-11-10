@@ -47,7 +47,9 @@ export async function familyUsers(db: any, familyId: string): Promise<any[]> {
   return Array.isArray(rows) ? rows : [];
 }
 
-export function wantsPush(u: any, need: 'reminders' | 'family_events'): boolean {
+// 'announcements': everyone whose notifications are on, whatever their
+// other choices (an announcement is meant for the whole family).
+export function wantsPush(u: any, need: 'reminders' | 'family_events' | 'announcements'): boolean {
   if (!u?.email) return false;
   if (u.push_enabled === false) return false;
   if (need === 'reminders' && u.notify_reminders === false) return false;
@@ -55,7 +57,7 @@ export function wantsPush(u: any, need: 'reminders' | 'family_events'): boolean 
   return true;
 }
 
-export async function pushFamily(db: any, familyId: string, opts: { title: string; message: string; data?: PushData; exceptUserId?: string; onlyUserIds?: string[]; need: 'reminders' | 'family_events'; priority?: 'high' | 'normal' }) {
+export async function pushFamily(db: any, familyId: string, opts: { title: string; message: string; data?: PushData; exceptUserId?: string; onlyUserIds?: string[]; need: 'reminders' | 'family_events' | 'announcements'; priority?: 'high' | 'normal' }) {
   const users = await familyUsers(db, familyId);
   const sent: string[] = [];
   for (const u of users) {

@@ -150,9 +150,22 @@ Deno.serve(async (req) => {
     if (kind === 'message') {
       const msg = body.message_id ? (await db.FamilyMessage.filter({ id: String(body.message_id) }))?.[0] : null;
       if (!msg || msg.family_id !== familyId) return Response.json({ ok: false, error: 'Not your family' }, { status: 403 });
+      // An announcement: the whole thing, to everyone, right away (Anna, Nov
+      // 10 2026), opening Home where it sits at the top.
+      if (msg.category === 'Announcement' && !msg.parent_id) {
+        const sent = await pushFamily(db, familyId, {
+          title: `Announcement from ${who}`,
+          message: String(msg.content || '').replace(/\s+/g, ' ').trim().slice(0, 300),
+          data: { type: 'announcement', messageId: msg.id, screen: '/' },
+          exceptUserId: user.id,
+          need: 'announcements',
+          priority: 'high',
+        });
+        return Response.json({ ok: true, sent });
+      }
       const text = String(msg.content || '').slice(0, 140);
       const sent = await pushFamily(db, familyId, {
-        title: `${who} posted in Messages`,
+        title: `${who} posted in the Feed`,
         message: text,
         data: { type: 'message', messageId: msg.id, screen: '/messages' },
         exceptUserId: user.id,

@@ -140,6 +140,10 @@ export default function Messages() {
           <div className="flex-1" />
           <Button onClick={() => post.mutate()} disabled={!canPost} className="rounded-xl gap-2 h-9"><Send className="w-4 h-4" /> {replyTo ? 'Reply' : 'Post'}</Button>
         </div>
+        {!replyTo && category === 'Announcement' && (
+          // Same as Home's Announce (lib/messages): 3 days on Home, everyone notified.
+          <p className="text-xs text-muted-foreground mt-2">Everyone gets a notification right away, and it stays at the top of their Home for 3 days.</p>
+        )}
       </div>
 
       {pinned.length > 0 && (

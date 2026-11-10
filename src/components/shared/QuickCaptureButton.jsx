@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Calendar, BellRing, Camera } from 'lucide-react';
+import { Plus, X, Calendar, BellRing, Camera, Megaphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -9,6 +9,8 @@ const captureOptions = [
   { icon: Calendar, label: 'Event', to: '/calendar?new=1', color: 'bg-purple-500' },
   { icon: Camera, label: 'Events from a photo', to: '/calendar?photo=1', color: 'bg-sky-500' },
   { icon: BellRing, label: 'Reminder', to: '/tasks?reminder=new', color: 'bg-emerald-500' },
+  // To the whole family, on their Home and as a notification (Anna, Nov 10 2026).
+  { icon: Megaphone, label: 'Announcement', to: '/?announce=1', color: 'bg-purple-500' },
 ];
 
 export default function QuickCaptureButton() {
