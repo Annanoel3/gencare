@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNowStrict, parseISO, isValid, format, subDays } from 'date-fns';
-import { Activity, CheckCircle2, BellRing, BellPlus, CalendarPlus, MessageCircle, Smartphone, UserPlus, Hand, FileText } from 'lucide-react';
+import { Activity, CheckCircle2, BellRing, BellPlus, CalendarPlus, MessageCircle, Smartphone, UserPlus, Hand, FileText, ChevronRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { serverDate, serverMs } from '@/lib/serverTime';
 import { listReminders, REMINDERS_KEY, fmtClock, ONE_TIME } from '@/lib/reminders';
 import { base44 } from '@/api/base44Client';
@@ -22,6 +23,11 @@ import { claimsOf } from '@/lib/claims';
 // financial folder never does. It checks again each time Home opens and each
 // time the app comes back to the front, not on a timer (Anna, Oct 30 2026: it
 // wasn't updating; then "refresh on every open", every minute was a waste).
+// A tap pulls up the thing the line is about (Anna, Nov 10 2026: "It would be
+// nice if clicking this pulled up the item it is talking about"): an event
+// opens right here, "brought in N events" lists those events, a post opens the
+// Feed on it, a task, reminder or notes open on themselves, someone joining
+// opens their profile.
 
 const first = (s) => String(s || '').trim().split(' ')[0];
 const DAYS = 3;
@@ -36,6 +42,8 @@ export default function ActivityFeed({ members = [] }) {
   const navigate = useNavigate();
   const { me, members: users = [] } = useFamily();
   const [more, setMore] = useState(false);
+  // "Your phone calendar brought in 3 events": which ones.
+  const [imported, setImported] = useState(null);
   const { openEvent, editor } = useEventEditor(members);
   const since = subDays(new Date(), DAYS).toISOString();
   const live = { refetchOnMount: 'always', refetchOnWindowFocus: 'always' };
@@ -88,7 +96,7 @@ export default function ActivityFeed({ members = [] }) {
     for (const t of done.data || []) {
       if (t.parent_task_id) continue;
       out.push({ key: `t${t.id}`, at: t.completed_at, icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,
-        text: <><b>{who(t.completed_by_name, t.completed_by_user_id)}</b> checked off {t.title}</>, go: () => navigate('/tasks?tab=done') });
+        text: <><b>{who(t.completed_by_name, t.completed_by_user_id)}</b> checked off {t.title}</>, go: () => navigate(`/tasks?highlight=${t.id}`) });
     }
     for (const r of rems.data || []) {
       out.push({ key: `r${r.id}`, at: r.taken_at, icon: <BellRing className="w-4 h-4 text-primary" />,
@@ -109,15 +117,16 @@ export default function ActivityFeed({ members = [] }) {
     for (const a of imports.data || []) {
       if (a.cover_of || a.away_of) continue;
       const by = a.created_by_user_id || a.created_by_id;
-      const g = seen.get(by) || { n: 0, shared: 0, at: a.created_date, name: a.created_by_name };
+      const g = seen.get(by) || { n: 0, shared: 0, at: a.created_date, name: a.created_by_name, rows: [] };
       g.n++;
+      g.rows.push(a);
       if (a.visibility !== 'private') g.shared++;
       if (serverMs(a.created_date) > serverMs(g.at)) g.at = a.created_date;
       seen.set(by, g);
     }
     const totals = new Map((importTotals.data || []).map((p) => [p.user_id, p]));
     for (const by of new Set([...seen.keys(), ...totals.keys()])) {
-      const s = seen.get(by) || { n: 0, shared: 0, at: '', name: '' };
+      const s = seen.get(by) || { n: 0, shared: 0, at: '', name: '', rows: [] };
       const t = totals.get(by);
       const total = Math.max(t?.total || 0, s.n);
       if (!total) continue;
@@ -126,7 +135,8 @@ export default function ActivityFeed({ members = [] }) {
       const at = [s.at, t?.latest].filter(Boolean).sort((x, y) => serverMs(y) - serverMs(x))[0];
       const sharedNote = mine ? (s.shared < total ? ` · ${s.shared} shared with the family` : '') : (s.n < total ? ` · ${s.n} shared with you` : '');
       out.push({ key: `p${by}`, at, icon: <Smartphone className="w-4 h-4 text-violet-600" />,
-        text: <>{mine ? <b>Your</b> : <b>{first(name) || 'Someone'}'s</b>} phone calendar brought in {total} event{total === 1 ? '' : 's'}<span className="text-muted-foreground">{sharedNote}</span></>, go: () => navigate('/calendar') });
+        text: <>{mine ? <b>Your</b> : <b>{first(name) || 'Someone'}'s</b>} phone calendar brought in {total} event{total === 1 ? '' : 's'}<span className="text-muted-foreground">{sharedNote}</span></>,
+        go: () => setImported({ mine, name: first(name) || 'Someone', total, rows: [...s.rows].sort((x, y) => String(x.date || '').localeCompare(String(y.date || '')) || String(x.time || '').localeCompare(String(y.time || ''))) }) });
     }
     // "I'll take it": "Robert took on Pamela's PT · Tue, Nov 3".
     const dayText = (d) => { const x = d ? parseISO(d) : null; return x && isValid(x) ? ` · ${format(x, 'EEE, MMM d')}` : ''; };
@@ -134,14 +144,14 @@ export default function ActivityFeed({ members = [] }) {
       for (const c of claimsOf(a)) {
         if (serverMs(c.at) < serverMs(since)) continue;
         out.push({ key: `c${a.id}${c.day}`, at: c.at, icon: <Hand className="w-4 h-4 text-emerald-600" />,
-          text: <><b>{who(c.name, c.user_id)}</b> took on {a.title}{dayText(c.day || a.date)}</>, go: () => navigate(`/calendar?date=${c.day || a.date}&event=${a.id}`) });
+          text: <><b>{who(c.name, c.user_id)}</b> took on {a.title}{dayText(c.day || a.date)}</>, go: () => openEvent(a) });
       }
     }
     for (const a of checkedEvents.data || []) {
       for (const c of (Array.isArray(a.checks) ? a.checks : [])) {
         if (!c?.user_id || serverMs(c.at) < serverMs(since)) continue;
         out.push({ key: `x${a.id}${c.day}`, at: c.at, icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,
-          text: <><b>{who(c.name, c.user_id)}</b> checked off {a.title}{dayText(c.day || a.date)}</>, go: () => navigate(`/calendar?date=${c.day || a.date}&event=${a.id}`) });
+          text: <><b>{who(c.name, c.user_id)}</b> checked off {a.title}{dayText(c.day || a.date)}</>, go: () => openEvent(a) });
       }
     }
     for (const r of claimedReminders.data || []) {
@@ -161,7 +171,7 @@ export default function ActivityFeed({ members = [] }) {
     for (const u of users) {
       if (!u.created_date || u.id === me?.id || serverMs(u.created_date) < serverMs(since)) continue;
       out.push({ key: `u${u.id}`, at: u.created_date, icon: <UserPlus className="w-4 h-4 text-emerald-600" />,
-        text: <><b>{first(u.full_name)}</b> joined the family</>, go: () => navigate('/family') });
+        text: <><b>{first(u.full_name)}</b> joined the family</>, go: () => { const p = members.find((m) => m.linked_user_id === u.id); navigate(p ? `/family/${p.id}` : '/family'); } });
     }
     // A reminder someone added ("Anna added a reminder: Order Thanksgiving food").
     for (const r of meds.data || []) {
@@ -175,10 +185,10 @@ export default function ActivityFeed({ members = [] }) {
     }
     for (const m of (msgs.data || []).filter((x) => !x.parent_id && !isScheduled(x) && serverMs(postedAt(x)) >= serverMs(since))) {
       out.push({ key: `m${m.id}`, at: postedAt(m), icon: <MessageCircle className="w-4 h-4 text-blue-600" />,
-        text: <><b>{who(m.author_name, m.author_user_id)}</b> wrote: <span className="text-muted-foreground">{m.content}</span></>, go: () => navigate('/messages') });
+        text: <><b>{who(m.author_name, m.author_user_id)}</b> wrote: <span className="text-muted-foreground">{m.content}</span></>, go: () => navigate(`/messages?post=${m.id}`) });
     }
     return out.filter((x) => x.at).sort((a, b) => serverMs(b.at) - serverMs(a.at));
-  }, [done.data, rems.data, events.data, claimedEvents.data, claimedReminders.data, checkedEvents.data, sharedNotes.data, imports.data, importTotals.data, msgs.data, meds.data, users, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [done.data, rems.data, events.data, claimedEvents.data, claimedReminders.data, checkedEvents.data, sharedNotes.data, imports.data, importTotals.data, msgs.data, meds.data, users, members, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = [done, rems, events].some((q) => q.isLoading);
   const shown = more ? items.slice(0, 40) : items.slice(0, 8);
@@ -204,6 +214,34 @@ export default function ActivityFeed({ members = [] }) {
           </ul>
         )}
       {!more && items.length > 8 && <button type="button" onClick={() => setMore(true)} className="w-full text-sm text-primary font-medium pt-2">Show more</button>}
+      <Dialog open={!!imported} onOpenChange={(o) => { if (!o) setImported(null); }}>
+        <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{imported?.mine ? 'From your phone calendar' : `From ${imported?.name}'s phone calendar`}</DialogTitle>
+            <DialogDescription>Brought in over the last {DAYS} days. Tap one to open it.</DialogDescription>
+          </DialogHeader>
+          <ul className="divide-y divide-border/40">
+            {(imported?.rows || []).map((a) => {
+              const d = a.date ? parseISO(a.date) : null;
+              const at = [d && isValid(d) ? format(d, 'EEE, MMM d') : '', a.all_day || !a.time ? 'All day' : fmtClock(String(a.time).slice(0, 5))].filter(Boolean).join(' · ');
+              return (
+                <li key={a.id}>
+                  <button type="button" className="w-full text-left flex items-center gap-3 py-2.5" onClick={() => { setImported(null); setTimeout(() => openEvent(a), 150); }}>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium truncate">{a.title || 'Event'}</span>
+                      <span className="block text-xs text-muted-foreground">{at}{a.visibility === 'private' ? ' · only you see it' : a.visibility === 'some' ? ' · shared with some of the family' : ''}</span>
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {imported && imported.total > imported.rows.length && (
+            <p className="text-xs text-muted-foreground">{imported.total - imported.rows.length} more {imported.total - imported.rows.length === 1 ? 'is' : 'are'} private to {imported.mine ? 'you' : imported.name}.</p>
+          )}
+        </DialogContent>
+      </Dialog>
       {editor}
     </section>
   );

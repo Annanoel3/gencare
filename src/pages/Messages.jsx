@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { track } from '@/lib/activity';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { MessageCircle, Send, Pin, ImagePlus, Loader2, X, RefreshCw, Reply, Trash2, Pencil, Check, ClipboardList } from 'lucide-react';
 import { format, isToday } from 'date-fns';
 import { base44 } from '@/api/base44Client';
@@ -53,6 +53,20 @@ export default function Messages() {
     markMessagesSeen(me, queryClient);
     if (family) apply({ family, me: { ...me, messages_seen_at: new Date().toISOString() } });
   }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // From Home's "Who did what" (?post=<id>): the Feed opens on that post,
+  // glowing for a moment.
+  const [params, setParams] = useSearchParams();
+  const postParam = params.get('post');
+  const [focusId, setFocusId] = useState('');
+  useEffect(() => {
+    if (!postParam || !all.length) return undefined;
+    const next = new URLSearchParams(params); next.delete('post'); setParams(next, { replace: true });
+    setFocusId(postParam);
+    const t1 = setTimeout(() => document.querySelector('[data-focus="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+    const t2 = setTimeout(() => setFocusId(''), 6000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [postParam, all.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: MESSAGES_KEY });
   const post = useMutation({
@@ -160,13 +174,13 @@ export default function Messages() {
         <div className="mb-6">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2"><Pin className="w-3 h-3" /> Pinned</h2>
           <div className="space-y-3">
-            {pinned.map((msg) => <Post key={msg.id} msg={msg} replies={repliesOf(msg.id)} me={me} members={members} onPin={() => pin.mutate(msg)} onReply={() => { setReplyTo(msg); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onDelete={(m) => remove.mutate(m)} onEdit={(id, text) => edit.mutate({ id, text })} onView={setViewing} />)}
+            {pinned.map((msg) => <Post key={msg.id} focus={focusId === msg.id} msg={msg} replies={repliesOf(msg.id)} me={me} members={members} onPin={() => pin.mutate(msg)} onReply={() => { setReplyTo(msg); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onDelete={(m) => remove.mutate(m)} onEdit={(id, text) => edit.mutate({ id, text })} onView={setViewing} />)}
           </div>
         </div>
       )}
 
       <div className="space-y-3">
-        {posts.map((msg) => <Post key={msg.id} msg={msg} replies={repliesOf(msg.id)} me={me} members={members} onPin={() => pin.mutate(msg)} onReply={() => { setReplyTo(msg); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onDelete={(m) => remove.mutate(m)} onEdit={(id, text) => edit.mutate({ id, text })} onView={setViewing} />)}
+        {posts.map((msg) => <Post key={msg.id} focus={focusId === msg.id} msg={msg} replies={repliesOf(msg.id)} me={me} members={members} onPin={() => pin.mutate(msg)} onReply={() => { setReplyTo(msg); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onDelete={(m) => remove.mutate(m)} onEdit={(id, text) => edit.mutate({ id, text })} onView={setViewing} />)}
       </div>
 
       {messages.length === 0 && (
@@ -195,13 +209,13 @@ function when(d) {
   return isToday(t) ? format(t, 'h:mm a') : format(t, 'MMM d, h:mm a');
 }
 
-function Post({ msg, replies, me, members, onPin, onReply, onDelete, onEdit, onView }) {
+function Post({ msg, replies, me, members, onPin, onReply, onDelete, onEdit, onView, focus }) {
   const mine = me && msg.author_user_id === me.id;
   const tint = msg.family_member_id ? getMemberLightColorByMemberId(msg.family_member_id, members) : 'bg-card';
   const dot = msg.family_member_id ? getMemberColorByMemberId(msg.family_member_id, members) : null;
   const photos = Array.isArray(msg.photos) && msg.photos.length ? msg.photos : (msg.photo_url ? [msg.photo_url] : []);
   return (
-    <div className={`rounded-2xl border border-border/50 p-4 md:p-5 ${tint}`}>
+    <div data-focus={focus ? 'true' : undefined} className={`rounded-2xl border border-border/50 p-4 md:p-5 transition-shadow duration-500 ${tint} ${focus ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
       <div className="flex items-start gap-3">
         <Avatar className="w-9 h-9 flex-shrink-0"><AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">{msg.author_name?.charAt(0) || '?'}</AvatarFallback></Avatar>
         <div className="flex-1 min-w-0">
