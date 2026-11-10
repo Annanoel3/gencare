@@ -1,6 +1,11 @@
 {
   "name": "FamilyMessage",
   "properties": {
+    "announce_until": {
+      "description": "Announcements: shown at the top of everyone's Home until this time (set to now to take it down)",
+      "format": "date-time",
+      "type": "string"
+    },
     "author_name": {
       "type": "string"
     },
@@ -64,6 +69,7 @@
   "required": [
     "content"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -77,6 +83,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
