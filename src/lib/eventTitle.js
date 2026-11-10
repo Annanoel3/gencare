@@ -67,6 +67,16 @@ export function kindEmoji(appt) {
   return OTHER.find(([re]) => re.test(title))?.[1] || '';
 }
 
+/**
+ * Every kind of visit a title names, as a set (its emojis stand for the
+ * kinds): "Spero PT & OT" -> {🦵, ✋}, "Eye doctor" -> {👁️, 🩺}. Used to tell
+ * a PT visit from an OT visit at the same time (lib/photoDupes).
+ */
+export function visitKinds(title) {
+  const t = String(title || '');
+  return new Set([...THERAPY, ...OTHER].filter(([re]) => re.test(t)).map(([, e]) => e));
+}
+
 /** The title as shown: the kind's emoji, then the title (without the person's name when `short`). */
 export function shownTitle(appt, members = [], short = true) {
   const t = short ? shortTitle(appt, members) : String(appt?.title || '');

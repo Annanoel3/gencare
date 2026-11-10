@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, isValid } from 'date-fns';
-import { Camera, ImagePlus, Loader2, Repeat, AlertCircle } from 'lucide-react';
+import { Camera, ImagePlus, Loader2, Repeat, AlertCircle, ChevronDown } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import { useFamily, orderMembers, withFamily } from '@/lib/family';
 import { listEvents, sortNewEvent, startingVisibility } from '@/lib/events';
 import { exportSoon } from '@/lib/calendarSync';
 import { track } from '@/lib/activity';
+import { expandAppointments } from '@/lib/occurrences';
+import { matchCalendar } from '@/lib/photoDupes';
 
 // Add to the calendar from a photo (Anna, Nov 9 2026): an appointment card, a
 // school calendar, a flyer, a screenshot. GenCare reads the dates
@@ -86,12 +88,16 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
   const [note, setNote] = useState('');
   const [place, setPlace] = useState('');
   const [who, setWho] = useState(KEEP);
+  // What's already on the calendar on the photo's days (lib/photoDupes), and
+  // whether the ones already there are shown.
+  const [calendar, setCalendar] = useState([]);
+  const [showDups, setShowDups] = useState(false);
   const cameraRef = useRef(null);
   const libraryRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
-    setStep('pick'); setFound([]); setNote(''); setPlace(''); setWho(KEEP); setHint('');
+    setStep('pick'); setFound([]); setNote(''); setPlace(''); setWho(KEEP); setHint(''); setCalendar([]); setShowDups(false);
     base44.entities.FamilyMember.list().then((rows) => setFamilyMembers((rows || []).filter((m) => m.is_active !== false))).catch(() => {});
   }, [open]);
 
@@ -115,16 +121,19 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
       if (!out?.ok) throw new Error(out?.error || 'failed');
       const events = out.events || [];
       track('action', 'photo import: read', `${events.length} found`);
-      // Already on the calendar at that day and time? Then it starts unticked.
+      // Everything on the calendar those days, repeating events included, to
+      // tell what's already there (lib/photoDupes).
       let existing = [];
       if (events.length) {
         const dates = events.map((e) => e.date).sort();
-        existing = (await listEvents(parseISO(dates[0]), parseISO(dates[dates.length - 1])).catch(() => [])) || [];
+        const from = parseISO(dates[0]);
+        const to = parseISO(dates[dates.length - 1]);
+        existing = expandAppointments((await listEvents(from, to).catch(() => [])) || [], from, to);
       }
-      setFound(events.map((e, i) => {
-        const dup = existing.find((a) => a.date === e.date && (a.all_day || !a.time ? e.all_day : String(a.time).slice(0, 5) === e.time) && !a.away_of);
-        return { ...e, key: `${i}`, on: !dup, dup: dup ? dup.title : '' };
-      }));
+      setCalendar(existing);
+      setShowDups(false);
+      // on: left unset means "whatever the check says" (already there: off).
+      setFound(events.map((e, i) => ({ ...e, key: `${i}`, on: undefined })));
       // Everything for the same person: preselect them.
       const ids = [...new Set(events.map((e) => e.member_id).filter(Boolean))];
       if (ids.length === 1 && events.every((e) => e.member_id === ids[0])) setWho(ids[0]);
@@ -142,7 +151,16 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
   };
 
   const update = (key, patch) => setFound((list) => list.map((e) => (e.key === key ? { ...e, ...patch } : e)));
-  const chosen = found.filter((e) => e.on);
+  // Checked again whenever a row or "Who it's for" changes: the same visit for
+  // someone else isn't already there.
+  const personOf = (e) => (who === KEEP ? e.member_id || '' : who === NOBODY ? '' : who);
+  const rows = useMemo(() => {
+    const m = matchCalendar(found, calendar, personOf);
+    return found.map((e, i) => ({ ...e, dup: m[i].dup, moved: m[i].moved, on: e.on ?? !m[i].dup }));
+  }, [found, calendar, who]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fresh = rows.filter((e) => !e.dup);
+  const dups = rows.filter((e) => e.dup);
+  const chosen = rows.filter((e) => e.on);
 
   // After they're on the calendar: GenCare fills in what was left (category,
   // care, and with "GenCare decides", sharing), once for each kind of event
@@ -186,7 +204,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
     try {
       // Saved a few at a time, side by side (one by one, 19 visits took
       // seconds before anything showed).
-      const rows = chosen.map((e) => {
+      const toSave = chosen.map((e) => {
         const memberId = who === KEEP ? e.member_id : who === NOBODY ? '' : who;
         const data = {
           title: e.title.trim() || 'Appointment',
@@ -215,8 +233,8 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
         data.auto_set = [left.visibility && 'visibility', 'category'].filter(Boolean);
         return { key: e.key, data, left };
       });
-      for (let i = 0; i < rows.length; i += 6) {
-        const saved = await Promise.all(rows.slice(i, i + 6).map(({ key, data, left }) => base44.entities.Appointment.create(withFamily(data))
+      for (let i = 0; i < toSave.length; i += 6) {
+        const saved = await Promise.all(toSave.slice(i, i + 6).map(({ key, data, left }) => base44.entities.Appointment.create(withFamily(data))
           .then((created) => (created?.id ? { key, created, left } : null), (err) => ({ err }))));
         made.push(...saved.filter((s) => s?.created));
         const failed = saved.find((s) => s?.err);
@@ -251,6 +269,30 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { read(e.target.files); e.target.value = ''; }} />
       <input ref={libraryRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { read(e.target.files); e.target.value = ''; }} />
     </>
+  );
+
+  // One event read from the photo, to check and fix before it's added.
+  const renderRow = (e) => (
+    <li key={e.key} className={`rounded-xl border p-3 ${e.on ? 'border-primary/40 bg-primary/5' : 'border-border opacity-70'}`}>
+        <div className="flex items-start gap-3">
+          <Checkbox checked={e.on} onCheckedChange={(v) => update(e.key, { on: !!v })} className="mt-2.5" aria-label="Add this one" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Input value={e.title} onChange={(ev) => update(e.key, { title: ev.target.value })} className="h-9" aria-label="What" />
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="date" value={e.date} onChange={(ev) => ev.target.value && update(e.key, { date: ev.target.value })} className="h-9 min-w-0 w-full px-2" aria-label="Day" />
+              <Input type="time" value={e.all_day ? '' : e.time} onChange={(ev) => update(e.key, { time: ev.target.value, all_day: !ev.target.value })} className="h-9 min-w-0 w-full px-2" aria-label="Time" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {[dayLabel(e.date), e.all_day ? 'All day' : fmtTime(e.time), e.with, (place || e.location) || '', (who === KEEP ? nameOf(e.member_id) : who === NOBODY ? '' : nameOf(who))].filter(Boolean).join(' · ')}
+              {e.recurrence && <span className="inline-flex items-center gap-0.5 ml-1"><Repeat className="w-3 h-3" /> repeats</span>}
+            </p>
+            {e.notes && <p className="text-xs text-muted-foreground line-clamp-2">{e.notes}</p>}
+            {e.dup && <p className="text-xs text-emerald-700 dark:text-emerald-300">Already on your calendar: "{e.dup.own?.title || e.dup.title}"{e.dup.all_day || !e.dup.time ? '' : ` at ${fmtTime(e.dup.time)}`}</p>}
+            {e.moved && <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1"><AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" /> Your calendar also has "{e.moved.own?.title || e.moved.title}" at {fmtTime(e.moved.time)} that day. If the visit moved, delete that one after adding this.</p>}
+            {e.check && <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {e.check}</p>}
+          </div>
+        </div>
+      </li>
   );
 
   return (
@@ -314,33 +356,34 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
                 </div>
               </div>
 
+              {dups.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {fresh.length === 0
+                    ? (dups.length === 1 ? 'This is already on your calendar.' : `All ${dups.length} of these are already on your calendar.`)
+                    : `${dups.length} ${dups.length === 1 ? 'is' : 'are'} already on your calendar, so ${dups.length === 1 ? "it's" : "they're"} skipped.`}
+                </p>
+              )}
               <ul className="space-y-2">
-                {found.map((e) => (
-                  <li key={e.key} className={`rounded-xl border p-3 ${e.on ? 'border-primary/40 bg-primary/5' : 'border-border opacity-70'}`}>
-                    <div className="flex items-start gap-3">
-                      <Checkbox checked={e.on} onCheckedChange={(v) => update(e.key, { on: !!v })} className="mt-2.5" aria-label="Add this one" />
-                      <div className="flex-1 min-w-0 space-y-1.5">
-                        <Input value={e.title} onChange={(ev) => update(e.key, { title: ev.target.value })} className="h-9" aria-label="What" />
-                        <div className="grid grid-cols-2 gap-2">
-                          <Input type="date" value={e.date} onChange={(ev) => ev.target.value && update(e.key, { date: ev.target.value })} className="h-9 min-w-0 w-full px-2" aria-label="Day" />
-                          <Input type="time" value={e.all_day ? '' : e.time} onChange={(ev) => update(e.key, { time: ev.target.value, all_day: !ev.target.value })} className="h-9 min-w-0 w-full px-2" aria-label="Time" />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {[dayLabel(e.date), e.all_day ? 'All day' : fmtTime(e.time), e.with, (place || e.location) || '', (who === KEEP ? nameOf(e.member_id) : who === NOBODY ? '' : nameOf(who))].filter(Boolean).join(' · ')}
-                          {e.recurrence && <span className="inline-flex items-center gap-0.5 ml-1"><Repeat className="w-3 h-3" /> repeats</span>}
-                        </p>
-                        {e.notes && <p className="text-xs text-muted-foreground line-clamp-2">{e.notes}</p>}
-                        {e.dup && <p className="text-xs text-amber-700 dark:text-amber-300">Already on the calendar at this time: "{e.dup}"</p>}
-                        {e.check && <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {e.check}</p>}
-                      </div>
-                    </div>
-                  </li>
-                ))}
+                {fresh.map(renderRow)}
               </ul>
+              {dups.length > 0 && (
+                <div className="space-y-2">
+                  <button type="button" onClick={() => setShowDups((v) => !v)} aria-expanded={showDups}
+                    className="w-full flex items-center justify-between rounded-xl border border-border px-3 py-2.5 text-sm font-medium">
+                    Already on your calendar ({dups.length})
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showDups ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showDups && (
+                    <ul className="space-y-2">
+                      {dups.map(renderRow)}
+                    </ul>
+                  )}
+                </div>
+              )}
 
               <div className="sticky -bottom-6 -mb-6 bg-background pt-2 pb-6 space-y-2">
                 <Button className="w-full h-12 rounded-xl" disabled={!chosen.length || step === 'saving'} onClick={add}>
-                  {step === 'saving' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding…</> : chosen.length === 1 ? 'Add 1 event' : `Add ${chosen.length} events`}
+                  {step === 'saving' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding…</> : !chosen.length ? 'Nothing new to add' : chosen.length === 1 ? 'Add 1 event' : `Add ${chosen.length} events`}
                 </Button>
                 <Button variant="ghost" className="w-full rounded-xl" disabled={step === 'saving'} onClick={() => setStep('pick')}>Use a different photo</Button>
               </div>
