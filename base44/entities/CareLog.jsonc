@@ -10,6 +10,10 @@
       "description": "Age band the person was in when this was logged",
       "type": "string"
     },
+    "color": {
+      "description": "Baby diaper: what color the poop was (yellow, green, brown, pale, red/black)",
+      "type": "string"
+    },
     "completed": {
       "type": "boolean"
     },
@@ -40,6 +44,10 @@
     },
     "family_member_name": {
       "type": "string"
+    },
+    "first_time": {
+      "description": "Baby solids: the first time trying this food",
+      "type": "boolean"
     },
     "given_by": {
       "type": "string"
@@ -83,7 +91,7 @@
       "type": "array"
     },
     "response": {
-      "description": "How a tantrum or incident was handled",
+      "description": "How a tantrum or incident was handled; for medicine, how much was given",
       "type": "string"
     },
     "side": {
