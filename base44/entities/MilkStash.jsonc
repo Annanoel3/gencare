@@ -1,0 +1,94 @@
+{
+  "description": "One bag or bottle of stored breast milk for a baby (Care Log milk stash). Use-by dates come from where it is and when it was pumped or thawed (src/lib/milkStash.js).",
+  "name": "MilkStash",
+  "properties": {
+    "added_by_name": {
+      "type": "string"
+    },
+    "added_by_user_id": {
+      "type": "string"
+    },
+    "amount": {
+      "description": "Ounces",
+      "type": "number"
+    },
+    "done_at": {
+      "description": "When it was used or tossed",
+      "format": "date-time",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "family_member_id": {
+      "description": "The baby it's for",
+      "type": "string"
+    },
+    "family_member_name": {
+      "type": "string"
+    },
+    "feeding_log_id": {
+      "description": "The bottle feeding logged when it was used",
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "place": {
+      "enum": [
+        "fridge",
+        "freezer",
+        "thawed"
+      ],
+      "type": "string"
+    },
+    "pumped_at": {
+      "description": "When it was pumped",
+      "format": "date-time",
+      "type": "string"
+    },
+    "pumping_log_id": {
+      "description": "The pumping entry it came from",
+      "type": "string"
+    },
+    "reminded_on": {
+      "description": "The day (family's local yyyy-MM-dd) the 'milk to use today' push went out for it",
+      "type": "string"
+    },
+    "status": {
+      "default": "in",
+      "enum": [
+        "in",
+        "used",
+        "tossed"
+      ],
+      "type": "string"
+    },
+    "thawed_at": {
+      "description": "When it came out of the freezer to thaw",
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "family_member_id",
+    "amount",
+    "pumped_at",
+    "place"
+  ],
+  "type": "object",
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  }
+}
