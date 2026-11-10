@@ -1,6 +1,15 @@
 {
   "name": "FamilyMessage",
   "properties": {
+    "announce_at": {
+      "description": "Announcements set for later: when it goes out (shown and pushed to everyone then). Empty means it went out when posted",
+      "format": "date-time",
+      "type": "string"
+    },
+    "announce_sent": {
+      "description": "Announcements: the push to everyone has gone out",
+      "type": "boolean"
+    },
     "announce_until": {
       "description": "Announcements: shown at the top of everyone's Home until this time (set to now to take it down)",
       "format": "date-time",
