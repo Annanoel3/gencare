@@ -12,6 +12,11 @@ import { getMemberColorClass, getMemberLightColorByMemberId } from '@/utils/memb
 import LogDialog from '@/components/carelog/LogDialog';
 import LogRow from '@/components/carelog/LogRow';
 import BabyTimers from '@/components/carelog/BabyTimers';
+import PersonToday from '@/components/carelog/PersonToday';
+import WeekSummary from '@/components/carelog/WeekSummary';
+import Trackers from '@/components/carelog/Trackers';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { youngerThan18 } from '@/components/family/CaredForSwitch';
 import { track } from '@/lib/activity';
 import { bandOf, ageMonths, cleanLog, createLog, updateLog, deleteLog, upcoming, summarize, isLocked, QUICK, matchesQuick, quickRow } from '@/lib/careLog';
@@ -59,7 +64,20 @@ export default function CareLogPage() {
   const band = bandOf(person);
   // Some buttons wait for an age (solid food from about 4 months).
   const months = ageMonths(person?.birthdate);
-  const quick = (QUICK[band] || QUICK.general).filter((q) => !q.minMonths || (months !== null && months >= q.minMonths));
+  const fitsAge = (QUICK[band] || QUICK.general).filter((q) => !q.minMonths || (months !== null && months >= q.minMonths));
+  // Buttons the family hid for this person ("Choose buttons"; Nov 10 2026).
+  const hidden = Array.isArray(person?.care_hidden) ? person.care_hidden : [];
+  const quick = fitsAge.filter((q) => !hidden.includes(q.key));
+  const [choosing, setChoosing] = useState(false);
+  const setHidden = async (key, show) => {
+    const next = show ? hidden.filter((k) => k !== key) : [...new Set([...hidden, key])];
+    try {
+      await base44.entities.FamilyMember.update(person.id, { care_hidden: next });
+      queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
+    } catch {
+      toast({ title: "Couldn't save that", description: 'Check your connection and try again.', variant: 'destructive' });
+    }
+  };
   const doneToday = (q) => todays.find((e) => matchesQuick(q, e));
   const lastTimes = useMemo(() => quick.filter((q) => q.last).map((q) => [q, logs.find((e) => matchesQuick(q, e))]).filter(([, e]) => e), [quick, logs]);
   const soon = useMemo(() => upcoming(logs).slice(0, 6), [logs]);
@@ -73,7 +91,16 @@ export default function CareLogPage() {
       if (dialog.entry?.id) { delete row.logged_by_user_id; delete row.logged_by_name; return updateLog(dialog.entry.id, row); }
       return createLog(row);
     },
-    onSuccess: () => { refresh(); track('action', dialog.entry?.id ? 'log:changed' : `log:${dialog.type || 'other'}`); setDialog({ open: false, entry: null, type: null, preset: null }); },
+    onSuccess: (saved) => {
+      refresh();
+      track('action', dialog.entry?.id ? 'log:changed' : `log:${dialog.type || 'other'}`);
+      // A new fall goes to the whole family right away (functions/notifyFamily).
+      if (!dialog.entry?.id && saved?.id && saved.entry_type === 'care_log' && saved.sub_type === 'fall') {
+        base44.functions.invoke('notifyFamily', { kind: 'care_alert', log_id: saved.id }).catch(() => {});
+        toast({ title: 'The family has been told', description: `Everyone gets a notification about ${first}'s fall.` });
+      }
+      setDialog({ open: false, entry: null, type: null, preset: null });
+    },
     onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
   });
   const remove = useMutation({ mutationFn: (entry) => deleteLog(entry.id), onSuccess: () => { refresh(); setDialog({ open: false, entry: null, type: null, preset: null }); } });
@@ -156,6 +183,7 @@ export default function CareLogPage() {
               </div>
 
               {band === 'baby' && <BabyTimers person={person} logs={logs} me={me} onChanged={refresh} />}
+              <PersonToday person={person} members={members} />
 
               <section>
                 <h2 className="text-sm font-semibold text-muted-foreground mb-2">Tap when it happens</h2>
@@ -177,6 +205,7 @@ export default function CareLogPage() {
                     <span className="text-xs font-medium">Something else</span>
                   </button>
                 </div>
+                <button type="button" onClick={() => setChoosing(true)} className="text-xs text-primary font-medium mt-2">Choose buttons</button>
               </section>
 
               <section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
@@ -202,6 +231,10 @@ export default function CareLogPage() {
                   </ul>
                 </section>
               )}
+
+              <WeekSummary band={band} logs={logs} />
+
+              <Trackers person={person} logs={logs} me={me} onChanged={refresh} />
 
               {soon.length > 0 && (
                 <section className="rounded-2xl border border-border/50 bg-card p-4">
@@ -236,6 +269,26 @@ export default function CareLogPage() {
             </div>
           )}
         </>
+      )}
+
+      {person && (
+        <Dialog open={choosing} onOpenChange={setChoosing}>
+          <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[88vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Buttons for {first}</DialogTitle>
+              <DialogDescription>Turn off the ones your family doesn't use. Everyone sees the same buttons.</DialogDescription>
+            </DialogHeader>
+            <ul className="divide-y divide-border/40">
+              {fitsAge.map((q) => (
+                <li key={q.key} className="flex items-center gap-3 py-2">
+                  <span className="text-lg w-6 text-center">{q.icon}</span>
+                  <span className="text-sm flex-1">{q.label}</span>
+                  <Switch checked={!hidden.includes(q.key)} onCheckedChange={(v) => setHidden(q.key, !!v)} aria-label={`Show ${q.label}`} />
+                </li>
+              ))}
+            </ul>
+          </DialogContent>
+        </Dialog>
       )}
 
       {person && (

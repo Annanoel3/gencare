@@ -147,6 +147,28 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, sent });
     }
 
+    // A fall logged in the Care Log (Anna, Nov 10 2026): everyone in the
+    // family hears right away, whatever their other choices, like an
+    // announcement. Once per entry (the app only sends it when it's created).
+    if (kind === 'care_alert') {
+      const log = body.log_id ? (await db.CareLog.filter({ id: String(body.log_id) }))?.[0] : null;
+      if (!log || log.family_id !== familyId) return Response.json({ ok: false, error: 'Not your family' }, { status: 403 });
+      if (!(log.entry_type === 'care_log' && log.sub_type === 'fall')) return Response.json({ ok: true, sent: [] });
+      const person = first(log.family_member_name) || 'Someone';
+      const t = new Date(String(log.timestamp || ''));
+      const at = Number.isNaN(t.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { timeZone: user.timezone || 'America/Chicago', hour: 'numeric', minute: '2-digit' }).format(t);
+      const detail = [String(log.title || '').toLowerCase() === 'fall' ? '' : cut(log.title, 80), cut(log.notes, 160)].filter(Boolean).join(' · ');
+      const sent = await pushFamily(db, familyId, {
+        title: `${person} had a fall`,
+        message: `${who} logged it${at ? ` at ${at}` : ''}.${detail ? ` ${detail}` : ''}`,
+        data: { type: 'care_alert', logId: log.id, screen: `/care-log?for=${log.family_member_id}` },
+        exceptUserId: user.id,
+        need: 'announcements',
+        priority: 'high',
+      });
+      return Response.json({ ok: true, sent });
+    }
+
     if (kind === 'message') {
       const msg = body.message_id ? (await db.FamilyMessage.filter({ id: String(body.message_id) }))?.[0] : null;
       if (!msg || msg.family_id !== familyId) return Response.json({ ok: false, error: 'Not your family' }, { status: 403 });

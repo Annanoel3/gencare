@@ -193,6 +193,8 @@ export async function deleteLog(id) { return base44.entities.CareLog.delete(id);
 
 /** One line that sums up an entry for lists and the home feed. */
 export function summarize(e) {
+  // A reading in "Track something": its name and what was typed.
+  if (e?.entry_type === 'tracker') return { icon: '📈', label: e.title || 'Reading', detail: e.response || '' };
   const def = typeDef(e.band, e.entry_type);
   const bits = [];
   // "Lunch", "Walk", "Took her to the post office" read better as the line
