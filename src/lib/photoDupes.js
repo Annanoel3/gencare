@@ -86,3 +86,39 @@ export function matchCalendar(found, calendar, personOf) {
     moved: dups[i] ? null : cal.find((a) => !taken.has(a.id) && maybeMoved(e, a, personOf(e))) || null,
   }));
 }
+
+// The place's name as written before the first comma, for telling one clinic
+// from another ("Spero Rehab Central Austin" isn't "Spero Rehab Dripping Springs").
+const placeName = (s) => String(s || '').split(',')[0].toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/**
+ * A changed schedule (Anna, Nov 12 2026: the therapy place changed it and she
+ * had to cancel and re-put in a bunch of events): what's on the calendar from
+ * today through the photo's last day, at the same place, for the same person
+ * and the same kind of visit, that the new photo doesn't have. Never anything
+ * that repeats, came from a phone calendar, or is one of GenCare's stand-ins.
+ * Nothing at all when the photo has no place, since then there's no telling
+ * which visits it covers. `rows` are the photo's events with their `dup`.
+ */
+export function notOnSchedule(rows, calendar, { place, personOf, today }) {
+  const dates = (rows || []).map((e) => e.date).filter(Boolean).sort();
+  if (!dates.length) return [];
+  const from = dates[0] > today ? dates[0] : today;
+  const to = dates[dates.length - 1];
+  const places = new Set(rows.map((e) => placeName(place || e.location)).filter(Boolean));
+  if (!places.size) return [];
+  const kinds = new Set(rows.flatMap((e) => [...visitKinds(e.title)]));
+  const people = new Set(rows.map((e) => personOf(e)).filter(Boolean));
+  const kept = new Set(rows.map((e) => e.dup?.id).filter(Boolean));
+  const seen = new Set();
+  return (calendar || []).filter((a) => {
+    if (!a?.id || seen.has(a.id)) return false;
+    seen.add(a.id);
+    if (a.away_of || a.cover_of || a.occurrence_of || a.recurrence || a.source === 'phone') return false;
+    if (!a.date || a.date < from || a.date > to || kept.has(a.id)) return false;
+    if (!places.has(placeName(a.location))) return false;
+    if (a.family_member_id && people.size && !people.has(a.family_member_id)) return false;
+    const k = visitKinds(a.title);
+    return !kinds.size || !k.size || [...k].some((x) => kinds.has(x));
+  }).sort((x, y) => String(x.date).localeCompare(String(y.date)) || String(x.time || '').localeCompare(String(y.time || '')));
+}

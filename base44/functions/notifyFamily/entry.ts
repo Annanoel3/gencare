@@ -205,8 +205,13 @@ Deno.serve(async (req) => {
 
     // Several events added at once (from a photo, Anna Nov 9 2026): one push
     // per person naming how many they can see, not one push per event.
+    // action "removed": several taken off at once (a photo's events, Nov 12
+    // 2026), sent just before they're deleted. removed_count: a new schedule
+    // replaced this many old ones, said in the "added" push.
     if (kind === 'appointments') {
-      const ids = (Array.isArray(body.appointment_ids) ? body.appointment_ids : []).map(String).slice(0, 40);
+      const removing = String(body.action || '') === 'removed';
+      const removedCount = Math.max(0, Math.floor(Number(body.removed_count) || 0));
+      const ids = (Array.isArray(body.appointment_ids) ? body.appointment_ids : []).map(String).slice(0, 60);
       const rows: any[] = [];
       for (const aid of ids) {
         const a = (await db.Appointment.filter({ id: aid }))?.[0];
@@ -221,11 +226,15 @@ Deno.serve(async (req) => {
         const theirs = rows.filter((a) => canSee(a, u.id));
         if (!theirs.length) continue;
         const firstOne = theirs[0];
-        const title = theirs.length === 1 ? `${who} added ${cut(firstOne.title, 60)}` : `${who} added ${theirs.length} events`;
+        const verb = removing ? 'took off' : 'added';
+        const title = (theirs.length === 1 ? `${who} ${verb} ${cut(firstOne.title, 60)}` : `${who} ${verb} ${theirs.length} events`)
+          + (!removing && removedCount ? ` and took off ${removedCount}` : '');
         const message = theirs.length === 1
           ? whenText(firstOne.date, firstOne.time, firstOne.timezone || user.timezone, !!firstOne.all_day)
           : cut(theirs.slice(0, 3).map((a) => `${cut(a.title, 40)} (${whenText(a.date, '', user.timezone, true)})`).join(' · ') + (theirs.length > 3 ? ` · and ${theirs.length - 3} more` : ''), 220);
-        const r = await sendPush({ email: u.email, title, message, data: { type: 'appointment', action: 'added', appointmentId: firstOne.id, screen: '/calendar', date: firstOne.date || '' } });
+        const r = await sendPush({ email: u.email, title, message, data: removing
+          ? { type: 'appointment', action: 'removed', screen: '/calendar', date: firstOne.date || '' }
+          : { type: 'appointment', action: 'added', appointmentId: firstOne.id, screen: '/calendar', date: firstOne.date || '' } });
         if (r.ok) sent.push(u.id);
       }
       return Response.json({ ok: true, sent });

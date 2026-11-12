@@ -17,6 +17,7 @@ import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import { EVENT_REPEATS, repeatLabel, parseRRule } from '@/lib/occurrences';
 import AddressField from '@/components/shared/AddressField';
 import NotesField from '@/components/shared/NotesField';
+import PhotoBatchRow from '@/components/calendar/PhotoBatchRow';
 
 export { CATEGORIES };
 
@@ -321,6 +322,10 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             <Link to={`/notes?appointment=${appt.id}`} className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/30 dark:border-red-800 p-3 text-sm font-medium text-red-700 dark:text-red-200">
               <Mic className="w-4 h-4" /> {appt.notes_record_id ? 'Open the notes from this visit' : 'Record notes at this visit'}
             </Link>
+          )}
+
+          {editing && appt?.import_id && (
+            <PhotoBatchRow appt={appt} beforeRemove={() => clearTimeout(timer.current)} onDone={onClose} />
           )}
 
           {editing && onDuplicate && (

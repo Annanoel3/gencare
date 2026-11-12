@@ -17,13 +17,19 @@ import { listEvents, sortNewEvent, startingVisibility } from '@/lib/events';
 import { exportSoon } from '@/lib/calendarSync';
 import { track } from '@/lib/activity';
 import { expandAppointments } from '@/lib/occurrences';
-import { matchCalendar } from '@/lib/photoDupes';
+import { matchCalendar, notOnSchedule } from '@/lib/photoDupes';
+import { newImportId, takeOff, putBack } from '@/lib/photoBatch';
 
 // Add to the calendar from a photo (Anna, Nov 9 2026): an appointment card, a
 // school calendar, a flyer, a screenshot. GenCare reads the dates
 // (functions/photoEvents), the person checks them, and only then are they
 // added. "Where" and "For" at the top go on every event (Anna: "all
 // appointments are at the same location"). The photo isn't kept.
+// A new photo of a schedule that changed (Anna, Nov 12 2026) also lists what's
+// on the calendar at that place, in the photo's dates, that the new schedule
+// doesn't have, to take off in the same step (lib/photoDupes notOnSchedule).
+// Events from one photo share an import_id, so they can all come off later
+// too (PhotoBatchRow), and Undo right after puts everything back.
 
 const KEEP = '__keep__';
 const NOBODY = '__nobody__';
@@ -92,12 +98,14 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
   // whether the ones already there are shown.
   const [calendar, setCalendar] = useState([]);
   const [showDups, setShowDups] = useState(false);
+  // Not on the new schedule: which to take off (id -> on), when changed by hand.
+  const [offPick, setOffPick] = useState({});
   const cameraRef = useRef(null);
   const libraryRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
-    setStep('pick'); setFound([]); setNote(''); setPlace(''); setWho(KEEP); setHint(''); setCalendar([]); setShowDups(false);
+    setStep('pick'); setFound([]); setNote(''); setPlace(''); setWho(KEEP); setHint(''); setCalendar([]); setShowDups(false); setOffPick({});
     base44.entities.FamilyMember.list().then((rows) => setFamilyMembers((rows || []).filter((m) => m.is_active !== false))).catch(() => {});
   }, [open]);
 
@@ -132,6 +140,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
       }
       setCalendar(existing);
       setShowDups(false);
+      setOffPick({});
       // on: left unset means "whatever the check says" (already there: off).
       setFound(events.map((e, i) => ({ ...e, key: `${i}`, on: undefined })));
       // Everything for the same person: preselect them.
@@ -161,12 +170,19 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
   const fresh = rows.filter((e) => !e.dup);
   const dups = rows.filter((e) => e.dup);
   const chosen = rows.filter((e) => e.on);
+  // On the calendar at the same place in the photo's dates but not on it. The
+  // ones from an earlier photo start ticked; ones added by hand don't.
+  const gone = useMemo(() => notOnSchedule(rows, calendar, { place: place.trim(), personOf, today: format(new Date(), 'yyyy-MM-dd') })
+    .map((a) => ({ ...a, off: offPick[a.id] ?? !!a.import_id })), [rows, calendar, place, offPick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toRemove = gone.filter((a) => a.off);
+  const goneIds = new Set(toRemove.map((a) => a.id));
+  const placeLabel = String(place.trim() || rows.find((e) => e.location)?.location || '').split(',')[0];
 
   // After they're on the calendar: GenCare fills in what was left (category,
   // care, and with "GenCare decides", sharing), once for each kind of event
   // with the same answer for its twins (a run of PT visits is sorted once, not
   // 12 times), a few kinds at a time. Then one push per person for the lot.
-  const sortAndTell = async (made) => {
+  const sortAndTell = async (made, removedCount = 0, ctl = {}) => {
     const groups = new Map();
     for (const m of made) {
       const k = `${m.created.title}|${m.created.location}|${m.created.family_member_id}|${m.left.member}`;
@@ -184,7 +200,10 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
     }
     // The family's "<name>: doctor" stand-ins, made once for the lot.
     if (results.some((x) => x.r?.needsAway)) await base44.functions.invoke('phoneCalendar', { mode: 'away' }).catch(() => {});
-    base44.functions.invoke('notifyFamily', { kind: 'appointments', appointment_ids: made.map((m) => m.created.id) }).catch(() => {});
+    // Undone already: the family never hears about it.
+    if (ctl.undone) return;
+    ctl.told = true;
+    base44.functions.invoke('notifyFamily', { kind: 'appointments', appointment_ids: made.map((m) => m.created.id), removed_count: removedCount }).catch(() => {});
     qc.invalidateQueries({ queryKey: ['appointments'] });
     exportSoon();
     if (sharingDefault !== 'auto') return;
@@ -196,10 +215,47 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
       : { title: 'Kept just for you', description: 'Tap an event to share it.' });
   };
 
+  // Undo, right after: what was added comes off and what was taken off comes back.
+  const undoToast = (title, made, removed, ctl) => {
+    const t = toast({
+      title,
+      description: made.length ? 'They\'re on the calendar now.' : 'Add the new schedule with From a photo.',
+      action: (
+        <button type="button" className="h-8 rounded-md border px-3 text-sm font-medium shrink-0" onClick={async () => {
+          t.dismiss();
+          ctl.undone = true;
+          await takeOff(made, { tell: !!ctl.told });
+          await putBack(removed);
+          track('action', 'photo import: undone');
+          qc.invalidateQueries({ queryKey: ['appointments'] });
+          exportSoon();
+          toast({ title: 'Undone', description: 'The calendar is back the way it was.' });
+        }}>Undo</button>
+      ),
+    });
+  };
+
   const add = async () => {
-    if (!chosen.length) return;
+    if (!chosen.length && !toRemove.length) return;
     setStep('saving');
+    const removed = toRemove.map(({ off: _o, ...a }) => a);
+    // Only taking off (nothing new on the photo): that's all.
+    if (!chosen.length) {
+      try {
+        const n = await takeOff(removed);
+        track('action', 'photo import: taken off', `${n}`);
+        qc.invalidateQueries({ queryKey: ['appointments'] });
+        exportSoon();
+        undoToast(n === 1 ? 'Took off 1 event' : `Took off ${n} events`, [], removed, { told: true });
+        onClose();
+      } catch {
+        toast({ title: "Couldn't take them off", description: 'Check your connection and try again.', variant: 'destructive' });
+        setStep('review');
+      }
+      return;
+    }
     const now = new Date().toISOString();
+    const importId = newImportId();
     const made = [];
     try {
       // Saved a few at a time, side by side (one by one, 19 visits took
@@ -228,6 +284,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
           shared_with: [],
           last_changed_at: now,
           source: 'app',
+          import_id: importId,
         };
         const left = { visibility: sharingDefault === 'auto', member: !memberId, category: true };
         data.auto_set = [left.visibility && 'visibility', 'category'].filter(Boolean);
@@ -244,12 +301,17 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
       // Just make sure it shows up instantly"); the sorting and the family's
       // push follow in the background.
       track('action', 'photo import: added', `${made.length}`);
+      // What the new schedule replaces comes off now; the push about the new
+      // ones says how many (one push, not two).
+      const gone = removed.length ? await takeOff(removed, { tell: false }) : 0;
+      if (gone) track('action', 'photo import: replaced', `${gone}`);
       qc.invalidateQueries({ queryKey: ['appointments'] });
       exportSoon();
-      toast({ title: made.length === 1 ? 'Added 1 event' : `Added ${made.length} events`, description: 'They\'re on the calendar now.' });
+      const ctl = { undone: false, told: false };
+      undoToast((made.length === 1 ? 'Added 1 event' : `Added ${made.length} events`) + (gone ? `, took off ${gone}` : ''), made.map((m) => m.created), removed, ctl);
       onAdded?.(chosen[0]?.date, made.map((m) => m.created));
       onClose();
-      sortAndTell(made);
+      sortAndTell(made, gone, ctl);
     } catch (e) {
       // The ones that did save stay saved (and get sorted); they're unticked
       // here so trying again adds only the rest.
@@ -288,7 +350,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
             </p>
             {e.notes && <p className="text-xs text-muted-foreground line-clamp-2">{e.notes}</p>}
             {e.dup && <p className="text-xs text-emerald-700 dark:text-emerald-300">Already on your calendar: "{e.dup.own?.title || e.dup.title}"{e.dup.all_day || !e.dup.time ? '' : ` at ${fmtTime(e.dup.time)}`}</p>}
-            {e.moved && <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1"><AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" /> Your calendar also has "{e.moved.own?.title || e.moved.title}" at {fmtTime(e.moved.time)} that day. If the visit moved, delete that one after adding this.</p>}
+            {e.moved && <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1"><AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" /> Your calendar also has "{e.moved.own?.title || e.moved.title}" at {fmtTime(e.moved.time)} that day. {goneIds.has(e.moved.id) ? 'It comes off with the ones below.' : 'If the visit moved, delete that one after adding this.'}</p>}
             {e.check && <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {e.check}</p>}
           </div>
         </div>
@@ -366,6 +428,25 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
               <ul className="space-y-2">
                 {fresh.map(renderRow)}
               </ul>
+              {gone.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Not on this schedule anymore ({gone.length})</p>
+                  <p className="text-xs text-muted-foreground">
+                    On your calendar{placeLabel ? ` at ${placeLabel}` : ''} between {dayLabel(gone[0].date)} and {dayLabel(gone[gone.length - 1].date)}, but not on this photo. The checked ones come off the calendar.
+                  </p>
+                  <ul className="space-y-2">
+                    {gone.map((a) => (
+                      <li key={a.id} className={`rounded-xl border p-3 flex items-start gap-3 ${a.off ? 'border-destructive/40 bg-destructive/5' : 'border-border'}`}>
+                        <Checkbox checked={a.off} onCheckedChange={(v) => setOffPick((p) => ({ ...p, [a.id]: !!v }))} className="mt-0.5" aria-label={`Take off ${a.title}`} />
+                        <div className="min-w-0">
+                          <p className={`text-sm font-medium ${a.off ? 'line-through text-muted-foreground' : ''}`}>{a.title}</p>
+                          <p className="text-xs text-muted-foreground">{[dayLabel(a.date), a.all_day || !a.time ? 'All day' : fmtTime(a.time), a.import_id ? '' : 'added by hand'].filter(Boolean).join(' · ')}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {dups.length > 0 && (
                 <div className="space-y-2">
                   <button type="button" onClick={() => setShowDups((v) => !v)} aria-expanded={showDups}
@@ -382,8 +463,11 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
               )}
 
               <div className="sticky -bottom-6 -mb-6 bg-background pt-2 pb-6 space-y-2">
-                <Button className="w-full h-12 rounded-xl" disabled={!chosen.length || step === 'saving'} onClick={add}>
-                  {step === 'saving' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Adding…</> : !chosen.length ? 'Nothing new to add' : chosen.length === 1 ? 'Add 1 event' : `Add ${chosen.length} events`}
+                <Button className="w-full h-12 rounded-xl" disabled={(!chosen.length && !toRemove.length) || step === 'saving'} onClick={add}>
+                  {step === 'saving' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving…</>
+                    : !chosen.length && !toRemove.length ? 'Nothing new to add'
+                    : [chosen.length ? (chosen.length === 1 ? 'Add 1 event' : `Add ${chosen.length} events`) : '',
+                      toRemove.length ? `${chosen.length ? 'take off' : 'Take off'} ${toRemove.length}${chosen.length ? '' : toRemove.length === 1 ? ' event' : ' events'}` : ''].filter(Boolean).join(', ')}
                 </Button>
                 <Button variant="ghost" className="w-full rounded-xl" disabled={step === 'saving'} onClick={() => setStep('pick')}>Use a different photo</Button>
               </div>
