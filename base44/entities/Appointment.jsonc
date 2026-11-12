@@ -149,6 +149,10 @@
     "family_member_name": {
       "type": "string"
     },
+    "import_id": {
+      "description": "Events added together from one photo share this (the Calendar can take them off again together)",
+      "type": "string"
+    },
     "last_changed_at": {
       "format": "date-time",
       "type": "string"
