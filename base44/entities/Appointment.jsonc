@@ -175,6 +175,10 @@
       "description": "The notes as the phone calendar last had them",
       "type": "string"
     },
+    "phone_when": {
+      "description": "The day and time as the phone calendar last had them (date|time|end time|end date|all day), so a time changed here isn't undone by the next sync",
+      "type": "string"
+    },
     "prep_questions": {
       "description": "Things to bring up at this appointment, written beforehand on the Record Notes page",
       "items": {
