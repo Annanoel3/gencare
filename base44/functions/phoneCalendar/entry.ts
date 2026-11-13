@@ -411,6 +411,10 @@ async function pruneUnticked(db: any, user: any, familyId: string) {
   return { removed, kept };
 }
 
+// The day and time as the phone had them at the last sync, to tell a change
+// made on the phone from one made here.
+const whenOf = (f: any) => [f?.date, f?.time, f?.end_time, f?.end_date, f?.all_day ? 1 : 0].map((x) => String(x ?? '')).join('|');
+
 function fieldsMatch(a: any, b: any) {
   // Not sharing: that's set once when it comes in, then it's the family's.
   return ['title', 'date', 'time', 'end_time', 'end_date', 'all_day', 'location', 'notes', 'recurrence'].every((k) => (a?.[k] ?? '') === (b?.[k] ?? ''));
@@ -546,8 +550,18 @@ Deno.serve(async (req) => {
             if (!changedOnPhone) delete keep[k];
             keep[`phone_${k}`] = fromPhone;
           }
+          // The same for the day and time (Anna, Nov 13 2026: her mom's "ENT
+          // doctor" is all day on her phone; a time put in here would have gone
+          // back to all day at the next sync). Before phone_when was kept, the
+          // phone's always won, so a row without it still has the phone's last
+          // day and time.
+          const phoneWhen = whenOf(fields);
+          if ((have.phone_when || whenOf(have)) === phoneWhen) {
+            for (const k of ['date', 'time', 'end_time', 'end_date', 'all_day']) delete keep[k];
+          }
+          keep.phone_when = phoneWhen;
           const next = { ...have, ...keep };
-          if (!fieldsMatch(have, next) || (have.phone_location ?? null) !== keep.phone_location || (have.phone_notes ?? null) !== keep.phone_notes) {
+          if (!fieldsMatch(have, next) || (have.phone_location ?? null) !== keep.phone_location || (have.phone_notes ?? null) !== keep.phone_notes || (have.phone_when ?? null) !== keep.phone_when) {
             await db.Appointment.update(have.id, keep);
             updated++;
           }
@@ -559,7 +573,7 @@ Deno.serve(async (req) => {
             // Linked: the phone's place and notes fill in what's empty here.
             await db.Appointment.update(twin.id, {
               device_key: key, source: 'phone', created_by_user_id: twin.created_by_user_id || user.id,
-              phone_location: fields.location || '', phone_notes: fields.notes || '',
+              phone_location: fields.location || '', phone_notes: fields.notes || '', phone_when: whenOf(fields),
               ...(twin.location ? {} : { location: fields.location || '' }),
               ...(twin.notes ? {} : { notes: fields.notes || '' }),
             });
@@ -573,7 +587,7 @@ Deno.serve(async (req) => {
               // "Everyone", anything that looks like work starts at Only me too,
               // and the sorter keeps work there.
               const startShared = sharingMode(user) === 'family' && !looksLikeWork(fields);
-              await db.Appointment.create({ ...fields, phone_location: fields.location || '', phone_notes: fields.notes || '', visibility: startShared ? 'family' : 'private', auto_set: ['visibility', 'category'], ...(looksLikeWork(fields) ? { category: 'Work' } : {}), family_id: familyId, device_key: key });
+              await db.Appointment.create({ ...fields, phone_location: fields.location || '', phone_notes: fields.notes || '', phone_when: whenOf(fields), visibility: startShared ? 'family' : 'private', auto_set: ['visibility', 'category'], ...(looksLikeWork(fields) ? { category: 'Work' } : {}), family_id: familyId, device_key: key });
               created++;
             }
           }
