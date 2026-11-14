@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { format, parseISO, isValid, isToday, isYesterday, differenceInCalendarDays } from 'date-fns';
-import { HeartHandshake, Plus, CalendarClock, Check, History } from 'lucide-react';
+import { HeartHandshake, Plus, CalendarClock, Check, History, Lock, Users } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useFamily, orderMembers } from '@/lib/family';
 import { Button } from '@/components/ui/button';
@@ -20,15 +20,15 @@ import { addBag, STASH_KEY } from '@/lib/milkStash';
 import { reloadWidgets } from '@/lib/widgets';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
-import { youngerThan18 } from '@/components/family/CaredForSwitch';
+import { caredFor, isMine, buttonKey, thingOf, useCarePrivacy } from '@/lib/carePrivacy';
 import { track } from '@/lib/activity';
 import { bandOf, ageMonths, cleanLog, createLog, updateLog, deleteLog, upcoming, summarize, isLocked, QUICK, matchesQuick, quickRow } from '@/lib/careLog';
 
-const isPet = (m) => /^pet$/i.test(String(m?.relationship || ''));
 // Who has a Care Log (Anna, Nov 10 2026): the people the family takes care of
 // (their profile says so, or they're under 18 and it doesn't say otherwise)
-// and the pets. Not everyone in the family.
-const caredFor = (m) => isPet(m) || m?.cared_for === true || (m?.cared_for !== false && youngerThan18(m?.birthdate));
+// and the pets. Not everyone in the family. And you, for what you track for
+// yourself (Nov 13 2026), plus anyone who shared something they track for
+// themselves (lib/carePrivacy.js).
 const firstName = (s) => String(s || '').split(' ')[0];
 
 /**
@@ -48,11 +48,16 @@ export default function CareLogPage() {
   const { me } = useFamily();
 
   const { data: members = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list('-created_date') });
-  // Same order as everywhere else (you, the other people, then pets); the
-  // page opens on the first person who isn't you, since that's who you log for.
-  const active = useMemo(() => orderMembers(members.filter((m) => m.is_active !== false && caredFor(m)), me?.id), [members, me?.id]);
+  const { data: allLogs = [], isLoading } = useQuery({ queryKey: ['careLog', 'all'], queryFn: () => base44.entities.CareLog.list('-timestamp', 1000) });
+  // Same order as everywhere else (you, the other people, then pets). The
+  // page opens on the first one the family takes care of, since that's who
+  // you log for, or on you when there's nobody else.
+  const sharedOwn = useMemo(() => new Set(allLogs.filter((l) => !isLocked(l) && l.logged_by_user_id).map((l) => `${l.family_member_id}|${l.logged_by_user_id}`)), [allLogs]);
+  const active = useMemo(() => orderMembers(members.filter((m) => m.is_active !== false && (caredFor(m) || isMine(m, me) || (m.linked_user_id && sharedOwn.has(`${m.id}|${m.linked_user_id}`)))), me?.id), [members, me?.id, sharedOwn]);
   const [personId, setPersonId] = useState(params.get('for') || '');
-  const person = active.find((m) => m.id === personId) || active[0] || null;
+  const person = active.find((m) => m.id === personId) || active.find(caredFor) || active[0] || null;
+  const mine = isMine(person, me);
+  const privacy = useCarePrivacy();
   useEffect(() => { if (person && person.id !== personId) setPersonId(person.id); }, [person?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Opened again on someone else (from the home-screen widget, with the page already open).
   const forParam = params.get('for') || '';
@@ -62,7 +67,6 @@ export default function CareLogPage() {
     const next = new URLSearchParams(params); next.set('for', personId); setParams(next, { replace: true });
   }, [personId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data: allLogs = [], isLoading } = useQuery({ queryKey: ['careLog', 'all'], queryFn: () => base44.entities.CareLog.list('-timestamp', 1000) });
   const logs = useMemo(() => allLogs.filter((l) => l.family_member_id === person?.id && !isLocked(l)).sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || '')), [allLogs, person?.id]);
   const todays = useMemo(() => logs.filter((l) => l.timestamp && isToday(parseISO(l.timestamp))), [logs]);
   const earlier = useMemo(() => logs.filter((l) => !(l.timestamp && isToday(parseISO(l.timestamp)))), [logs]);
@@ -75,6 +79,20 @@ export default function CareLogPage() {
   const hidden = Array.isArray(person?.care_hidden) ? person.care_hidden : [];
   const quick = fitsAge.filter((q) => !hidden.includes(q.key));
   const [choosing, setChoosing] = useState(false);
+  // Your own buttons: Only you or Family, and what you already logged with it.
+  const [flipping, setFlipping] = useState('');
+  const flip = async (q) => {
+    const key = buttonKey(q);
+    const to = !privacy.isPrivateThing(key, person);
+    setFlipping(key);
+    try {
+      const n = await privacy.setThing(key, to, { member: person, logs, meId: me?.id });
+      if (n) refresh();
+      toast({ title: to ? `${q.label}: only you can see it` : `${q.label}: the family can see it`, description: n ? `What you logged with it before (${n}) changed too.` : undefined });
+    } catch {
+      toast({ title: "Couldn't change that", description: 'Check your connection and try again.', variant: 'destructive' });
+    } finally { setFlipping(''); }
+  };
   const setHidden = async (key, show) => {
     const next = show ? hidden.filter((k) => k !== key) : [...new Set([...hidden, key])];
     try {
@@ -96,6 +114,9 @@ export default function CareLogPage() {
     mutationFn: async ({ form, def }) => {
       // "Put it in the milk stash" isn't part of the entry: it adds a bag.
       const { stash, ...row } = cleanLog(form, def, person, me);
+      // Your own: Only you or Family (the dialog's switch). Not on an entry
+      // someone else logged about you.
+      if (mine && typeof form.only_me === 'boolean' && (!dialog.entry?.id || dialog.entry.logged_by_user_id === me?.id)) row.visibility = form.only_me ? 'private' : 'family';
       if (dialog.entry?.id) { delete row.logged_by_user_id; delete row.logged_by_name; return updateLog(dialog.entry.id, row); }
       const saved = await createLog(row);
       if (row.entry_type === 'pumping' && ['fridge', 'freezer'].includes(stash) && row.amount > 0) {
@@ -113,7 +134,7 @@ export default function CareLogPage() {
       refresh();
       track('action', dialog.entry?.id ? 'log:changed' : `log:${dialog.type || 'other'}`);
       // A new fall goes to the whole family right away (functions/notifyFamily).
-      if (!dialog.entry?.id && saved?.id && saved.entry_type === 'care_log' && saved.sub_type === 'fall') {
+      if (!dialog.entry?.id && saved?.id && saved.entry_type === 'care_log' && saved.sub_type === 'fall' && saved.visibility !== 'private') {
         base44.functions.invoke('notifyFamily', { kind: 'care_alert', log_id: saved.id }).catch(() => {});
         toast({ title: 'The family has been told', description: `Everyone gets a notification about ${first}'s fall.` });
       }
@@ -132,12 +153,13 @@ export default function CareLogPage() {
     if (already) { openEntry(already); return; }
     setBusyKey(q.key);
     try {
-      const made = await createLog(quickRow(q, person, me));
+      const priv = mine && await privacy.privateNow(buttonKey(q), person);
+      const made = await createLog({ ...quickRow(q, person, me), ...(priv ? { visibility: 'private' } : {}) });
       refresh();
       track('action', `log:${q.key}`);
       const t = toast({
-        title: `${q.icon} ${q.label} logged for ${first}`,
-        description: 'Everyone in the family can see it.',
+        title: mine ? `${q.icon} ${q.label} logged` : `${q.icon} ${q.label} logged for ${first}`,
+        description: priv ? 'Only you can see it.' : 'Everyone in the family can see it.',
         action: (
           <div className="flex flex-col gap-1.5 shrink-0">
             <button type="button" className="h-8 rounded-md border px-3 text-sm font-medium" onClick={async () => { t.dismiss(); try { await deleteLog(made.id); refresh(); } catch (e) { /* it stays */ } }}>Undo</button>
@@ -228,7 +250,7 @@ export default function CareLogPage() {
                       <button key={q.key} type="button" onClick={() => tap(q)} disabled={busyKey === q.key}
                         className={`rounded-2xl border p-2.5 min-h-[76px] flex flex-col items-center justify-center gap-1 text-center transition-all active:scale-95 ${done ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30' : 'border-border/60 bg-card'}`}>
                         <span className="text-2xl leading-none">{q.icon}</span>
-                        <span className="text-xs font-medium leading-tight">{q.label}</span>
+                        <span className="text-xs font-medium leading-tight">{q.label}{mine && privacy.isPrivateThing(buttonKey(q), person) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only you" />}</span>
                         {done && <span className="text-[10px] leading-tight text-emerald-700 dark:text-emerald-400 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" />{format(parseISO(done.timestamp), 'h:mm a')}{done.logged_by_name ? ` · ${firstName(done.logged_by_name)}` : ''}</span>}
                       </button>
                     );
@@ -239,11 +261,12 @@ export default function CareLogPage() {
                     <span className="text-xs font-medium">Something else</span>
                   </button>
                 </div>
+                {mine && <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1"><Lock className="w-3 h-3 flex-shrink-0" /> Only you see what you log with a locked button. To share one with the family, open Choose buttons.</p>}
                 <button type="button" onClick={() => setChoosing(true)} className="text-xs text-primary font-medium mt-2">Choose buttons</button>
               </section>
 
               {/* Right under the buttons (Anna, Nov 13 2026: "put the track something higher up"). */}
-              <Trackers person={person} logs={logs} me={me} onChanged={refresh} />
+              <Trackers person={person} logs={logs} me={me} onChanged={refresh} privacy={mine ? privacy : null} />
 
               <section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
                 <h2 className="font-heading text-base font-semibold px-2 pt-1">Today {todays.length > 0 && <span className="text-muted-foreground font-normal text-sm">({todays.length})</span>}</h2>
@@ -314,13 +337,22 @@ export default function CareLogPage() {
           <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[88vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Buttons for {first}</DialogTitle>
-              <DialogDescription>Turn off the ones your family doesn't use. Everyone sees the same buttons.</DialogDescription>
+              <DialogDescription>{mine ? 'Turn off the ones you don\'t use. Tap Only you or Family to choose who sees what you log with each one.' : 'Turn off the ones your family doesn\'t use. Everyone sees the same buttons.'}</DialogDescription>
             </DialogHeader>
             <ul className="divide-y divide-border/40">
               {fitsAge.map((q) => (
                 <li key={q.key} className="flex items-center gap-3 py-2">
                   <span className="text-lg w-6 text-center">{q.icon}</span>
                   <span className="text-sm flex-1">{q.label}</span>
+                  {mine && (() => {
+                    const priv = privacy.isPrivateThing(buttonKey(q), person);
+                    return (
+                      <button type="button" onClick={() => flip(q)} disabled={!!flipping}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 h-7 text-xs font-medium ${priv ? 'border-border bg-muted text-foreground' : 'border-primary/40 text-primary'}`}>
+                        {priv ? <Lock className="w-3 h-3" /> : <Users className="w-3 h-3" />}{flipping === buttonKey(q) ? 'Saving…' : priv ? 'Only you' : 'Family'}
+                      </button>
+                    );
+                  })()}
                   <Switch checked={!hidden.includes(q.key)} onCheckedChange={(v) => setHidden(q.key, !!v)} aria-label={`Show ${q.label}`} />
                 </li>
               ))}
@@ -338,6 +370,9 @@ export default function CareLogPage() {
           type={dialog.type}
           preset={dialog.preset}
           onSave={(form, def) => save.mutate({ form, def })}
+          /* Your own entries: the Only you switch, starting from that thing's choice. */
+          privateFor={mine ? (row) => privacy.isPrivateThing(thingOf(row, band), person) : null}
+          canSetPrivate={(e) => !e?.id || e.logged_by_user_id === me?.id}
           onDelete={(e) => remove.mutate(e)}
           saving={save.isPending || remove.isPending}
         />

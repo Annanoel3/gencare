@@ -6,7 +6,7 @@ import { eventHighlightHex, PRIVATE_HEX } from '../../shared/eventColors.ts';
 import { shownTitle } from '../../shared/eventTitle.ts';
 import { familyUsers } from '../../shared/push.ts';
 import { accessOf } from '../../shared/access.ts';
-import { carePeople, buttonsFor, matchesQuick, quickRowFor, dayIn } from '../../shared/careQuick.ts';
+import { carePeople, buttonsFor, matchesQuick, quickRowFor, dayIn, canSeeLog } from '../../shared/careQuick.ts';
 
 // What GenCare's home-screen widgets show (Day, Week and Month, on Android
 // and iPhone; Anna, Oct 30 2026). The widgets refresh on their own, with the
@@ -89,7 +89,8 @@ Deno.serve(async (req) => {
       const tz = (() => { try { new Intl.DateTimeFormat('en-US', { timeZone: user.timezone || '' }); return String(user.timezone); } catch (_) { return 'America/Chicago'; } })();
       const now = new Date();
       const members = (await db.FamilyMember.filter({ family_id: familyId })) || [];
-      const recent = async () => ((await db.CareLog.filter({ family_id: familyId, timestamp: { $gte: new Date(now.getTime() - 14 * 86400000).toISOString() } }, '-timestamp', 1000)) || []).filter((l: any) => l.entry_type !== 'legal');
+      // What this person can see (an Only you entry is only its logger's: shared/careQuick.ts canSeeLog).
+      const recent = async () => ((await db.CareLog.filter({ family_id: familyId, timestamp: { $gte: new Date(now.getTime() - 14 * 86400000).toISOString() } }, '-timestamp', 1000)) || []).filter((l: any) => l.entry_type !== 'legal' && canSeeLog(l, user));
       let out: Record<string, unknown> = { ok: true };
 
       if (mode === 'log') {
@@ -113,7 +114,7 @@ Deno.serve(async (req) => {
         if (!row || row.family_id !== familyId || row.logged_by_user_id !== user.id || !fresh) return Response.json({ ok: false, error: 'cant_undo' }, { status: 400 });
         await db.CareLog.delete(row.id);
       }
-      out.people = carePeople(members, await recent(), tz, now);
+      out.people = carePeople(members, await recent(), tz, now, user);
       out.at = out.at || now.toISOString();
       return Response.json(out);
     }

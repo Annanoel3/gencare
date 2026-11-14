@@ -1,7 +1,7 @@
 import { externalClick } from '@/lib/phone';
 import React from 'react';
 import { format, parseISO, isValid } from 'date-fns';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Lock } from 'lucide-react';
 import { summarize } from '@/lib/careLog';
 import PrivateImage from '@/components/journal/PrivateImage';
 
@@ -21,7 +21,7 @@ export default function LogRow({ entry, onOpen, showDate }) {
           <div className="flex gap-1.5 mt-2">{entry.photos.slice(0, 4).map((u) => <PrivateImage key={u} fileUri={u} className="w-14 h-14 rounded-md object-cover border border-border/60" />)}</div>
         )}
       </div>
-      <span className="text-xs text-muted-foreground flex-shrink-0 mt-0.5">{time}{entry.logged_by_name ? ` · ${entry.logged_by_name.split(' ')[0]}` : ''}</span>
+      <span className="text-xs text-muted-foreground flex-shrink-0 mt-0.5 text-right">{time}{entry.logged_by_name ? ` · ${entry.logged_by_name.split(' ')[0]}` : ''}{entry.visibility === 'private' && <span className="flex items-center justify-end gap-0.5 mt-0.5"><Lock className="w-3 h-3" /> Only you</span>}</span>
     </button>
   );
 }

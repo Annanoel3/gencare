@@ -1,14 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
-import { LineChart, Plus } from 'lucide-react';
+import { LineChart, Lock, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/use-toast';
 import { createLog, deleteLog, nowLocal } from '@/lib/careLog';
 import { track } from '@/lib/activity';
+import { trackerKey } from '@/lib/carePrivacy';
 
 // "Track something" (Anna, Nov 10 2026): an area to record anything, named by
 // the family, the way she tracks readings in ADHDone without the app offering
@@ -18,6 +20,8 @@ import { track } from '@/lib/activity';
 // a time, with a small chart of the numbers. Stored as care-log entries
 // (entry_type "tracker", title = the tracker's name, value/value_b/value_c =
 // the numbers, response = the reading as typed).
+// On your own profile, each tracker is Only you or Family (privacy, from
+// lib/carePrivacy.js's useCarePrivacy; null for anyone else).
 
 const LINE_COLORS = ['#2f855a', '#c05621', '#2b6cb0'];
 export const numbersIn = (text) => (String(text || '').match(/-?\d+(?:\.\d+)?/g) || []).slice(0, 3).map(Number);
@@ -50,11 +54,23 @@ function Chart({ readings }) {
   );
 }
 
-export default function Trackers({ person, logs, me, onChanged }) {
+export default function Trackers({ person, logs, me, onChanged, privacy = null }) {
   const [open, setOpen] = useState(null); // { name } of the tracker being added to, '' for a new one
   const [view, setView] = useState(null); // a tracker's name, to see its history
-  const [form, setForm] = useState({ name: '', reading: '', notes: '', when: nowLocal() });
+  const [form, setForm] = useState({ name: '', reading: '', notes: '', when: nowLocal(), onlyMe: false });
   const [saving, setSaving] = useState(false);
+  const [flipping, setFlipping] = useState(false);
+  const priv = (name) => !!privacy && privacy.isPrivateThing(trackerKey(name), person);
+  // Only you / Family for a whole tracker, with what's already in it.
+  const flip = async (name, makePrivate) => {
+    setFlipping(true);
+    try {
+      await privacy.setThing(trackerKey(name), makePrivate, { member: person, logs, meId: me?.id });
+      onChanged?.();
+    } catch {
+      toast({ title: "Couldn't change that", description: 'Check your connection and try again.', variant: 'destructive' });
+    } finally { setFlipping(false); }
+  };
 
   const trackers = useMemo(() => {
     const byName = new Map();
@@ -67,7 +83,7 @@ export default function Trackers({ person, logs, me, onChanged }) {
     return [...byName.values()];
   }, [logs]);
 
-  const start = (name) => { setForm({ name: name || '', reading: '', notes: '', when: nowLocal() }); setOpen({ name: name || '' }); };
+  const start = (name) => { setForm({ name: name || '', reading: '', notes: '', when: nowLocal(), onlyMe: priv(name) }); setOpen({ name: name || '' }); };
   const save = async () => {
     const name = form.name.trim();
     const reading = form.reading.trim();
@@ -75,7 +91,18 @@ export default function Trackers({ person, logs, me, onChanged }) {
     const [a, b, c] = numbersIn(reading);
     setSaving(true);
     try {
+      // Yours: a new tracker takes the switch's answer; one you have keeps its own.
+      let onlyMe = false;
+      if (privacy) {
+        const now = await privacy.privateNow(trackerKey(name), person);
+        onlyMe = now;
+        if (!open?.name && form.onlyMe !== now) {
+          await privacy.setThing(trackerKey(name), form.onlyMe, { member: person, logs, meId: me?.id });
+          onlyMe = form.onlyMe;
+        }
+      }
       await createLog({
+        ...(onlyMe ? { visibility: 'private' } : {}),
         family_member_id: person.id,
         family_member_name: person.name,
         entry_type: 'tracker',
@@ -106,7 +133,7 @@ export default function Trackers({ person, logs, me, onChanged }) {
         <Button size="sm" variant="ghost" className="h-8 gap-1 rounded-full" onClick={() => start('')}><Plus className="w-4 h-4" /> New</Button>
       </div>
       {trackers.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Anything the family wants to keep an eye on for {first(person.name)}. Name it whatever you like, then add a reading whenever you check.</p>
+        <p className="text-sm text-muted-foreground">{privacy ? 'Anything you want to keep an eye on for yourself.' : `Anything the family wants to keep an eye on for ${first(person.name)}.`} Name it whatever you like, then add a reading whenever you check.</p>
       ) : (
         <ul className="divide-y divide-border/40">
           {trackers.map((t) => {
@@ -115,7 +142,7 @@ export default function Trackers({ person, logs, me, onChanged }) {
             return (
               <li key={t.name} className="flex items-center gap-3 py-2">
                 <button type="button" className="flex-1 min-w-0 text-left" onClick={() => setView(t.name)}>
-                  <span className="block text-sm font-medium truncate">{t.name}</span>
+                  <span className="block text-sm font-medium truncate">{t.name}{priv(t.name) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only you" />}</span>
                   <span className="block text-xs text-muted-foreground truncate">{last?.response}{d && isValid(d) ? ` · ${format(d, 'MMM d, h:mm a')}` : ''}{last?.logged_by_name ? ` · ${first(last.logged_by_name)}` : ''}</span>
                 </button>
                 <Button size="sm" variant="secondary" className="h-8 rounded-full" onClick={() => start(t.name)}>Add</Button>
@@ -129,13 +156,22 @@ export default function Trackers({ person, logs, me, onChanged }) {
         <DialogContent className="max-w-md w-[calc(100vw-2rem)]">
           <DialogHeader>
             <DialogTitle>{open?.name ? open.name : 'Track something new'}</DialogTitle>
-            <DialogDescription>For {first(person.name)}. Everyone in the family can see it.</DialogDescription>
+            <DialogDescription>{privacy ? (open?.name ? (priv(open.name) ? 'Only you can see it.' : 'Everyone in the family can see it.') : 'Just for you, or for the family to see too.') : `For ${first(person.name)}. Everyone in the family can see it.`}</DialogDescription>
           </DialogHeader>
           {!open?.name && (
             <div>
               <Label>What are you tracking?</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Name it anything" className="mt-1" />
             </div>
+          )}
+          {privacy && !open?.name && (
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 cursor-pointer">
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium"><Lock className="w-3.5 h-3.5" /> Only me</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">{form.onlyMe ? 'Only you can see it.' : 'Everyone in the family can see it.'}</span>
+              </span>
+              <Switch checked={form.onlyMe} onCheckedChange={(v) => setForm({ ...form, onlyMe: !!v })} className="flex-shrink-0" />
+            </label>
           )}
           <div>
             <Label>Reading</Label>
@@ -159,6 +195,15 @@ export default function Trackers({ person, logs, me, onChanged }) {
             <DialogTitle>{viewing?.name}</DialogTitle>
             <DialogDescription>{first(person.name)} · {viewing?.readings.length} reading{viewing?.readings.length === 1 ? '' : 's'}</DialogDescription>
           </DialogHeader>
+          {viewing && privacy && (
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 cursor-pointer">
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium"><Lock className="w-3.5 h-3.5" /> Only me</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">{flipping ? 'Saving…' : priv(viewing.name) ? 'Only you can see this tracker.' : 'Everyone in the family can see this tracker.'}</span>
+              </span>
+              <Switch checked={priv(viewing.name)} disabled={flipping} onCheckedChange={(v) => flip(viewing.name, !!v)} className="flex-shrink-0" />
+            </label>
+          )}
           {viewing && <Chart readings={viewing.readings} />}
           <ul className="divide-y divide-border/40">
             {viewing?.readings.map((r) => {

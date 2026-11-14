@@ -46,6 +46,24 @@ const under18 = (birthdate: unknown) => {
 /** Someone the family takes care of (CareLogPage's rule). */
 export const caredFor = (m: any) => m?.is_active !== false && (isPet(m) || m?.cared_for === true || (m?.cared_for !== false && under18(m?.birthdate)));
 
+// Tracking things for yourself (Anna, Nov 13 2026; TWIN of src/lib/carePrivacy.js):
+// your own profile is always in your Care Log, and each thing you track
+// there is Only you (visibility "private": only the person who logged it
+// sees it) or Family. It starts as Only you unless the family helps take
+// care of you; your choices are on your account (care_private_keys / care_shared_keys).
+const isMine = (m: any, user: any) => !!user?.id && !!m?.linked_user_id && String(m.linked_user_id) === String(user.id);
+/** Can this person see this entry? (The CareLog access rule, for the service-role widget.) */
+export const canSeeLog = (l: any, user: any) => l?.visibility !== 'private' || String(l?.logged_by_user_id || '') === String(user?.id || '') || String(l?.created_by_id || '') === String(user?.id || '');
+const keysOf = (v: unknown) => (Array.isArray(v) ? v.map(String) : []);
+/** Is this button Only you, on your own profile? */
+export function privateButton(q: Quick, member: any, user: any) {
+  if (!isMine(member, user)) return false;
+  const key = `b:${q.key}`;
+  if (keysOf(user?.care_private_keys).includes(key)) return true;
+  if (keysOf(user?.care_shared_keys).includes(key)) return false;
+  return !caredFor(member);
+}
+
 export type Quick = { key: string; label: string; icon: string; row: Record<string, unknown>; ask?: boolean; daily?: boolean; last?: boolean; minMonths?: number; mood?: string[] };
 
 const Q = (key: string, label: string, icon: string, row: Record<string, unknown>, opts: Partial<Quick> = {}): Quick => ({ key, label, icon, row, ...opts });
@@ -168,9 +186,14 @@ export function dayIn(tz: string, when: Date): string {
  * today (breakfast, a shower) last, otherwise the app's order.
  *   { id, n: first name, b: band, s: [{ i, t, at, by, now? }], q: [{ k, i, l, a: opens the app for details }] }
  */
-export function carePeople(members: any[], logs: any[], tz: string, now = new Date()) {
+export function carePeople(members: any[], allLogs: any[], tz: string, now = new Date(), user: any = null) {
   const today = dayIn(tz, now);
-  const people = (members || []).filter(caredFor).map((m) => {
+  // Only what this person can see; and besides the ones the family takes care
+  // of, you, and anyone who shared something they track for themselves.
+  const logs = (allLogs || []).filter((l) => canSeeLog(l, user));
+  const ownShared = new Set(logs.filter((l) => l.logged_by_user_id).map((l) => `${l.family_member_id}|${l.logged_by_user_id}`));
+  const shown = (m: any) => m?.is_active !== false && (caredFor(m) || isMine(m, user) || (!!m?.linked_user_id && ownShared.has(`${m.id}|${m.linked_user_id}`)));
+  const people = (members || []).filter(shown).map((m) => {
     const band = bandOf(m, now);
     const mine = logs.filter((l) => l.family_member_id === m.id && l.timestamp).sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
     const buttons = buttonsFor(m, now).map((q, order) => {
@@ -209,6 +232,7 @@ export function carePeople(members: any[], logs: any[], tz: string, now = new Da
 /** A one-tap button's entry for the widget, the same as a tap in the app (careLog.js quickRow). */
 export function quickRowFor(q: Quick, member: any, user: any, now = new Date()) {
   return {
+    ...(privateButton(q, member, user) ? { visibility: 'private' } : {}),
     family_id: member.family_id,
     family_member_id: member.id,
     family_member_name: member.name,

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Loader2, Trash2, X } from 'lucide-react';
+import { ImagePlus, Loader2, Lock, Trash2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -22,8 +22,11 @@ function toLocal(iso) {
 /**
  * Log or edit one care entry. The fields come from the catalog for the
  * person's band and the chosen type, so this one dialog serves every age.
+ * On your own profile, privateFor(row) says whether that kind of entry is
+ * Only you (lib/carePrivacy.js), and an Only you switch shows when
+ * canSetPrivate(entry) (not on an entry someone else logged about you).
  */
-export default function LogDialog({ open, onOpenChange, member, entry, type, preset, onSave, onDelete, saving }) {
+export default function LogDialog({ open, onOpenChange, member, entry, type, preset, onSave, onDelete, saving, privateFor = null, canSetPrivate = () => true }) {
   const band = bandOf(member);
   const types = CATALOG[band] || CATALOG.general;
   const [entryType, setEntryType] = useState(type || types[0]?.type);
@@ -50,6 +53,7 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
     }
     // A one-tap button that asks for details starts with its own picks (Bottle, Fall).
     if (!entry && preset) for (const [k, v] of Object.entries(preset)) if (k !== 'entry_type' && k in base) base[k] = v;
+    if (privateFor && canSetPrivate(entry)) base.only_me = entry?.id ? entry.visibility === 'private' : !!privateFor({ ...(preset || {}), entry_type: t });
     setForm(base);
   }, [open, entry, type, member?.id, preset]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -60,6 +64,7 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
     setForm((f) => {
       const base = { timestamp: f.timestamp, photos: [] };
       for (const fld of d.fields) base[fld.key] = fld.kind === 'select' ? fld.options[0] : fld.kind === 'toggle' ? false : fld.kind === 'side' ? 'left' : fld.kind === 'photos' ? [] : '';
+      if (privateFor && canSetPrivate(entry)) base.only_me = !!privateFor({ entry_type: t });
       return base;
     });
   };
@@ -109,6 +114,16 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
             <Input type="datetime-local" value={form.timestamp || ''} onChange={(e) => set('timestamp', e.target.value)} className="mt-1" />
           </div>
 
+          {typeof form.only_me === 'boolean' && (
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 cursor-pointer">
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium"><Lock className="w-3.5 h-3.5" /> Only me</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">{form.only_me ? 'Only you can see this.' : 'Everyone in the family can see this.'}</span>
+              </span>
+              <Switch checked={form.only_me} onCheckedChange={(v) => set('only_me', !!v)} className="flex-shrink-0" />
+            </label>
+          )}
+
           {editing && entry.logged_by_name && <p className="text-xs text-muted-foreground">Logged by {entry.logged_by_name}</p>}
 
           <div className="flex items-center gap-2 pt-1">
@@ -123,7 +138,7 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
-            <AlertDialogDescription>It goes for everyone in the family. This can't be undone.</AlertDialogDescription>
+            <AlertDialogDescription>{entry?.visibility === 'private' ? "This can't be undone." : "It goes for everyone in the family. This can't be undone."}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>

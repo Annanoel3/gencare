@@ -154,6 +154,8 @@ Deno.serve(async (req) => {
       const log = body.log_id ? (await db.CareLog.filter({ id: String(body.log_id) }))?.[0] : null;
       if (!log || log.family_id !== familyId) return Response.json({ ok: false, error: 'Not your family' }, { status: 403 });
       if (!(log.entry_type === 'care_log' && log.sub_type === 'fall')) return Response.json({ ok: true, sent: [] });
+      // Logged as Only you (tracking for yourself, Nov 13 2026): it stays yours.
+      if (log.visibility === 'private') return Response.json({ ok: true, sent: [] });
       const person = first(log.family_member_name) || 'Someone';
       const t = new Date(String(log.timestamp || ''));
       const at = Number.isNaN(t.getTime()) ? '' : new Intl.DateTimeFormat('en-US', { timeZone: user.timezone || 'America/Chicago', hour: 'numeric', minute: '2-digit' }).format(t);
