@@ -15,13 +15,15 @@ import NotesField from '@/components/shared/NotesField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TaskSteps from './TaskSteps';
 import { Choices } from '@/components/shared/MoreOptions';
-import { format, addDays } from 'date-fns';
+import { format, addDays, parseISO, isValid } from 'date-fns';
+import { firstDayOf, monthlyWeekdayRule, ORDINAL } from '@/lib/occurrences';
 import {
   repeatOptionsFor, recurrenceLabel, DAY_NAMES, createTask, updateTask, deleteTask, addStep,
   completeTask, uncompleteTask, toggleStep, nextCopyText, clean,
 } from '@/lib/tasks';
 
 const NONE = '__none__';
+const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const WHEN = [['none', 'No date'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['pick', 'Pick a day']];
 
 /**
@@ -128,7 +130,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const [picking, setPicking] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
-  useEffect(() => { if (open) { setPicking(false); setShowRepeat(false); } }, [open, task]);
+  useEffect(() => { if (open) { setPicking(false); setShowRepeat(false); setMovedTo(''); } }, [open, task]); // eslint-disable-line react-hooks/exhaustive-deps
   const when = picking ? 'pick' : !form.due_date ? 'none' : form.due_date === today ? 'today' : form.due_date === tomorrow ? 'tomorrow' : 'pick';
   const setWhen = (v) => {
     setPicking(v === 'pick');
@@ -136,6 +138,19 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
     else if (v === 'today') set('due_date', today);
     else if (v === 'tomorrow') set('due_date', tomorrow);
     else if (!form.due_date || form.due_date === today || form.due_date === tomorrow) set('due_date', format(addDays(new Date(), 2), 'yyyy-MM-dd'));
+  };
+  // "Every month on the [second] [Tuesday]": any week of the month, any
+  // weekday (Anna, Nov 14 2026). It's the due date's, so picking one moves
+  // the due date to the first such day from the one it has (or today).
+  const monthlyNth = form.recurrence === 'monthly_weekday' || form.recurrence === 'monthly_last_weekday';
+  const dueDay = (() => { const d = form.due_date ? parseISO(form.due_date) : null; return d && isValid(d) ? d : new Date(); })();
+  const nthNow = form.recurrence === 'monthly_last_weekday' || Math.ceil(dueDay.getDate() / 7) > 4 ? -1 : Math.ceil(dueDay.getDate() / 7);
+  const [movedTo, setMovedTo] = useState('');
+  const pickNth = (wd, n) => {
+    const from = form.due_date || format(new Date(), 'yyyy-MM-dd');
+    const day = firstDayOf(monthlyWeekdayRule(wd, n), from);
+    setMovedTo(day !== form.due_date ? day : '');
+    setForm((f) => ({ ...f, due_date: day, recurrence: n === -1 ? 'monthly_last_weekday' : 'monthly_weekday' }));
   };
   const repeatField = (
     <div>
@@ -148,6 +163,22 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
           {!repeatOptionsFor(form.due_date).some((o) => o.value === form.recurrence) && <SelectItem value={form.recurrence}>{recurrenceLabel({ ...form, is_recurring: true }) || form.recurrence}</SelectItem>}
         </SelectContent>
       </Select>
+      {monthlyNth && (
+        <div className="mt-2 rounded-xl border border-border/60 bg-muted/40 p-3">
+          <Label className="text-xs">Every month on the</Label>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            <Select value={String(nthNow)} onValueChange={(v) => pickNth(dueDay.getDay(), Number(v))}>
+              <SelectTrigger className="h-9" aria-label="Which one"><SelectValue /></SelectTrigger>
+              <SelectContent>{[1, 2, 3, 4, -1].map((n) => <SelectItem key={n} value={String(n)}>{ORDINAL[n][0].toUpperCase() + ORDINAL[n].slice(1)}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={String(dueDay.getDay())} onValueChange={(v) => pickNth(Number(v), nthNow)}>
+              <SelectTrigger className="h-9" aria-label="Day of the week"><SelectValue /></SelectTrigger>
+              <SelectContent>{WEEKDAY_FULL.map((name, i) => <SelectItem key={i} value={String(i)}>{name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          {movedTo && <p className="text-xs text-primary mt-1.5">It's now due {format(parseISO(movedTo), 'EEE, MMM d')}, the first one.</p>}
+        </div>
+      )}
       {form.recurrence === 'weekly' && (
         <div className="flex gap-1.5 mt-2">
           {DAY_NAMES.map((d, i) => (
