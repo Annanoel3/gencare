@@ -118,7 +118,12 @@ public class WidgetListService extends RemoteViewsService {
                 rv.setOnClickFillInIntent(R.id.section, fill);
                 return rv;
             }
-            if (r.type == 2) return dayRow(pkg, r, fill);
+            if (r.type == 2) {
+                RemoteViews day = dayRow(pkg, r, fill);
+                // A thin line between days; none above the first one.
+                day.setViewVisibility(R.id.divider, position == 0 ? View.GONE : View.VISIBLE);
+                return day;
+            }
 
             JSONObject ev = r.event;
             RemoteViews rv = new RemoteViews(pkg, R.layout.widget_row_event);
