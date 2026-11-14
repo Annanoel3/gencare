@@ -175,6 +175,10 @@
       "description": "The notes as the phone calendar last had them",
       "type": "string"
     },
+    "phone_rule": {
+      "description": "How a phone calendar event repeats on the phone, as of the last sync (functions/phoneCalendar): a repeat changed here stays until the phone's changes",
+      "type": "string"
+    },
     "phone_when": {
       "description": "The day and time as the phone calendar last had them (date|time|end time|end date|all day), so a time changed here isn't undone by the next sync",
       "type": "string"
@@ -243,7 +247,6 @@
     "title",
     "date"
   ],
-  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -277,5 +280,6 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  }
+  },
+  "type": "object"
 }
