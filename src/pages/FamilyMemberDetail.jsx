@@ -18,6 +18,8 @@ import MemberColorPicker from '@/components/family/MemberColorPicker';
 import { getMemberColorClass, isPet, takenColors } from '@/utils/memberColors';
 import { frequencyLabel, fmtClock } from '@/lib/reminders';
 import CaredForSwitch, { caredForShown } from '@/components/family/CaredForSwitch';
+import { toast } from '@/components/ui/use-toast';
+import { track } from '@/lib/activity';
 import InviteModal from '@/components/family/InviteModal';
 import { useFamily, relationshipLabel, RELATIONSHIPS } from '@/lib/family';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -59,6 +61,23 @@ export default function FamilyMemberDetail() {
       setEditing(false);
     },
   });
+
+  const setCaredFor = async (v) => {
+    const before = member?.cared_for;
+    queryClient.setQueryData(['familyMember', id], (m) => (m ? { ...m, cared_for: v } : m));
+    try {
+      await base44.entities.FamilyMember.update(id, { cared_for: v });
+      queryClient.invalidateQueries({ queryKey: ['familyMembers'] });
+      track('action', v ? 'cared for: on' : 'cared for: off');
+      const first = String(member?.name || '').split(' ')[0];
+      toast(v
+        ? { title: `The family helps take care of ${first}`, description: `${first} is in the Care Log now, and ${first}'s appointments are shared with everyone.` }
+        : { title: 'Saved', description: `${first} is no longer in the Care Log.` });
+    } catch {
+      queryClient.setQueryData(['familyMember', id], (m) => (m ? { ...m, cared_for: before } : m));
+      toast({ title: "Couldn't save that", description: 'Check your connection and try again.', variant: 'destructive' });
+    }
+  };
 
   // Name, relationship and birthday are editable too (Anna, Oct 29 2026: she
   // couldn't put that she's the daughter; Care Log's "add a birthday" also
@@ -163,6 +182,15 @@ export default function FamilyMemberDetail() {
         )}
       </div>
 
+      {/* Right on the profile, not behind Edit (Anna, Nov 13 2026: "My moms
+          profile has no option to mark that she is being cared for"); it
+          saves as soon as it's switched. */}
+      {!pet && (
+        <div className="mb-4">
+          <CaredForSwitch name={member.name} checked={caredForShown(member.cared_for, member.birthdate)} onChange={setCaredFor} />
+        </div>
+      )}
+
       {editing && (
         <Card className="border-border/50 mb-4">
           <CardContent className="pt-5 grid gap-4 sm:grid-cols-3">
@@ -177,12 +205,6 @@ export default function FamilyMemberDetail() {
               </div>
             )}
             <div><Label>{pet ? 'Birthday' : 'Date of birth'}</Label><Input type="date" value={form.birthdate || ''} onChange={(e) => setForm({ ...form, birthdate: e.target.value })} className="mt-1" /></div>
-            {/* Saved only when changed here (CaredForSwitch). */}
-            {!pet && (
-              <div className="sm:col-span-3">
-                <CaredForSwitch name={form.name || member.name} checked={caredForShown(typeof form.cared_for === 'boolean' ? form.cared_for : member.cared_for, form.birthdate)} onChange={(v) => setForm({ ...form, cared_for: v })} />
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
