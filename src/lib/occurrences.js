@@ -152,6 +152,83 @@ export function firstDayOf(rule, from) {
   return from;
 }
 
+// "The ___ ___ of every month" (Anna, Nov 14 2026): the first blank is
+// First / Second / Third / Fourth / Last or a day number (1st to 31st), the
+// second is "day" or a day of the week. "The 14th day", "the last day", "the
+// second Tuesday", "the last Friday". Events and to-dos both use these.
+export const MONTHLY_FIRST = [
+  ...[1, 2, 3, 4].map((n) => ({ value: `n${n}`, label: ORDINAL[n][0].toUpperCase() + ORDINAL[n].slice(1) })),
+  { value: 'last', label: 'Last' },
+  ...Array.from({ length: 31 }, (_, i) => ({ value: `d${i + 1}`, label: numberth(i + 1) })),
+];
+export const MONTHLY_SECOND = [{ value: 'day', label: 'day' }, ...WEEKDAY.map((w, i) => ({ value: String(i), label: w }))];
+
+/** The two blanks for an event's monthly rule on its day ('YYYY-MM-DD'), or null for any other kind of repeat. */
+export function monthlyBlanks(rule, date) {
+  const r = parseRRule(rule);
+  if (!r || r.freq !== 'MONTHLY' || r.interval !== 1 || r.setpos.length || r.months.length) return null;
+  const d = parseISO(String(date || ''));
+  if (!r.days.length && !r.monthdays.length) return { first: `d${isValid(d) ? d.getDate() : 1}`, second: 'day' };
+  if (!r.days.length && r.monthdays.length === 1) {
+    const n = r.monthdays[0];
+    return n === -1 ? { first: 'last', second: 'day' } : n > 0 ? { first: `d${n}`, second: 'day' } : null;
+  }
+  if (r.days.length === 1 && !r.monthdays.length) {
+    const { wd, n } = r.days[0];
+    if (n === -1) return { first: 'last', second: String(wd) };
+    if (n >= 1 && n <= 4) return { first: `n${n}`, second: String(wd) };
+  }
+  return null;
+}
+
+/**
+ * The blanks tidied to what they mean: First to Fourth with "day" is the 1st
+ * to 4th, and a day number with a weekday becomes its week ("the 14th" +
+ * Tuesday is the second Tuesday; the 29th to 31st, the last one).
+ */
+export function normalizeBlanks(first, second) {
+  const num = parseInt(String(first).slice(1), 10) || 1;
+  if (second === 'day') return { first: first === 'last' ? 'last' : `d${num}`, second };
+  if (first === 'last' || first.startsWith('n')) return { first, second };
+  return { first: num > 28 ? 'last' : `n${Math.ceil(num / 7)}`, second };
+}
+/** Two picks that mean the same repeat ("Third day" and "3rd day"). */
+export const sameBlanks = (a, b) => !!a && !!b && (({ first, second }) => `${first}|${second}`)(normalizeBlanks(a.first, a.second)) === (({ first, second }) => `${first}|${second}`)(normalizeBlanks(b.first, b.second));
+
+/**
+ * The blanks as a repeat: its rule, its first day on or after `from`
+ * ('YYYY-MM-DD'), and kind: 'day' (a day number, n), 'lastday', or 'weekday'
+ * (wd, and n = 1-4 or -1 for the last one).
+ */
+export function monthlyFromBlanks(first, second, from) {
+  const b = normalizeBlanks(first, second);
+  const num = parseInt(b.first.slice(1), 10) || 1;
+  let out;
+  if (b.second === 'day') {
+    out = b.first === 'last'
+      ? { kind: 'lastday', rule: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=-1', probe: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=-1' }
+      : { kind: 'day', n: num, rule: 'RRULE:FREQ=MONTHLY', probe: `RRULE:FREQ=MONTHLY;BYMONTHDAY=${num}` };
+  } else {
+    const wd = Number(b.second) || 0;
+    const n = b.first === 'last' ? -1 : num;
+    const rule = monthlyWeekdayRule(wd, n);
+    out = { kind: 'weekday', wd, n, rule, probe: rule };
+  }
+  return { ...b, ...out, date: firstDayOf(out.probe, from) };
+}
+
+/** "Every month on the 14th" / "Every year on Nov 14" when the event's day says which; otherwise repeatLabel. */
+export function repeatLabelOn(rule, date) {
+  const r = parseRRule(rule);
+  const d = parseISO(String(date || ''));
+  if (r && isValid(d) && r.interval === 1 && !r.days.length && !r.monthdays.length && !r.months.length && !r.setpos.length && (r.freq === 'MONTHLY' || r.freq === 'YEARLY')) {
+    const words = r.freq === 'MONTHLY' ? `Every month on the ${numberth(d.getDate())}` : `Every year on ${format(d, 'MMM d')}`;
+    if (!r.until) return words;
+    return `${words} until ${format(r.until, r.until.getFullYear() === new Date().getFullYear() ? 'MMM d' : 'MMM d, yyyy')}`;
+  }
+  return repeatLabel(rule);
+}
+
 const dayStr = (d) => format(d, 'yyyy-MM-dd');
 
 /** Does a monthly rule pick this day of its month? (Also a yearly rule's month.) */

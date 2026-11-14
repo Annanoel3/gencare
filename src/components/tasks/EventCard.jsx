@@ -9,7 +9,7 @@ import { track } from '@/lib/activity';
 import { checkOn, setCheck, firstName } from '@/lib/claims';
 import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass, isCareEvent } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
-import { rowIdOf, repeatLabel } from '@/lib/occurrences';
+import { rowIdOf, repeatLabelOn } from '@/lib/occurrences';
 import { categoryOf, isRecordable } from '@/components/calendar/EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ClaimButton from '@/components/shared/ClaimButton';
@@ -102,7 +102,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
             <span>{when}</span>
             {appt.span_days > 1 && <span>Day {appt.span_index + 1} of {appt.span_days}</span>}
             {cat && cat !== 'Other' && <span>{cat}</span>}
-            {appt.recurrence && <span className="inline-flex items-center gap-0.5"><Repeat className="w-3 h-3" />{repeatLabel(appt.recurrence)}</span>}
+            {appt.recurrence && <span className="inline-flex items-center gap-0.5"><Repeat className="w-3 h-3" />{repeatLabelOn(appt.recurrence, appt.series_date || appt.date)}</span>}
             {appt.visibility === 'private' && <span className="inline-flex items-center gap-0.5"><Lock className="w-3 h-3" />Only you</span>}
             {appt.visibility === 'some' && <span className="inline-flex items-center gap-0.5"><Users className="w-3 h-3" />Shared</span>}
             {done && <span>done by {doneBy || 'someone'}</span>}

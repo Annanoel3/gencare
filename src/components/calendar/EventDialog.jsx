@@ -14,7 +14,8 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isRecordable, categoryOf, CATEGORIES } from './EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
-import { EVENT_REPEATS, repeatLabel, parseRRule, monthlyWeekdayChoices, monthlyWeekdayOf, monthlyWeekdayRule, firstDayOf, weekOfMonth, weekFromEnd, ORDINAL } from '@/lib/occurrences';
+import { EVENT_REPEATS, repeatLabel, repeatLabelOn, parseRRule, monthlyWeekdayOf, monthlyWeekdayRule, weekOfMonth, weekFromEnd, monthlyBlanks, monthlyFromBlanks, sameBlanks } from '@/lib/occurrences';
+import MonthlyBlanks from '@/components/shared/MonthlyBlanks';
 import AddressField from '@/components/shared/AddressField';
 import NotesField from '@/components/shared/NotesField';
 import PhotoBatchRow from '@/components/calendar/PhotoBatchRow';
@@ -82,7 +83,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     if (!open) return;
     setConfirmDelete(false);
     setShowRepeat(false);
-    setMoved('');
+    setMoved(''); setAnchor(''); setChosen(null);
     setNoEnd(!!appt?.recurrence && !untilOf(appt.recurrence));
     setStopped('');
     touched.current = new Set();
@@ -119,42 +120,49 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const pick = (field, fn) => { touched.current.add(field); fn(); };
   const repeating = !!form.recurrence && form.recurrence !== '__none__';
-  // The repeat choices for this day (Anna, Nov 14 2026: "second tuesday of
-  // every month, third thursday, first monday, first sunday"): "Every month
-  // on the 14th" and "Every month on the second Saturday" (and "… the last
-  // Saturday" in a month's last week), like the phone calendars do.
+  // The repeat choices (Anna, Nov 14 2026): one "Every month", and with it
+  // "The [14th] [day] of every month" / "The [second] [Tuesday] of every
+  // month" to pick which (components/shared/MonthlyBlanks.jsx).
   const repeatChoices = useMemo(() => {
     const d = form.date ? parseISO(form.date) : null;
     const ok = d && isValid(d);
-    const out = [];
-    for (const r of EVENT_REPEATS) {
-      if (ok && r.value === 'RRULE:FREQ=MONTHLY') {
-        out.push({ ...r, label: `Every month on the ${format(d, 'do')}` });
-        out.push(...monthlyWeekdayChoices(form.date));
-      } else if (ok && r.value === 'RRULE:FREQ=YEARLY') out.push({ ...r, label: `Every year on ${format(d, 'MMM d')}` });
-      else out.push(r);
-    }
-    return out;
+    return EVENT_REPEATS.map((r) => (ok && r.value === 'RRULE:FREQ=YEARLY' ? { ...r, label: `Every year on ${format(d, 'MMM d')}` } : r));
   }, [form.date]);
-  const nthDay = !fromPhone ? monthlyWeekdayOf(form.recurrence) : null;
+  const saved = !fromPhone ? monthlyBlanks(form.recurrence, form.date) : null;
+  // What was picked stays on screen ("Third day" isn't turned into "3rd").
+  const [chosen, setChosen] = useState(null);
+  const blanks = saved && chosen?.second === 'day' && chosen.first.startsWith('n') && sameBlanks(chosen, saved) ? chosen : saved;
+  const repeatValue = saved ? 'RRULE:FREQ=MONTHLY' : (form.recurrence || '__none__');
   const [moved, setMoved] = useState('');
-  // A new day keeps "the second Tuesday" kind of repeat matching it.
+  // Picks look for the first day from the day it had before any of them, so
+  // trying a few doesn't walk the day months ahead.
+  const [anchor, setAnchor] = useState('');
+  // A new day keeps the monthly pick matching it: the second Tuesday stays
+  // "the nth weekday" of the new day; the last day stays it only on a last day.
   const changeDate = (v) => {
-    setMoved('');
+    setMoved(''); setAnchor(''); setChosen(null);
     setForm((f) => {
-      const was = monthlyWeekdayOf(f.recurrence);
       const d = v ? parseISO(v) : null;
-      if (!was || !d || !isValid(d)) return { ...f, date: v };
-      const n = was.n === -1 && weekFromEnd(d) === 1 ? -1 : weekOfMonth(d) <= 4 ? weekOfMonth(d) : -1;
-      return { ...f, date: v, recurrence: monthlyWeekdayRule(d.getDay(), n) };
+      if (!d || !isValid(d)) return { ...f, date: v };
+      const was = monthlyWeekdayOf(f.recurrence);
+      if (was) {
+        const n = was.n === -1 && weekFromEnd(d) === 1 ? -1 : weekOfMonth(d) <= 4 ? weekOfMonth(d) : -1;
+        return { ...f, date: v, recurrence: monthlyWeekdayRule(d.getDay(), n) };
+      }
+      const b = monthlyBlanks(f.recurrence, f.date);
+      const lastDay = d.getDate() === new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      if (b?.first === 'last' && b.second === 'day' && !lastDay) return { ...f, date: v, recurrence: 'RRULE:FREQ=MONTHLY' };
+      return { ...f, date: v };
     });
   };
-  // Picking "the first Sunday" moves the day to the first one from the day it has.
-  const changeNth = (wd, n) => {
-    const rule = monthlyWeekdayRule(wd, n);
-    const day = firstDayOf(rule, form.date || format(new Date(), 'yyyy-MM-dd'));
-    setMoved(day !== form.date ? day : '');
-    setForm((f) => ({ ...f, recurrence: rule, date: day }));
+  // Filling in the blanks moves the day to the first one from the day it has.
+  const changeBlanks = (first, second) => {
+    const from = anchor || form.date || format(new Date(), 'yyyy-MM-dd');
+    if (!anchor) setAnchor(from);
+    const m = monthlyFromBlanks(first, second, from);
+    setChosen({ first, second });
+    setMoved(m.date !== from ? m.date : '');
+    setForm((f) => ({ ...f, recurrence: m.rule, date: m.date }));
   };
   const needsEnd = repeating && !form.until && !noEnd;
   // "Stop repeating": the days up to today stay; nothing after. One that
@@ -268,36 +276,24 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             </div>
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mt-2">
               <label className="flex items-center gap-2 text-sm whitespace-nowrap"><Switch checked={!!form.all_day} onCheckedChange={(v) => set('all_day', v)} /> All day</label>
-              {fromPhone ? (appt.recurrence ? <span className="text-xs text-muted-foreground flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> {repeatLabel(appt.recurrence)}</span> : null)
+              {fromPhone ? (appt.recurrence ? <span className="text-xs text-muted-foreground flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> {repeatLabelOn(appt.recurrence, appt.date)}</span> : null)
                 : repeating || showRepeat ? (
                   <div className="flex items-center gap-1 min-w-0 max-w-full">
                     <Repeat className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                    <Select value={form.recurrence || '__none__'} onValueChange={(v) => { if (!repeating) { setNoEnd(false); set('until', ''); } setMoved(''); set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); }}>
+                    <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (!repeating) { setNoEnd(false); set('until', ''); } setMoved(''); setAnchor(''); setChosen(null); set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); }}>
                       <SelectTrigger className="h-8 text-xs w-auto max-w-full gap-1 border-none shadow-none px-1 text-left"><SelectValue placeholder="Doesn't repeat" /></SelectTrigger>
                       <SelectContent>
                         {repeatChoices.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}
                         {/* A repeat that isn't one of the choices ("every Wednesday") still shows. */}
-                        {repeating && !repeatChoices.some((r) => r.value === form.recurrence) && <SelectItem value={form.recurrence}>{repeatLabel(form.recurrence)}</SelectItem>}
+                        {repeating && !repeatChoices.some((r) => r.value === repeatValue) && <SelectItem value={form.recurrence}>{repeatLabel(form.recurrence)}</SelectItem>}
                       </SelectContent>
                     </Select>
                   </div>
                 ) : <button type="button" onClick={() => setShowRepeat(true)} className="text-xs text-primary flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeat</button>}
             </div>
-            {nthDay && (
-              <div className="mt-2 rounded-xl border border-border/60 bg-muted/40 p-3">
-                <Label className="text-xs">Every month on the</Label>
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  <Select value={String(nthDay.n)} onValueChange={(v) => changeNth(nthDay.wd, Number(v))}>
-                    <SelectTrigger className="h-9" aria-label="Which one"><SelectValue /></SelectTrigger>
-                    <SelectContent>{[1, 2, 3, 4, -1].map((n) => <SelectItem key={n} value={String(n)}>{ORDINAL[n][0].toUpperCase() + ORDINAL[n].slice(1)}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Select value={String(nthDay.wd)} onValueChange={(v) => changeNth(Number(v), nthDay.n)}>
-                    <SelectTrigger className="h-9" aria-label="Day of the week"><SelectValue /></SelectTrigger>
-                    <SelectContent>{WEEKDAYS.map((name, i) => <SelectItem key={i} value={String(i)}>{name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                {moved && <p className="text-xs text-primary mt-1.5">The day is now {format(parseISO(moved), 'EEE, MMM d')}, the first one.</p>}
-              </div>
+            {blanks && (
+              <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={changeBlanks}
+                note={moved ? `The day is now ${format(parseISO(moved), 'EEE, MMM d')}, the first one.` : ''} />
             )}
             {!fromPhone && repeating && (
               <div className={`mt-2 rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
@@ -421,8 +417,6 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     </Dialog>
   );
 }
-
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // The repeat choice without its UNTIL, so the select can show it.
 function baseRule(rule) {

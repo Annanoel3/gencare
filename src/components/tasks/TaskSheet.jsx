@@ -15,15 +15,16 @@ import NotesField from '@/components/shared/NotesField';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TaskSteps from './TaskSteps';
 import { Choices } from '@/components/shared/MoreOptions';
-import { format, addDays, parseISO, isValid } from 'date-fns';
-import { firstDayOf, monthlyWeekdayRule, ORDINAL } from '@/lib/occurrences';
+import { format, addDays, parseISO } from 'date-fns';
+import { monthlyFromBlanks, sameBlanks } from '@/lib/occurrences';
+import MonthlyBlanks from '@/components/shared/MonthlyBlanks';
 import {
-  repeatOptionsFor, recurrenceLabel, DAY_NAMES, createTask, updateTask, deleteTask, addStep,
+  repeatOptionsFor, recurrenceLabel, taskBlanks, taskFromBlanks, monthDayOf, MONTHLY_KINDS, DAY_NAMES, createTask, updateTask, deleteTask, addStep,
   completeTask, uncompleteTask, toggleStep, nextCopyText, clean,
 } from '@/lib/tasks';
 
 const NONE = '__none__';
-const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const isMonthEnd = (day) => { const d = parseISO(day); return d.getDate() === new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); };
 const WHEN = [['none', 'No date'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['pick', 'Pick a day']];
 
 /**
@@ -85,8 +86,11 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
         family_member_name: form.family_member_id === NONE ? '' : (member?.name || ''),
         assigned_user_id: form.assigned_user_id === NONE ? '' : form.assigned_user_id,
         assigned_to: form.assigned_user_id === NONE ? '' : (account?.full_name || ''),
-        recurrence: form.recurrence,
+        // "The last day" only while it's due on a last day; a due date moved
+        // to the 14th is the 14th of every month.
+        recurrence: form.recurrence === 'monthly_last_day' && form.due_date && !isMonthEnd(form.due_date) ? 'monthly' : form.recurrence,
         recurrence_days: form.recurrence === 'weekly' && form.recurrence_days.length ? form.recurrence_days : undefined,
+        month_day: form.recurrence === 'monthly' ? monthDayOf(form) : undefined,
         repeat_until: form.recurrence !== 'none' ? form.repeat_until : '',
       });
       if (isNew) {
@@ -96,7 +100,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
       }
       // On edit, cleared fields must reach the server as null.
       const patch = { ...data };
-      for (const k of ['due_date', 'due_time', 'family_member_id', 'family_member_name', 'assigned_user_id', 'assigned_to', 'description', 'notes', 'recurrence_days', 'repeat_until']) {
+      for (const k of ['due_date', 'due_time', 'family_member_id', 'family_member_name', 'assigned_user_id', 'assigned_to', 'description', 'notes', 'recurrence_days', 'month_day', 'repeat_until']) {
         if (!(k in patch)) patch[k] = null;
       }
       return updateTask(task.id, patch, { before: task });
@@ -130,54 +134,48 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const [picking, setPicking] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
-  useEffect(() => { if (open) { setPicking(false); setShowRepeat(false); setMovedTo(''); } }, [open, task]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setPicking(false); setShowRepeat(false); setMovedTo(''); setAnchor(''); setChosen(null); } }, [open, task]); // eslint-disable-line react-hooks/exhaustive-deps
   const when = picking ? 'pick' : !form.due_date ? 'none' : form.due_date === today ? 'today' : form.due_date === tomorrow ? 'tomorrow' : 'pick';
   const setWhen = (v) => {
     setPicking(v === 'pick');
+    setAnchor(''); setChosen(null); setMovedTo('');
     if (v === 'none') setForm((f) => ({ ...f, due_date: '', due_time: '' }));
     else if (v === 'today') set('due_date', today);
     else if (v === 'tomorrow') set('due_date', tomorrow);
     else if (!form.due_date || form.due_date === today || form.due_date === tomorrow) set('due_date', format(addDays(new Date(), 2), 'yyyy-MM-dd'));
   };
-  // "Every month on the [second] [Tuesday]": any week of the month, any
-  // weekday (Anna, Nov 14 2026). It's the due date's, so picking one moves
-  // the due date to the first such day from the one it has (or today).
-  const monthlyNth = form.recurrence === 'monthly_weekday' || form.recurrence === 'monthly_last_weekday';
-  const dueDay = (() => { const d = form.due_date ? parseISO(form.due_date) : null; return d && isValid(d) ? d : new Date(); })();
-  const nthNow = form.recurrence === 'monthly_last_weekday' || Math.ceil(dueDay.getDate() / 7) > 4 ? -1 : Math.ceil(dueDay.getDate() / 7);
+  // Every month: "The [14th] [day] of every month" / "The [second] [Tuesday]
+  // of every month" (Anna, Nov 14 2026). Picking moves the due date to the
+  // first such day from the one it has (or today).
+  const saved = taskBlanks(form);
+  // What was picked stays on screen, and picks look for the first day from
+  // the due date it had before any of them (see EventDialog).
+  const [chosen, setChosen] = useState(null);
+  const blanks = saved && chosen?.second === 'day' && chosen.first.startsWith('n') && sameBlanks(chosen, saved) ? chosen : saved;
   const [movedTo, setMovedTo] = useState('');
-  const pickNth = (wd, n) => {
-    const from = form.due_date || format(new Date(), 'yyyy-MM-dd');
-    const day = firstDayOf(monthlyWeekdayRule(wd, n), from);
-    setMovedTo(day !== form.due_date ? day : '');
-    setForm((f) => ({ ...f, due_date: day, recurrence: n === -1 ? 'monthly_last_weekday' : 'monthly_weekday' }));
+  const [anchor, setAnchor] = useState('');
+  const pickBlanks = (first, second) => {
+    const from = anchor || form.due_date || format(new Date(), 'yyyy-MM-dd');
+    if (!anchor) setAnchor(from);
+    const m = monthlyFromBlanks(first, second, from);
+    setChosen({ first, second });
+    setMovedTo(m.date !== from ? m.date : '');
+    setForm((f) => ({ ...f, ...taskFromBlanks(m) }));
   };
+  const repeatValue = MONTHLY_KINDS.includes(form.recurrence) ? 'monthly' : form.recurrence;
   const repeatField = (
     <div>
       <Label className="flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeats</Label>
-      <Select value={form.recurrence} onValueChange={(v) => { if (form.recurrence === 'none') setNoEnd(false); set('recurrence', v); }}>
+      <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (form.recurrence === 'none') setNoEnd(false); setMovedTo(''); setAnchor(''); setChosen(null); setForm((f) => ({ ...f, recurrence: v, month_day: null })); }}>
         <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
         <SelectContent>
-          {/* "Every month on the second Tuesday" etc. come from the due date. */}
           {repeatOptionsFor(form.due_date).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-          {!repeatOptionsFor(form.due_date).some((o) => o.value === form.recurrence) && <SelectItem value={form.recurrence}>{recurrenceLabel({ ...form, is_recurring: true }) || form.recurrence}</SelectItem>}
+          {!repeatOptionsFor(form.due_date).some((o) => o.value === repeatValue) && <SelectItem value={form.recurrence}>{recurrenceLabel({ ...form, is_recurring: true }) || form.recurrence}</SelectItem>}
         </SelectContent>
       </Select>
-      {monthlyNth && (
-        <div className="mt-2 rounded-xl border border-border/60 bg-muted/40 p-3">
-          <Label className="text-xs">Every month on the</Label>
-          <div className="grid grid-cols-2 gap-2 mt-1">
-            <Select value={String(nthNow)} onValueChange={(v) => pickNth(dueDay.getDay(), Number(v))}>
-              <SelectTrigger className="h-9" aria-label="Which one"><SelectValue /></SelectTrigger>
-              <SelectContent>{[1, 2, 3, 4, -1].map((n) => <SelectItem key={n} value={String(n)}>{ORDINAL[n][0].toUpperCase() + ORDINAL[n].slice(1)}</SelectItem>)}</SelectContent>
-            </Select>
-            <Select value={String(dueDay.getDay())} onValueChange={(v) => pickNth(Number(v), nthNow)}>
-              <SelectTrigger className="h-9" aria-label="Day of the week"><SelectValue /></SelectTrigger>
-              <SelectContent>{WEEKDAY_FULL.map((name, i) => <SelectItem key={i} value={String(i)}>{name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          {movedTo && <p className="text-xs text-primary mt-1.5">It's now due {format(parseISO(movedTo), 'EEE, MMM d')}, the first one.</p>}
-        </div>
+      {blanks && (
+        <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={pickBlanks} shortMonths="last"
+          note={movedTo ? `It's now due ${format(parseISO(movedTo), 'EEE, MMM d')}, the first one.` : ''} />
       )}
       {form.recurrence === 'weekly' && (
         <div className="flex gap-1.5 mt-2">
@@ -229,7 +227,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             <Choices value={when} options={WHEN} onChange={setWhen} className="mt-1.5" />
             {(when === 'pick' || (form.due_date && (form.due_time || showTime))) && (
               <div className="flex gap-3 mt-2">
-                {when === 'pick' && <Input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} aria-label="Day" className="flex-1" />}
+                {when === 'pick' && <Input type="date" value={form.due_date} onChange={(e) => { setAnchor(''); setChosen(null); setMovedTo(''); set('due_date', e.target.value); }} aria-label="Day" className="flex-1" />}
                 {form.due_date && (form.due_time || showTime) && <Input type="time" value={form.due_time} onChange={(e) => set('due_time', e.target.value)} aria-label="Time" className="flex-1" />}
               </div>
             )}
@@ -307,7 +305,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
 }
 
 function blank(kind) {
-  return { title: '', description: '', notes: '', kind, priority: 'medium', category: kind === 'checklist' ? 'Personal Care' : 'Other', due_date: '', due_time: '', family_member_id: NONE, assigned_user_id: NONE, recurrence: kind === 'checklist' ? 'daily' : 'none', recurrence_days: [], repeat_until: '' };
+  return { title: '', description: '', notes: '', kind, priority: 'medium', category: kind === 'checklist' ? 'Personal Care' : 'Other', due_date: '', due_time: '', family_member_id: NONE, assigned_user_id: NONE, recurrence: kind === 'checklist' ? 'daily' : 'none', recurrence_days: [], month_day: null, repeat_until: '' };
 }
 
 function fromTask(t) {
@@ -318,6 +316,7 @@ function fromTask(t) {
     family_member_id: t.family_member_id || NONE, assigned_user_id: t.assigned_user_id || NONE,
     recurrence: (t.is_recurring === false && t.kind !== 'checklist') ? 'none' : (t.recurrence || 'none'),
     recurrence_days: Array.isArray(t.recurrence_days) ? t.recurrence_days : [],
+    month_day: Number.isInteger(t.month_day) ? t.month_day : null,
     repeat_until: t.repeat_until || '',
   };
 }

@@ -16,18 +16,21 @@ export const REPEAT_OPTIONS = [
   { value: 'weekdays', label: 'Weekdays (Mon–Fri)' },
   { value: 'weekly', label: 'Every week' },
   { value: 'every_other_week', label: 'Every other week' },
+  // Every month: "The [14th] [day] of every month", "The [second] [Tuesday]
+  // of every month" (Anna, Nov 14 2026; components/shared/MonthlyBlanks.jsx).
+  // Saved as monthly (a day number, month_day), monthly_last_day,
+  // monthly_weekday (the due date's weekday, the same week of the month) or
+  // monthly_last_weekday.
   { value: 'monthly', label: 'Every month' },
-  // Its due date's weekday: "the second Tuesday" / "the last Tuesday" (Anna,
-  // Nov 14 2026). The labels come from the due date (repeatOptionsFor).
-  { value: 'monthly_weekday', label: 'Every month on the same weekday' },
-  { value: 'monthly_last_weekday', label: 'Every month on the last weekday' },
   { value: 'yearly', label: 'Every year' },
 ];
+export const MONTHLY_KINDS = ['monthly', 'monthly_weekday', 'monthly_last_weekday', 'monthly_last_day'];
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const NTH = ['', 'first', 'second', 'third', 'fourth'];
+const numberth = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
+const lastDayIn = (y, m) => new Date(y, m + 1, 0).getDate();
 const weekOfMonth = (d) => Math.ceil(d.getDate() / 7);
-const isLastOfKind = (d) => d.getDate() + 7 > new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
 const dueOrToday = (date) => { const d = date ? parseISO(date) : null; return d && isValid(d) ? startOfDay(d) : startOfDay(new Date()); };
 
 /**
@@ -37,15 +40,38 @@ const dueOrToday = (date) => { const d = date ? parseISO(date) : null; return d 
  */
 export function repeatOptionsFor(date) {
   const d = dueOrToday(date);
-  const out = [];
-  for (const o of REPEAT_OPTIONS) {
-    if (o.value === 'monthly') out.push({ ...o, label: `Every month on the ${format(d, 'do')}` });
-    else if (o.value === 'monthly_weekday') { if (weekOfMonth(d) <= 4) out.push({ ...o, label: `Every month on the ${NTH[weekOfMonth(d)]} ${WEEKDAY_NAMES[d.getDay()]}` }); }
-    else if (o.value === 'monthly_last_weekday') { if (isLastOfKind(d)) out.push({ ...o, label: `Every month on the last ${WEEKDAY_NAMES[d.getDay()]}` }); }
-    else if (o.value === 'yearly') out.push({ ...o, label: `Every year on ${format(d, 'MMM d')}` });
-    else out.push(o);
+  return REPEAT_OPTIONS.map((o) => (o.value === 'yearly' ? { ...o, label: `Every year on ${format(d, 'MMM d')}` } : o));
+}
+
+/**
+ * The day number a monthly to-do is due on: month_day while the due date is
+ * on it (or on a shorter month's last day, for the 29th to 31st), otherwise
+ * the due date's own (its date was changed since).
+ */
+export function monthDayOf(t) {
+  const d = dueOrToday(t?.due_date);
+  const md = Number.isInteger(t?.month_day) && t.month_day >= 1 && t.month_day <= 31 ? t.month_day : 0;
+  const last = lastDayIn(d.getFullYear(), d.getMonth());
+  return md && (md === d.getDate() || (d.getDate() === last && md > last)) ? md : d.getDate();
+}
+
+/** The two blanks ("The ___ ___ of every month") for a monthly to-do, or null. */
+export function taskBlanks(t) {
+  const d = dueOrToday(t?.due_date);
+  switch (t?.recurrence) {
+    case 'monthly': return { first: `d${monthDayOf(t)}`, second: 'day' };
+    case 'monthly_last_day': return { first: 'last', second: 'day' };
+    case 'monthly_weekday': return weekOfMonth(d) <= 4 ? { first: `n${weekOfMonth(d)}`, second: String(d.getDay()) } : { first: 'last', second: String(d.getDay()) };
+    case 'monthly_last_weekday': return { first: 'last', second: String(d.getDay()) };
+    default: return null;
   }
-  return out;
+}
+
+/** The to-do fields for a pick made with the blanks: { recurrence, month_day, due_date }. */
+export function taskFromBlanks(m) {
+  if (m.kind === 'lastday') return { recurrence: 'monthly_last_day', month_day: null, due_date: m.date };
+  if (m.kind === 'day') return { recurrence: 'monthly', month_day: m.n, due_date: m.date };
+  return { recurrence: m.n === -1 ? 'monthly_last_weekday' : 'monthly_weekday', month_day: null, due_date: m.date };
 }
 
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -77,6 +103,8 @@ export function recurrenceLabel(t) {
     const names = t.recurrence_days.filter((n) => n >= 0 && n <= 6).map((n) => DAY_NAMES[n]);
     return names.length === 7 ? 'Every day' : names.join(', ');
   }
+  if (t.recurrence === 'monthly') return `Every month on the ${numberth(monthDayOf(t))}`;
+  if (t.recurrence === 'monthly_last_day') return 'Every month on the last day';
   if (t.recurrence === 'monthly_weekday' || t.recurrence === 'monthly_last_weekday') {
     const d = dueOrToday(t.due_date);
     const n = weekOfMonth(d);
@@ -85,11 +113,13 @@ export function recurrenceLabel(t) {
   return REPEAT_OPTIONS.find((o) => o.value === t.recurrence)?.label || '';
 }
 
-// Same day next month, or that month's last day when it's shorter (Jan 31 ->
-// Feb 28, where it used to jump to Mar 3 and skip February).
-const addMonthsKeep = (d, months) => {
+// The same day number `months` later, or that month's last day when it's
+// shorter (Jan 31 -> Feb 28, where it used to jump to Mar 3 and skip
+// February). `day` is the day number it's for (month_day), so Feb 28 goes
+// back to Mar 31.
+const addMonthsKeep = (d, months, day = d.getDate()) => {
   const x = new Date(d.getFullYear(), d.getMonth() + months, 1);
-  x.setDate(Math.min(d.getDate(), new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()));
+  x.setDate(Math.min(day, lastDayIn(x.getFullYear(), x.getMonth())));
   return x;
 };
 /** The nth weekday (1-4, or -1 for the last) of the month `x` is in. */
@@ -103,8 +133,8 @@ const nthWeekdayIn = (x, wd, n) => {
   return new Date(y, m, 1 + ((wd - first.getDay() + 7) % 7) + (n - 1) * 7);
 };
 
-/** One cycle of the pattern after `date` (a Date at local midnight). */
-export function advance(date, pattern, days) {
+/** One cycle of the pattern after `date` (a Date at local midnight); monthDay = a monthly to-do's day number. */
+export function advance(date, pattern, days, monthDay) {
   const d = new Date(date);
   const set = Array.isArray(days) ? days.filter((n) => Number.isInteger(n) && n >= 0 && n <= 6) : [];
   switch (pattern) {
@@ -122,7 +152,8 @@ export function advance(date, pattern, days) {
       } else d.setDate(d.getDate() + 7);
       break;
     case 'every_other_week': d.setDate(d.getDate() + 14); break;
-    case 'monthly': return addMonthsKeep(d, 1);
+    case 'monthly': return addMonthsKeep(d, 1, Number.isInteger(monthDay) && monthDay >= 1 && monthDay <= 31 ? monthDay : d.getDate());
+    case 'monthly_last_day': return new Date(d.getFullYear(), d.getMonth() + 1, lastDayIn(d.getFullYear(), d.getMonth() + 1));
     case 'monthly_weekday': {
       const n = weekOfMonth(d);
       return nthWeekdayIn(new Date(d.getFullYear(), d.getMonth() + 1, 1), d.getDay(), n > 4 ? -1 : n);
@@ -142,9 +173,9 @@ export function advance(date, pattern, days) {
 export function nextOccurrenceDate(t, now = new Date()) {
   const base = dueDateOf(t) || startOfDay(now);
   const todayStart = startOfDay(now);
-  let next = advance(base, t.recurrence, t.recurrence_days);
+  let next = advance(base, t.recurrence, t.recurrence_days, t.recurrence === 'monthly' ? monthDayOf(t) : undefined);
   let guard = 0;
-  while (next <= todayStart && guard++ < 1000) next = advance(next, t.recurrence, t.recurrence_days);
+  while (next <= todayStart && guard++ < 1000) next = advance(next, t.recurrence, t.recurrence_days, t.recurrence === 'monthly' ? monthDayOf(t) : undefined);
   return next;
 }
 
@@ -288,6 +319,7 @@ export async function completeTask(task, me, { notify = true } = {}) {
         family_member_name: task.family_member_name,
         recurrence: task.recurrence,
         recurrence_days: Array.isArray(task.recurrence_days) && task.recurrence_days.length ? task.recurrence_days : undefined,
+        month_day: task.recurrence === 'monthly' ? monthDayOf(task) : undefined,
         repeat_until: task.repeat_until || undefined,
         is_recurring: true,
       })));
