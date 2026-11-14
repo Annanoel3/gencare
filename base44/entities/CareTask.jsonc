@@ -72,6 +72,10 @@
       ],
       "type": "string"
     },
+    "month_day": {
+      "description": "With recurrence monthly: the day of the month it's due (1-31); a month without that day uses its last day",
+      "type": "integer"
+    },
     "next_occurrence_id": {
       "description": "The copy that finishing this repeating task made, so un-finishing removes exactly that one",
       "type": "string"
@@ -95,7 +99,7 @@
     },
     "recurrence": {
       "default": "none",
-      "description": "How often the task comes back after it is finished. Finishing it makes the next copy (next_occurrence_id). monthly_weekday = the due date's weekday, the same week of the month (the second Tuesday); monthly_last_weekday = the last one of that weekday in the month.",
+      "description": "How often the task comes back after it is finished. Finishing it makes the next copy (next_occurrence_id). Monthly kinds (\"The ___ ___ of every month\"): monthly = a day number (month_day; a shorter month uses its last day), monthly_last_day = the month's last day, monthly_weekday = the due date's weekday in the same week of the month (the second Tuesday), monthly_last_weekday = the last one of that weekday.",
       "enum": [
         "none",
         "daily",
@@ -106,6 +110,7 @@
         "monthly",
         "monthly_weekday",
         "monthly_last_weekday",
+        "monthly_last_day",
         "yearly"
       ],
       "type": "string"
