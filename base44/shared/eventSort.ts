@@ -53,6 +53,10 @@ function parentFor(title: string, members: SortMember[], posterId: string) {
   return mom && dad ? '' : mom || dad;
 }
 
+const under18 = (birthdate: unknown) => {
+  const t = birthdate ? Date.parse(String(birthdate)) : NaN;
+  return Number.isFinite(t) && (Date.now() - t) / (365.25 * 86400e3) < 18;
+};
 const clip = (s: unknown, n: number) => String(s || "").replace(/\s+/g, " ").trim().slice(0, n);
 
 /**
@@ -184,7 +188,9 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
       // The family's own answer when they gave one (Anna, Nov 10 2026: "offer
       // an opportunity to indicate whether someone is being cared for");
       // otherwise worked out from who adds their events.
-      cared_for: typeof m.cared_for === "boolean" ? m.cared_for : caredFor.has(m.id),
+      // Under 18 by birthday counts too, like the profile switch and the Care
+      // Log (a child added before the switch existed has no saved answer).
+      cared_for: typeof m.cared_for === "boolean" ? m.cared_for : (caredFor.has(m.id) || under18(m.birthdate)),
     };
   });
   return { members, newest, known };
