@@ -146,6 +146,14 @@
     "value_c": {
       "description": "Third measurement such as head circumference",
       "type": "number"
+    },
+    "visibility": {
+      "description": "family (everyone in the family) or private (only the person who logged it; tracking things for yourself, Nov 13 2026). Unset = family.",
+      "enum": [
+        "family",
+        "private"
+      ],
+      "type": "string"
     }
   },
   "required": [
@@ -153,19 +161,82 @@
     "entry_type",
     "timestamp"
   ],
-  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
     },
     "delete": {
-      "data.family_id": "{{user.data.family_id}}"
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.visibility": {
+                "$nin": [
+                  "private"
+                ]
+              }
+            },
+            {
+              "data.logged_by_user_id": "{{user.id}}"
+            },
+            {
+              "created_by_id": "{{user.id}}"
+            }
+          ]
+        }
+      ]
     },
     "read": {
-      "data.family_id": "{{user.data.family_id}}"
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.visibility": {
+                "$nin": [
+                  "private"
+                ]
+              }
+            },
+            {
+              "data.logged_by_user_id": "{{user.id}}"
+            },
+            {
+              "created_by_id": "{{user.id}}"
+            }
+          ]
+        }
+      ]
     },
     "update": {
-      "data.family_id": "{{user.data.family_id}}"
+      "$and": [
+        {
+          "data.family_id": "{{user.data.family_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.visibility": {
+                "$nin": [
+                  "private"
+                ]
+              }
+            },
+            {
+              "data.logged_by_user_id": "{{user.id}}"
+            },
+            {
+              "created_by_id": "{{user.id}}"
+            }
+          ]
+        }
+      ]
     }
-  }
+  },
+  "type": "object"
 }
