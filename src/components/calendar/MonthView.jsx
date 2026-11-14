@@ -7,6 +7,7 @@ import { shownTitle } from '@/lib/eventTitle';
 import { eventTiming, useNow } from '@/lib/eventTiming';
 import { checkOn } from '@/lib/claims';
 import { useFamily } from '@/lib/family';
+import PinchZoom from '@/components/shared/PinchZoom';
 
 // Month grid with WORDS in the cells (the event titles), not dots — the same
 // call Anna made for ADHDone (Oct 27, 2026): a phone calendar widget fits
@@ -30,6 +31,7 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
         <h2 className="font-heading text-xl font-semibold">{format(currentMonth, 'MMMM yyyy')}</h2>
         <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}><ChevronRight className="w-5 h-5" /></Button>
       </div>
+      <PinchZoom storageKey="gencare_cal_zoom_month" mode="pan">
       <div className="grid grid-cols-7 gap-px mb-1">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
           <div key={d} className="text-center text-[13px] md:text-xs font-medium text-muted-foreground py-1">{d}</div>
@@ -80,6 +82,7 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
           );
         })}
       </div>
+      </PinchZoom>
     </div>
   );
 }

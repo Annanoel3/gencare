@@ -3,6 +3,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday, 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import EventRow from './EventRow';
+import PinchZoom from '@/components/shared/PinchZoom';
 
 export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext, appointments, members, onOpen, isFocus = () => false }) {
   const weekStart = startOfWeek(selectedDate);
@@ -16,6 +17,7 @@ export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext
         <h2 className="font-heading text-lg font-semibold">{format(weekStart, 'MMM d')} – {format(weekEnd, 'MMM d, yyyy')}</h2>
         <Button variant="ghost" size="icon" onClick={onNext}><ChevronRight className="w-5 h-5" /></Button>
       </div>
+      <PinchZoom storageKey="gencare_cal_zoom_week">
       <div className="space-y-4">
         {days.map(day => {
           const dayAppts = appointments
@@ -46,6 +48,7 @@ export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext
           );
         })}
       </div>
+      </PinchZoom>
     </div>
   );
 }

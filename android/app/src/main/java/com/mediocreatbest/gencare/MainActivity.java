@@ -163,6 +163,8 @@ public class MainActivity extends BridgeActivity {
         settings.setDomStorageEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // Pinch zoom is on (capacitor.config zoomEnabled); no +/- buttons on screen.
+        settings.setDisplayZoomControls(false);
 
         final WebChromeClient originalChromeClient =
                 (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ? webView.getWebChromeClient() : null;

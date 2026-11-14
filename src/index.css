@@ -88,6 +88,19 @@
   body {
     @apply bg-background text-foreground font-body;
   }
+  /* Pinch zoom (Anna, Nov 13 2026: "make like everything zoomable"): two
+     fingers zoom, a double tap never does (a quick double tap on a button
+     shouldn't blow the page up). */
+  html {
+    touch-action: manipulation;
+  }
+  /* With zoom on, an iPhone zooms into any box typed in with text under 16px
+     and stays zoomed; boxes on a phone are at least 16px so it doesn't. */
+  @media (max-width: 767px) {
+    input, textarea, select {
+      font-size: max(16px, 1em);
+    }
+  }
 }
 /* iPhone builds that draw to the top of the screen (index.html adds .ios-edge):
    page content starts below the status bar, a solid strip in the header's

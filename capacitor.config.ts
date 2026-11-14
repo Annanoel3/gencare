@@ -9,6 +9,10 @@ const config: CapacitorConfig = {
   appId: 'com.mediocreatbest.gencare',
   appName: 'GenCare',
   webDir: 'dist',
+  // Pinch zoom everywhere (Anna, Nov 13 2026: "We should make like everything
+  // zoomable... My parents are always trying to zoom in"). Off is Capacitor's
+  // default. The calendar has its own pinch (components/shared/PinchZoom).
+  zoomEnabled: true,
   server: {
     url: 'https://gencare.base44.app',
     cleartext: false,
