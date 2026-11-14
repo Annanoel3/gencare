@@ -242,6 +242,9 @@ export default function CareLogPage() {
                 <button type="button" onClick={() => setChoosing(true)} className="text-xs text-primary font-medium mt-2">Choose buttons</button>
               </section>
 
+              {/* Right under the buttons (Anna, Nov 13 2026: "put the track something higher up"). */}
+              <Trackers person={person} logs={logs} me={me} onChanged={refresh} />
+
               <section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
                 <h2 className="font-heading text-base font-semibold px-2 pt-1">Today {todays.length > 0 && <span className="text-muted-foreground font-normal text-sm">({todays.length})</span>}</h2>
                 {isLoading ? <p className="text-sm text-muted-foreground px-2 py-4">Loading…</p>
@@ -270,7 +273,6 @@ export default function CareLogPage() {
 
               <WeekSummary band={band} logs={logs} />
 
-              <Trackers person={person} logs={logs} me={me} onChanged={refresh} />
 
               {soon.length > 0 && (
                 <section className="rounded-2xl border border-border/50 bg-card p-4">
