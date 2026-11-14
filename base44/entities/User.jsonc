@@ -12,6 +12,20 @@
       "description": "Build number of the phone app last seen on this account (Android versionCode or iPhone build); 0/unset = website",
       "type": "number"
     },
+    "care_private_keys": {
+      "description": "Care Log things this person tracks for themselves as Only you (b:<button>, t:<tracker name>); src/lib/carePrivacy.js",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "care_shared_keys": {
+      "description": "Care Log things this person tracks for themselves that the family can see (overrides the Only you default); src/lib/carePrivacy.js",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "device_calendar_ids": {
       "description": "Phone calendars (Android provider ids) this person imports into GenCare",
       "items": {
