@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isRecordable, categoryOf, CATEGORIES } from './EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
-import { EVENT_REPEATS, repeatLabel, repeatLabelOn, parseRRule, monthlyWeekdayOf, monthlyWeekdayRule, weekOfMonth, weekFromEnd, monthlyBlanks, monthlyFromBlanks, sameBlanks } from '@/lib/occurrences';
+import { EVENT_REPEATS, repeatLabel, parseRRule, monthlyWeekdayOf, monthlyWeekdayRule, weekOfMonth, weekFromEnd, monthlyBlanks, monthlyFromBlanks, sameBlanks } from '@/lib/occurrences';
 import MonthlyBlanks from '@/components/shared/MonthlyBlanks';
 import AddressField from '@/components/shared/AddressField';
 import NotesField from '@/components/shared/NotesField';
@@ -128,7 +128,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     const ok = d && isValid(d);
     return EVENT_REPEATS.map((r) => (ok && r.value === 'RRULE:FREQ=YEARLY' ? { ...r, label: `Every year on ${format(d, 'MMM d')}` } : r));
   }, [form.date]);
-  const saved = !fromPhone ? monthlyBlanks(form.recurrence, form.date) : null;
+  const saved = monthlyBlanks(form.recurrence, form.date);
   // What was picked stays on screen ("Third day" isn't turned into "3rd").
   const [chosen, setChosen] = useState(null);
   const blanks = saved && chosen?.second === 'day' && chosen.first.startsWith('n') && sameBlanks(chosen, saved) ? chosen : saved;
@@ -263,7 +263,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
           )}
           {fromPhone && (
             <p className="text-xs text-muted-foreground bg-muted rounded-lg p-2">
-              From {appt.created_by_name ? `${appt.created_by_name.split(' ')[0]}'s` : 'a'} phone calendar. Changes made on the phone show up here. Who it's for, who sees it, and a time, place or notes changed here stay, unless they're changed on the phone later.
+              From {appt.created_by_name ? `${appt.created_by_name.split(' ')[0]}'s` : 'a'} phone calendar. Changes made on the phone show up here. Who it's for, who sees it, and a time, repeat, place or notes changed here stay, unless they're changed on the phone later.
             </p>
           )}
           <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Dentist appointment" className="mt-1" /></div>
@@ -276,8 +276,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             </div>
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mt-2">
               <label className="flex items-center gap-2 text-sm whitespace-nowrap"><Switch checked={!!form.all_day} onCheckedChange={(v) => set('all_day', v)} /> All day</label>
-              {fromPhone ? (appt.recurrence ? <span className="text-xs text-muted-foreground flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> {repeatLabelOn(appt.recurrence, appt.date)}</span> : null)
-                : repeating || showRepeat ? (
+              {/* A phone event's repeat can be changed here too (Anna, Nov 14 2026); phoneCalendar keeps it until the phone's changes. */}
+              {repeating || showRepeat ? (
                   <div className="flex items-center gap-1 min-w-0 max-w-full">
                     <Repeat className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (!repeating) { setNoEnd(false); set('until', ''); } setMoved(''); setAnchor(''); setChosen(null); set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); }}>
@@ -295,7 +295,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={changeBlanks}
                 note={moved ? `The day is now ${format(parseISO(moved), 'EEE, MMM d')}, the first one.` : ''} />
             )}
-            {!fromPhone && repeating && (
+            {repeating && (
               <div className={`mt-2 rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
                 <Label className="text-xs">Last day it repeats</Label>
                 <div className="flex items-center gap-3 mt-1">

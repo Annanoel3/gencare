@@ -560,8 +560,16 @@ Deno.serve(async (req) => {
             for (const k of ['date', 'time', 'end_time', 'end_date', 'all_day']) delete keep[k];
           }
           keep.phone_when = phoneWhen;
+          // And how it repeats (Anna, Nov 14 2026: her mom's "LAIFS Meeting"
+          // is every month on her phone, and it's really the second Tuesday;
+          // changed here, it stays until the phone's repeat changes). Before
+          // phone_rule was kept, the phone's always won, so a row without it
+          // still has the phone's last repeat.
+          const phoneRule = String(fields.recurrence || '');
+          if (String(have.phone_rule ?? have.recurrence ?? '') === phoneRule) delete keep.recurrence;
+          keep.phone_rule = phoneRule;
           const next = { ...have, ...keep };
-          if (!fieldsMatch(have, next) || (have.phone_location ?? null) !== keep.phone_location || (have.phone_notes ?? null) !== keep.phone_notes || (have.phone_when ?? null) !== keep.phone_when) {
+          if (!fieldsMatch(have, next) || (have.phone_location ?? null) !== keep.phone_location || (have.phone_notes ?? null) !== keep.phone_notes || (have.phone_when ?? null) !== keep.phone_when || (have.phone_rule ?? null) !== keep.phone_rule) {
             await db.Appointment.update(have.id, keep);
             updated++;
           }
@@ -573,7 +581,7 @@ Deno.serve(async (req) => {
             // Linked: the phone's place and notes fill in what's empty here.
             await db.Appointment.update(twin.id, {
               device_key: key, source: 'phone', created_by_user_id: twin.created_by_user_id || user.id,
-              phone_location: fields.location || '', phone_notes: fields.notes || '', phone_when: whenOf(fields),
+              phone_location: fields.location || '', phone_notes: fields.notes || '', phone_when: whenOf(fields), phone_rule: String(fields.recurrence || ''),
               ...(twin.location ? {} : { location: fields.location || '' }),
               ...(twin.notes ? {} : { notes: fields.notes || '' }),
             });
@@ -587,7 +595,7 @@ Deno.serve(async (req) => {
               // "Everyone", anything that looks like work starts at Only me too,
               // and the sorter keeps work there.
               const startShared = sharingMode(user) === 'family' && !looksLikeWork(fields);
-              await db.Appointment.create({ ...fields, phone_location: fields.location || '', phone_notes: fields.notes || '', phone_when: whenOf(fields), visibility: startShared ? 'family' : 'private', auto_set: ['visibility', 'category'], ...(looksLikeWork(fields) ? { category: 'Work' } : {}), family_id: familyId, device_key: key });
+              await db.Appointment.create({ ...fields, phone_location: fields.location || '', phone_notes: fields.notes || '', phone_when: whenOf(fields), phone_rule: String(fields.recurrence || ''), visibility: startShared ? 'family' : 'private', auto_set: ['visibility', 'category'], ...(looksLikeWork(fields) ? { category: 'Work' } : {}), family_id: familyId, device_key: key });
               created++;
             }
           }
