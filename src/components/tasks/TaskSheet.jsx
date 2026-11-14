@@ -17,7 +17,7 @@ import TaskSteps from './TaskSteps';
 import { Choices } from '@/components/shared/MoreOptions';
 import { format, addDays } from 'date-fns';
 import {
-  REPEAT_OPTIONS, DAY_NAMES, createTask, updateTask, deleteTask, addStep,
+  repeatOptionsFor, recurrenceLabel, DAY_NAMES, createTask, updateTask, deleteTask, addStep,
   completeTask, uncompleteTask, toggleStep, nextCopyText, clean,
 } from '@/lib/tasks';
 
@@ -142,7 +142,11 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
       <Label className="flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeats</Label>
       <Select value={form.recurrence} onValueChange={(v) => { if (form.recurrence === 'none') setNoEnd(false); set('recurrence', v); }}>
         <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-        <SelectContent>{REPEAT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+        <SelectContent>
+          {/* "Every month on the second Tuesday" etc. come from the due date. */}
+          {repeatOptionsFor(form.due_date).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          {!repeatOptionsFor(form.due_date).some((o) => o.value === form.recurrence) && <SelectItem value={form.recurrence}>{recurrenceLabel({ ...form, is_recurring: true }) || form.recurrence}</SelectItem>}
+        </SelectContent>
       </Select>
       {form.recurrence === 'weekly' && (
         <div className="flex gap-1.5 mt-2">

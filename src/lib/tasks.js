@@ -17,8 +17,36 @@ export const REPEAT_OPTIONS = [
   { value: 'weekly', label: 'Every week' },
   { value: 'every_other_week', label: 'Every other week' },
   { value: 'monthly', label: 'Every month' },
+  // Its due date's weekday: "the second Tuesday" / "the last Tuesday" (Anna,
+  // Nov 14 2026). The labels come from the due date (repeatOptionsFor).
+  { value: 'monthly_weekday', label: 'Every month on the same weekday' },
+  { value: 'monthly_last_weekday', label: 'Every month on the last weekday' },
   { value: 'yearly', label: 'Every year' },
 ];
+
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const NTH = ['', 'first', 'second', 'third', 'fourth'];
+const weekOfMonth = (d) => Math.ceil(d.getDate() / 7);
+const isLastOfKind = (d) => d.getDate() + 7 > new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+const dueOrToday = (date) => { const d = date ? parseISO(date) : null; return d && isValid(d) ? startOfDay(d) : startOfDay(new Date()); };
+
+/**
+ * The repeat choices for a due date ('YYYY-MM-DD', or today when there's
+ * none): "Every month on the 14th", "Every month on the second Saturday",
+ * and "… the last Saturday" when it's in the month's last week.
+ */
+export function repeatOptionsFor(date) {
+  const d = dueOrToday(date);
+  const out = [];
+  for (const o of REPEAT_OPTIONS) {
+    if (o.value === 'monthly') out.push({ ...o, label: `Every month on the ${format(d, 'do')}` });
+    else if (o.value === 'monthly_weekday') { if (weekOfMonth(d) <= 4) out.push({ ...o, label: `Every month on the ${NTH[weekOfMonth(d)]} ${WEEKDAY_NAMES[d.getDay()]}` }); }
+    else if (o.value === 'monthly_last_weekday') { if (isLastOfKind(d)) out.push({ ...o, label: `Every month on the last ${WEEKDAY_NAMES[d.getDay()]}` }); }
+    else if (o.value === 'yearly') out.push({ ...o, label: `Every year on ${format(d, 'MMM d')}` });
+    else out.push(o);
+  }
+  return out;
+}
 
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -49,8 +77,31 @@ export function recurrenceLabel(t) {
     const names = t.recurrence_days.filter((n) => n >= 0 && n <= 6).map((n) => DAY_NAMES[n]);
     return names.length === 7 ? 'Every day' : names.join(', ');
   }
+  if (t.recurrence === 'monthly_weekday' || t.recurrence === 'monthly_last_weekday') {
+    const d = dueOrToday(t.due_date);
+    const n = weekOfMonth(d);
+    return `Every month on the ${t.recurrence === 'monthly_last_weekday' || n > 4 ? 'last' : NTH[n]} ${WEEKDAY_NAMES[d.getDay()]}`;
+  }
   return REPEAT_OPTIONS.find((o) => o.value === t.recurrence)?.label || '';
 }
+
+// Same day next month, or that month's last day when it's shorter (Jan 31 ->
+// Feb 28, where it used to jump to Mar 3 and skip February).
+const addMonthsKeep = (d, months) => {
+  const x = new Date(d.getFullYear(), d.getMonth() + months, 1);
+  x.setDate(Math.min(d.getDate(), new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()));
+  return x;
+};
+/** The nth weekday (1-4, or -1 for the last) of the month `x` is in. */
+const nthWeekdayIn = (x, wd, n) => {
+  const y = x.getFullYear(), m = x.getMonth();
+  if (n === -1) {
+    const last = new Date(y, m + 1, 0);
+    return new Date(y, m, last.getDate() - ((last.getDay() - wd + 7) % 7));
+  }
+  const first = new Date(y, m, 1);
+  return new Date(y, m, 1 + ((wd - first.getDay() + 7) % 7) + (n - 1) * 7);
+};
 
 /** One cycle of the pattern after `date` (a Date at local midnight). */
 export function advance(date, pattern, days) {
@@ -71,8 +122,13 @@ export function advance(date, pattern, days) {
       } else d.setDate(d.getDate() + 7);
       break;
     case 'every_other_week': d.setDate(d.getDate() + 14); break;
-    case 'monthly': d.setMonth(d.getMonth() + 1); break;
-    case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
+    case 'monthly': return addMonthsKeep(d, 1);
+    case 'monthly_weekday': {
+      const n = weekOfMonth(d);
+      return nthWeekdayIn(new Date(d.getFullYear(), d.getMonth() + 1, 1), d.getDay(), n > 4 ? -1 : n);
+    }
+    case 'monthly_last_weekday': return nthWeekdayIn(new Date(d.getFullYear(), d.getMonth() + 1, 1), d.getDay(), -1);
+    case 'yearly': return addMonthsKeep(d, 12);
     default: break;
   }
   return d;

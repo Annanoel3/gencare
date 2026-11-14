@@ -33,7 +33,7 @@ Rules:
 - location: the place as written, with the full address when one is shown. When the place is only a code or part of an address ("7112-C Austin"), put the business or clinic name from the page in front of it so it can be found on a map.
 - notes: everything else on the page about this event, short, one item per line: what kind of visit it is when the title leaves it out (like a case or visit name), the phone number to call to reschedule or cancel, prep instructions, what to bring, a confirmation or account number, cost, a cancellation rule. Empty when there's nothing. (Who it's with goes in "with", not here.)
 - member_id: the id of the family member it's for, only when the photo names them (a patient, student or player name, or "Mom"/"Dad" when that's clear). Otherwise "".
-- repeats: only when the photo says it repeats ("every Tuesday", "Mon/Wed/Fri through May 15"). freq is "daily", "weekly" or "monthly"; days are two-letter weekdays (MO TU WE TH FR SA SU) for weekly; until is the last date if shown. Otherwise freq "".
+- repeats: only when the photo says it repeats ("every Tuesday", "Mon/Wed/Fri through May 15", "second Tuesday of every month"). freq is "daily", "weekly" or "monthly"; days are two-letter weekdays (MO TU WE TH FR SA SU) for weekly; for monthly on a weekday ("the second Tuesday", "the last Friday of the month"), days is that one weekday and nth is 1, 2, 3 or 4, or -1 for the last one (otherwise nth 0); until is the last date if shown. date is the first one. Otherwise freq "".
 - Several dates for the same thing listed out (a season schedule) are separate events unless the photo says it's a weekly repeat.
 - check: a few words when something needs a second look ("year not shown", "time hard to read"), otherwise "".
 - note: if there's nothing dated in the photo, one short plain sentence saying what you see instead. Otherwise "".`;
@@ -44,10 +44,11 @@ function ruleOf(rep: any, date: string): string {
   const freq = String(rep?.freq || '').toLowerCase();
   if (!['daily', 'weekly', 'monthly'].includes(freq)) return '';
   let rule = `RRULE:FREQ=${freq.toUpperCase()}`;
-  if (freq === 'weekly') {
-    const days = (Array.isArray(rep?.days) ? rep.days : []).map((d: unknown) => String(d).toUpperCase().slice(0, 2)).filter((d: string) => DAYS.includes(d));
-    if (days.length) rule += `;BYDAY=${[...new Set(days)].join(',')}`;
-  }
+  const days = (Array.isArray(rep?.days) ? rep.days : []).map((d: unknown) => String(d).toUpperCase().slice(0, 2)).filter((d: string) => DAYS.includes(d));
+  if (freq === 'weekly' && days.length) rule += `;BYDAY=${[...new Set(days)].join(',')}`;
+  // "The second Tuesday of every month" (Anna, Nov 14 2026): BYDAY=2TU; the last one is -1TU.
+  const nth = Math.trunc(Number(rep?.nth) || 0);
+  if (freq === 'monthly' && days.length === 1 && [1, 2, 3, 4, -1].includes(nth)) rule += `;BYDAY=${nth}${days[0]}`;
   const until = String(rep?.until || '');
   if (DAY.test(until) && until >= date) rule += `;UNTIL=${until.replace(/-/g, '')}`;
   return rule;
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
 Family members (id, name, relationship to the person adding this):
 ${members.map((m: any) => `- ${m.id}: ${m.name}${m.relationship ? ` (${m.relationship})` : ''}`).join('\n') || '- none'}
 
-Return JSON: { "events": [ { "title": "", "date": "YYYY-MM-DD", "time": "HH:MM or empty", "end_time": "HH:MM or empty", "all_day": false, "location": "", "with": "", "notes": "", "member_id": "", "repeats": { "freq": "", "days": [], "until": "" }, "check": "" } ], "note": "" }`;
+Return JSON: { "events": [ { "title": "", "date": "YYYY-MM-DD", "time": "HH:MM or empty", "end_time": "HH:MM or empty", "all_day": false, "location": "", "with": "", "notes": "", "member_id": "", "repeats": { "freq": "", "days": [], "nth": 0, "until": "" }, "check": "" } ], "note": "" }`;
 
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) return Response.json({ ok: false, error: 'Not set up' }, { status: 500 });

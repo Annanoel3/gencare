@@ -380,7 +380,9 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
 
     /// "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;UNTIL=20261231" -> EKRecurrenceRule.
     /// Covers what GenCare writes (daily, weekdays, weekly, every other week,
-    /// monthly, yearly, with an optional end date or count).
+    /// monthly, "every month on the second Tuesday" = BYDAY=2TU and the last
+    /// one = -1TU, yearly, with an optional end date or count), and the
+    /// BYMONTHDAY / BYMONTH / BYSETPOS other calendars use.
     static func recurrenceRule(from raw: String) -> EKRecurrenceRule? {
         let body = raw.replacingOccurrences(of: "RRULE:", with: "", options: .caseInsensitive)
         guard !body.isEmpty else { return nil }
@@ -400,11 +402,22 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
         let interval = max(1, Int(parts["INTERVAL"] ?? "1") ?? 1)
         let dayMap: [String: EKWeekday] = ["SU": .sunday, "MO": .monday, "TU": .tuesday, "WE": .wednesday, "TH": .thursday, "FR": .friday, "SA": .saturday]
         let days: [EKRecurrenceDayOfWeek]? = parts["BYDAY"].map { list in
-            list.split(separator: ",").compactMap { code in
+            list.split(separator: ",").compactMap { code -> EKRecurrenceDayOfWeek? in
                 let letters = String(code.filter { $0.isLetter }).uppercased()
-                return dayMap[letters].map { EKRecurrenceDayOfWeek($0) }
+                // "2TU" = the second Tuesday, "-1FR" = the last Friday.
+                let week = Int(String(code.filter { $0.isNumber || $0 == "-" || $0 == "+" })) ?? 0
+                guard let day = dayMap[letters] else { return nil }
+                return week != 0 ? EKRecurrenceDayOfWeek(day, weekNumber: week) : EKRecurrenceDayOfWeek(day)
             }
         }
+        let numbers: (String?) -> [NSNumber]? = { value in
+            guard let text = value else { return nil }
+            let list = text.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }.filter { $0 != 0 }
+            return list.isEmpty ? nil : list.map { NSNumber(value: $0) }
+        }
+        let monthDays = freq == .monthly ? numbers(parts["BYMONTHDAY"]) : nil
+        let months = freq == .yearly ? numbers(parts["BYMONTH"]) : nil
+        let positions = numbers(parts["BYSETPOS"])
         var end: EKRecurrenceEnd? = nil
         if let until = parts["UNTIL"], until.count >= 8,
            let y = Int(until.prefix(4)), let m = Int(until.dropFirst(4).prefix(2)), let d = Int(until.dropFirst(6).prefix(2)) {
@@ -415,8 +428,8 @@ public class CalendarBridge: CAPPlugin, CAPBridgedPlugin {
         }
         return EKRecurrenceRule(recurrenceWith: freq, interval: interval,
                                 daysOfTheWeek: (days?.isEmpty ?? true) ? nil : days,
-                                daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil,
-                                daysOfTheYear: nil, setPositions: nil, end: end)
+                                daysOfTheMonth: monthDays, monthsOfTheYear: months, weeksOfTheYear: nil,
+                                daysOfTheYear: nil, setPositions: positions, end: end)
     }
 
     private static func number(_ v: Any?) -> Int64 {
