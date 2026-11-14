@@ -95,7 +95,7 @@
     },
     "recurrence": {
       "default": "none",
-      "description": "How often the task comes back after it is finished. Finishing it makes the next copy (next_occurrence_id).",
+      "description": "How often the task comes back after it is finished. Finishing it makes the next copy (next_occurrence_id). monthly_weekday = the due date's weekday, the same week of the month (the second Tuesday); monthly_last_weekday = the last one of that weekday in the month.",
       "enum": [
         "none",
         "daily",
@@ -104,6 +104,8 @@
         "weekly",
         "every_other_week",
         "monthly",
+        "monthly_weekday",
+        "monthly_last_weekday",
         "yearly"
       ],
       "type": "string"
@@ -146,7 +148,6 @@
   "required": [
     "title"
   ],
-  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -160,5 +161,6 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  }
+  },
+  "type": "object"
 }
