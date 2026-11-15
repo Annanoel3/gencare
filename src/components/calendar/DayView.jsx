@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import EventRow from './EventRow';
 import PinchZoom from '@/components/shared/PinchZoom';
 
-export default function DayView({ selectedDate, onPrev, onNext, onAdd, appointments, members, onOpen, isFocus = () => false }) {
+// after: what goes under the day's events (CalendarPage's "Still to do").
+export default function DayView({ selectedDate, onPrev, onNext, onAdd, appointments, members, onOpen, isFocus = () => false, after = null }) {
   const dayAppts = appointments
     .filter(a => a.date && isSameDay(parseISO(a.date), selectedDate))
     .sort((a, b) => (a.all_day ? '' : a.time || '').localeCompare(b.all_day ? '' : b.time || ''));
@@ -33,6 +34,7 @@ export default function DayView({ selectedDate, onPrev, onNext, onAdd, appointme
           </div>
         </PinchZoom>
       )}
+      {after}
     </div>
   );
 }

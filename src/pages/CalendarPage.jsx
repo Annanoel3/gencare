@@ -17,7 +17,8 @@ import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
 import EventRow from '@/components/calendar/EventRow';
 import useReminderEditor from '@/components/reminders/useReminderEditor';
-import { reminderEvents } from '@/lib/reminders';
+import { reminderEvents, slotsForDay, todayStr } from '@/lib/reminders';
+import ReminderSlotCard from '@/components/reminders/ReminderSlotCard';
 import EventDialog from '@/components/calendar/EventDialog';
 import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
 import PhotoImportSheet from '@/components/calendar/PhotoImportSheet';
@@ -280,7 +281,7 @@ export default function CalendarPage() {
   // (just the picked person's, when one is picked).
   // One-time reminders show on their day too (lib/reminders reminderEvents);
   // tapping one opens the reminder.
-  const { reminders, editor: reminderEditor, openReminder } = useReminderEditor(members);
+  const { reminders, logs: reminderLogs, editor: reminderEditor, openReminder } = useReminderEditor(members);
   const allOccurrences = useMemo(() => [...expandAppointments(appointments, range.from, range.to), ...reminderEvents(reminders, fromKey, toKey)], [appointments, range, reminders, fromKey, toKey]);
   const occurrences = useMemo(() => (shown ? allOccurrences.filter(showsFor) : allOccurrences), [allOccurrences, shown, members]); // eslint-disable-line react-hooks/exhaustive-deps
   // A push or widget tap about an event the picked person's view hides: show everyone.
@@ -292,6 +293,24 @@ export default function CalendarPage() {
   const selectedDayAppointments = occurrences
     .filter(a => a.date && isSameDay(parseISO(a.date), selectedDate))
     .sort((a, b) => (a.all_day ? '' : a.time || '').localeCompare(b.all_day ? '' : b.time || ''));
+
+  // "Still to do" at the bottom of a day (Anna, Nov 14 2026: "Dont put the
+  // 'until its done' stuff on the actual calendar. But put it in a section at
+  // the bottom of the day"): the until-it's-done reminders waiting that day,
+  // today and later (an earlier day can't say what was still waiting then).
+  const selectedKey = format(selectedDate, 'yyyy-MM-dd');
+  const stillToDo = useMemo(() => (selectedKey < todayStr() ? [] : slotsForDay(reminders.filter((m) => m.frequency === 'Once'), reminderLogs, selectedKey)
+    .filter((sl) => sl.status !== 'taken' && sl.status !== 'skipped')
+    .filter((sl) => showsFor({ family_member_id: sl.med.family_member_id, family_member_name: sl.med.family_member_name, visibility: sl.med.visibility, created_by_user_id: sl.med.owner_user_id }))),
+  [reminders, reminderLogs, selectedKey, shown, members]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stillSection = stillToDo.length > 0 && (
+    <div className="mt-5">
+      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Still to do ({stillToDo.length})</h4>
+      <div className="space-y-2">
+        {stillToDo.map((sl) => <ReminderSlotCard key={sl.key} slot={sl} members={members} onOpen={openReminder} />)}
+      </div>
+    </div>
+  );
 
   const openNew = () => { setPrefill(null); setEditing(null); setDialogOpen(true); };
   const duplicate = (data) => { closeDialog(); setTimeout(() => { setPrefill(data); setEditing(null); setDialogOpen(true); }, 200); };
@@ -396,6 +415,7 @@ export default function CalendarPage() {
                 ))}
               </div>
             )}
+            {stillSection}
           </div>
         </TabsContent>
 
@@ -418,6 +438,7 @@ export default function CalendarPage() {
             onPrev={() => setSelectedDate(subDays(selectedDate, 1))}
             onNext={() => setSelectedDate(addDays(selectedDate, 1))}
             onAdd={openNew}
+            after={stillSection}
             appointments={occurrences}
             members={members}
             onOpen={openEdit}
