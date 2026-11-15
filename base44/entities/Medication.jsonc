@@ -53,8 +53,15 @@
       "type": "string"
     },
     "family_member_id": {
-      "description": "Who it is for (optional)",
+      "description": "Who it is for (optional); with more than one, the first of family_member_ids",
       "type": "string"
+    },
+    "family_member_ids": {
+      "description": "Everyone it's for, people and pets (Nov 14 2026); family_member_name reads \"Peach and Kaiju\"",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "family_member_name": {
       "type": "string"
@@ -147,7 +154,6 @@
   "required": [
     "medication_name"
   ],
-  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -224,5 +230,6 @@
         }
       ]
     }
-  }
+  },
+  "type": "object"
 }
