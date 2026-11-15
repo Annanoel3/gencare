@@ -211,8 +211,11 @@ export function adherence(med, logs, days = 14) {
  * reminder from here doesnt end up on the calendar. It should."), on their day
  * and time in the range (from/to: 'YYYY-MM-DD'). They carry the reminder
  * itself (reminder), so the calendar opens the reminder, not an event.
+ * One for a pet or for someone the family takes care of is care, so it's in
+ * their color like a care event (Anna, Nov 14 2026: "Giving the dogs a bath
+ * is care"); caredFor(member) says who that is.
  */
-export function reminderEvents(reminders = [], from, to) {
+export function reminderEvents(reminders = [], from, to, members = [], caredFor = () => false) {
   return (reminders || [])
     .filter((m) => m.frequency === ONE_TIME && m.once_date && m.once_date >= from && m.once_date <= to)
     .map((m) => {
@@ -230,6 +233,7 @@ export function reminderEvents(reminders = [], from, to) {
         family_member_name: m.family_member_name || '',
         visibility: m.visibility === 'private' ? 'private' : 'family',
         category: 'Other',
+        ...(forIds(m).some((id) => caredFor((members || []).find((x) => x.id === id))) ? { care: true } : {}),
         notes: m.notes || '',
         created_by_user_id: m.owner_user_id || m.created_by_id || '',
       };

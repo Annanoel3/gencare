@@ -62,7 +62,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
   };
   const doneBy = check ? (check.user_id === me?.id ? 'you' : firstName(check.name)) : '';
   // Care events get their color; the rest are plain (no bar, no tint).
-  const care = isCareEvent(appt);
+  const care = isCareEvent(appt, members);
   const tint = appt.visibility === 'private' || !care ? 'bg-card' : getEventLightColorClass(appt, members, accounts);
   const memberDot = getMemberColorByMemberId(appt.family_member_id, members);
   const day = appt.date ? parseISO(appt.date) : null;

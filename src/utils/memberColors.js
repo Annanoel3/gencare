@@ -15,6 +15,11 @@ export const PRIVATE_COLOR = FALLBACK_COLOR;
 export const PET_COLOR = 'bg-amber-800';
 export const isPet = (m) => /^pet$/i.test(String(m?.relationship || ''));
 const people = (members = []) => members.filter((m) => !isPet(m));
+/** Is it for a pet (one of the people and pets it's for)? */
+const forPet = (appt, members = []) => {
+  const ids = Array.isArray(appt?.family_member_ids) && appt.family_member_ids.length ? appt.family_member_ids : appt?.family_member_id ? [appt.family_member_id] : [];
+  return ids.some((id) => isPet((members || []).find((m) => m.id === id)));
+};
 
 function stableOrder(list = []) {
   return [...list].sort((a, b) => String(a.created_date || '').localeCompare(String(b.created_date || '')) || String(a.id).localeCompare(String(b.id)));
@@ -88,9 +93,13 @@ export function whoseEvent(appt, members = []) {
  * an event it hasn't looked at counts as care when it's an appointment. The
  * person's own pick in the event ("Care-related", Appointment.care) wins over
  * GenCare's, for when it got one wrong.
+ * Anything for a pet is looking after it (Anna, Nov 14 2026: "Color anything
+ * having to do with care. Giving the dogs a bath is care."), so with the
+ * family's profiles at hand (members) an event for a pet is care too.
  */
-export function isCareEvent(appt) {
+export function isCareEvent(appt, members = []) {
   if (typeof appt?.care === 'boolean') return appt.care;
+  if (forPet(appt, members)) return true;
   if (typeof appt?.ai_care === 'boolean') return appt.ai_care;
   return ['Appointment', 'Doctor', 'Therapy'].includes(String(appt?.category || ''));
 }
@@ -103,7 +112,7 @@ export function isCareEvent(appt) {
  */
 export function getEventHighlightClass(appt, members = [], accounts = []) {
   if (appt?.visibility === 'private') return PRIVATE_COLOR;
-  return isCareEvent(appt) ? getEventColorClass(appt, members, accounts) : '';
+  return isCareEvent(appt, members) ? getEventColorClass(appt, members, accounts) : '';
 }
 
 // Light tint versions of each palette color, for tinted containers.

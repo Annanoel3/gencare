@@ -18,6 +18,7 @@ import DayView from '@/components/calendar/DayView';
 import EventRow from '@/components/calendar/EventRow';
 import useReminderEditor from '@/components/reminders/useReminderEditor';
 import { reminderEvents, slotsForDay, todayStr } from '@/lib/reminders';
+import { caredFor } from '@/lib/carePrivacy';
 import ReminderSlotCard from '@/components/reminders/ReminderSlotCard';
 import EventDialog from '@/components/calendar/EventDialog';
 import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
@@ -282,7 +283,7 @@ export default function CalendarPage() {
   // One-time reminders show on their day too (lib/reminders reminderEvents);
   // tapping one opens the reminder.
   const { reminders, logs: reminderLogs, editor: reminderEditor, openReminder } = useReminderEditor(members);
-  const allOccurrences = useMemo(() => [...expandAppointments(appointments, range.from, range.to), ...reminderEvents(reminders, fromKey, toKey)], [appointments, range, reminders, fromKey, toKey]);
+  const allOccurrences = useMemo(() => [...expandAppointments(appointments, range.from, range.to), ...reminderEvents(reminders, fromKey, toKey, members, caredFor)], [appointments, range, reminders, fromKey, toKey, members]);
   const occurrences = useMemo(() => (shown ? allOccurrences.filter(showsFor) : allOccurrences), [allOccurrences, shown, members]); // eslint-disable-line react-hooks/exhaustive-deps
   // A push or widget tap about an event the picked person's view hides: show everyone.
   useEffect(() => {

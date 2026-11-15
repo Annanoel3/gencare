@@ -30,7 +30,7 @@ trip: true only when the event is clearly part of the person's own trip away fro
 
 cover: when share is false because it's the person's own appointment that the family would still want to know is happening (a doctor, dentist or eye appointment), a plain label the family sees in its place, with the time and nothing else: "doctor", "dentist", "eye doctor". For anything sensitive (counseling, mental health, intimate health) use just "appointment". "" for everything else (work, friends, errands, money, gifts, trips).
 
-care: true when the event is part of looking after someone in the family: health, therapy, doctor, dentist, eye and vet visits, tests and results, medicine and pharmacy pickups, caregiver help, rides to any of those, and meetings about a child's needs. False for everything else: household help and chores (a house cleaner, lawn care), errands, bills, voting, social plans and visits, trips and flights, work, holidays.
+care: true when the event is part of looking after someone in the family, a person or a pet: health, therapy, doctor, dentist, eye and vet visits, tests and results, medicine and pharmacy pickups, caregiver help, rides to any of those, meetings about a child's needs, and everyday care of a pet or of someone the family takes care of (bathing, grooming, feeding, walks, haircuts, boarding or a pet sitter). False for everything else: household help and chores (a house cleaner, lawn care), errands, bills, voting, social plans and visits, trips and flights, work, holidays.
 
 category: Appointment, School, Work, Sports, Social or Other. The person's own job is always Work.
 

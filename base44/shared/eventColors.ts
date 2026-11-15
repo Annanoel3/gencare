@@ -54,9 +54,13 @@ function eventClass(appt: any, members: any[], accounts: any[]) {
   return userClass(appt.created_by_user_id || appt.created_by_id, members, accounts);
 }
 
-// The person's own pick wins, then GenCare's, then "an appointment is care".
-export function isCareEvent(appt: any): boolean {
+// The person's own pick wins, then anything for a pet (Nov 14 2026: "Giving
+// the dogs a bath is care"), then GenCare's, then "an appointment is care".
+// TWIN of src/utils/memberColors.js isCareEvent.
+export function isCareEvent(appt: any, members: any[] = []): boolean {
   if (typeof appt?.care === 'boolean') return appt.care;
+  const ids: string[] = Array.isArray(appt?.family_member_ids) && appt.family_member_ids.length ? appt.family_member_ids : appt?.family_member_id ? [appt.family_member_id] : [];
+  if (ids.some((id) => isPet((members || []).find((m: any) => m.id === id)))) return true;
   if (typeof appt?.ai_care === 'boolean') return appt.ai_care;
   return ['Appointment', 'Doctor', 'Therapy'].includes(String(appt?.category || ''));
 }
@@ -64,5 +68,5 @@ export function isCareEvent(appt: any): boolean {
 /** The color an event is drawn in, or '' for plain text (not care-related). Only-you events are gray. */
 export function eventHighlightHex(appt: any, members: any[] = [], accounts: any[] = []): string {
   if (appt?.visibility === 'private') return PRIVATE_HEX;
-  return isCareEvent(appt) ? (HEX[eventClass(appt, members, accounts)] || PRIVATE_HEX) : '';
+  return isCareEvent(appt, members) ? (HEX[eventClass(appt, members, accounts)] || PRIVATE_HEX) : '';
 }

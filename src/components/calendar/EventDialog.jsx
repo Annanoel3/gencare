@@ -103,7 +103,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
         end_date: appt.end_date || '',
         recurrence: baseRule(appt.recurrence),
         until: untilOf(appt.recurrence),
-        care: isCareEvent(appt),
+        care: isCareEvent(appt, members),
       };
       setForm(loaded);
       lastSaved.current = saveKey(buildData(loaded));

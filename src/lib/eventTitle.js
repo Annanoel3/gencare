@@ -59,9 +59,9 @@ const OTHER = [
   [/(\bdr\.?\s|\bdoctor\b|\bcardiolog\w*|\bneurolog\w*|\bdermatolog\w*|\bphysician\b|\bcheck-?up\b)/i, '🩺'],
 ];
 
-export function kindEmoji(appt) {
+export function kindEmoji(appt, members = []) {
   const title = String(appt?.title || '');
-  if (!title || !isCareEvent(appt) || /^\s*\p{Extended_Pictographic}/u.test(title)) return '';
+  if (!title || !isCareEvent(appt, members) || /^\s*\p{Extended_Pictographic}/u.test(title)) return '';
   const therapy = THERAPY.filter(([re]) => re.test(title)).map(([, e]) => e);
   if (therapy.length) return therapy.slice(0, 2).join('');
   return OTHER.find(([re]) => re.test(title))?.[1] || '';
@@ -80,6 +80,6 @@ export function visitKinds(title) {
 /** The title as shown: the kind's emoji, then the title (without the person's name when `short`). */
 export function shownTitle(appt, members = [], short = true) {
   const t = short ? shortTitle(appt, members) : String(appt?.title || '');
-  const e = kindEmoji(appt);
+  const e = kindEmoji(appt, members);
   return e ? `${e} ${t}` : t;
 }
