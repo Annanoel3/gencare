@@ -172,7 +172,7 @@ export default function Subscribe({ gate = false }) {
                 {busy === 'restore' ? 'Restoring…' : 'Already subscribed? Restore purchase'}
               </button>
               {/* What Apple (3.1.2) and Google ask a subscription screen to say. */}
-              <p className="text-[11px] leading-snug text-muted-foreground text-center">
+              <p className="text-[0.6875rem] leading-snug text-muted-foreground text-center">
                 {anyTrial ? 'New subscribers get the first week free; cancel before it ends and nothing is charged. After that, the' : 'The'} Family plan renews automatically at the price shown (monthly or yearly) until you cancel. Payment is charged to your {isAndroidApp() ? 'Google Play account' : 'Apple Account'}. Cancel any time in {isAndroidApp() ? 'Google Play' : 'your App Store'} subscriptions, at least 24 hours before {anyTrial ? 'the free week ends or the plan renews' : 'it renews'}.{' '}
                 <Link to="/terms" className="underline">Terms of Use</Link> · <Link to="/privacy-policy" className="underline">Privacy Policy</Link>
               </p>

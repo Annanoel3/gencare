@@ -74,7 +74,7 @@ export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext
                             <span className="w-[4.25rem] flex-shrink-0 text-sm text-muted-foreground tabular-nums">
                               {appt.all_day || !appt.time ? 'All day' : time12(appt.time)}
                             </span>
-                            <span className={`flex-1 min-w-0 truncate text-[0.95rem] font-medium ${done ? 'line-through' : ''}`}>{label}</span>
+                            <span className={`flex-1 min-w-0 title-fit text-[0.95rem] font-medium ${done ? 'line-through' : ''}`}>{label}</span>
                           </button>
                         </li>
                       );

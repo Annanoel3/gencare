@@ -173,7 +173,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             <div className="flex items-center gap-2 mt-1.5">
               <Input value={stepText} onChange={(e) => setStepText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addStep(); } }}
                 placeholder="Add a step…" enterKeyHint="enter" aria-label="Add a step" />
-              <Button type="button" variant="outline" onClick={addStep} className="flex-shrink-0 gap-1"><Plus className="w-4 h-4" /> Add</Button>
+              <Button type="button" variant="outline" onClick={addStep} className="flex-shrink-0 gap-1"><Plus className="w-4 h-4" /> Add step</Button>
             </div>
             {steps.length === 0 && <p className="text-xs text-muted-foreground mt-1">Like a checklist. Anyone can tick them off, and ticking the last one marks it done.</p>}
           </div>
@@ -198,7 +198,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
                   <button key={v} type="button" onClick={() => set('priority', v)}
                     className={`rounded-xl border px-2 py-2 text-center ${form.priority === v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}>
                     <span className="block text-sm font-semibold">{label}</span>
-                    <span className={`block text-[11px] ${form.priority === v ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>{how}</span>
+                    <span className={`block text-[0.6875rem] ${form.priority === v ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>{how}</span>
                   </button>
                 ))}
               </div>
@@ -288,11 +288,12 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             </div>
           )}
 
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             {editing && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>}
-            <div className="flex-1" />
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
+            </div>
           </div>
           <MissingNote text={missing ? whyMissing : ''} className="-mt-2" />
         </div>

@@ -9,6 +9,11 @@ export const TEXT_SIZES = [
   { value: 'large', label: 'Large', scale: 1.125 },
   { value: 'larger', label: 'Larger', scale: 1.25 },
 ];
+// Big text mode (Anna, Nov 15 2026: "The text is still too small for my dad"):
+// a switch at the top of Settings, bigger than Larger. The month calendar's
+// words grow a little too (index.css --cal-chip), as much as its boxes allow.
+export const BIG = { value: 'big', label: 'Big text mode', scale: 1.5 };
+const ALL = [...TEXT_SIZES, BIG];
 
 const KEY = 'gencare_text_size';
 
@@ -17,7 +22,7 @@ export function savedTextSize() {
 }
 
 export function applyTextSize(value = savedTextSize()) {
-  const size = TEXT_SIZES.find((s) => s.value === value) || TEXT_SIZES[0];
+  const size = ALL.find((s) => s.value === value) || TEXT_SIZES[0];
   const root = document.documentElement;
   root.style.fontSize = size.scale === 1 ? '' : `${size.scale * 100}%`;
   root.dataset.textSize = size.value;

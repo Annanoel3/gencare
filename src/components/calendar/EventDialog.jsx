@@ -296,9 +296,9 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
 
           <div>
             <Label>When</Label>
-            <div className="grid grid-cols-2 gap-3 mt-1">
-              <Input type="date" value={form.date} onChange={(e) => changeDate(e.target.value)} aria-label="Day" />
-              {!form.all_day ? <Input type="time" value={form.time} onChange={(e) => set('time', e.target.value)} aria-label="Time" /> : <span />}
+            <div className="flex flex-wrap gap-3 mt-1">
+              <Input type="date" value={form.date} onChange={(e) => changeDate(e.target.value)} aria-label="Day" className="flex-1 min-w-[9.5rem]" />
+              {!form.all_day ? <Input type="time" value={form.time} onChange={(e) => set('time', e.target.value)} aria-label="Time" className="flex-1 min-w-[8rem]" /> : <span className="flex-1 min-w-[8rem]" />}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mt-2">
               <label className="flex items-center gap-2 text-sm whitespace-nowrap"><Switch checked={!!form.all_day} onCheckedChange={(v) => set('all_day', v)} /> All day</label>
@@ -429,12 +429,12 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             </Button>
           )}
 
-          <div className="flex items-center justify-between gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             {editing ? (
               <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)} disabled={saving}><Trash2 className="w-4 h-4" /> Delete</Button>
             ) : <span />}
             {editing ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 ml-auto">
                 <span className="text-xs text-muted-foreground" aria-live="polite">
                   {saveState === 'saving' ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving</span>
                     : saveState === 'saved' ? <span className="inline-flex items-center gap-1"><Check className="w-3 h-3" /> Saved</span>
@@ -445,7 +445,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                 <Button onClick={close}>Done</Button>
               </div>
             ) : (
-              <div className="flex flex-col items-end gap-1.5">
+              <div className="flex flex-col items-end gap-1.5 ml-auto">
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={onClose}>Cancel</Button>
                   <Button onClick={submit} disabled={saving}>

@@ -23,7 +23,7 @@ export default function PrepPointsList({ points, onChange }) {
             onChange={(e) => setDrafts((d) => d.map((x, j) => (j === i ? e.target.value : x)))}
             onBlur={() => commit(i)}
             onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-            className="flex-1 min-w-0 h-10 rounded-lg border border-border bg-background px-3 text-[15px] outline-none"
+            className="flex-1 min-w-0 h-10 rounded-lg border border-border bg-background px-3 text-[0.9375rem] outline-none"
           />
           <button type="button" aria-label="Remove this point" onClick={() => onChange(points.filter((_, j) => j !== i))} className="text-muted-foreground">
             <X className="w-4 h-4" />

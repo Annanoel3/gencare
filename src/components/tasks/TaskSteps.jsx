@@ -36,7 +36,7 @@ export default function TaskSteps({ steps = [], onToggle, onAdd, onRemove, busyI
               {busyId === s.id ? <Loader2 className="w-3 h-3 animate-spin text-primary" /> : done ? <Check className="w-3 h-3 text-primary-foreground" /> : null}
             </button>
             <span className={`flex-1 text-sm ${done ? 'line-through text-muted-foreground' : ''}`}>{s.title}</span>
-            {done && s.completed_by_name && <span className="text-[11px] text-muted-foreground">{s.completed_by_name.split(' ')[0]}</span>}
+            {done && s.completed_by_name && <span className="text-[0.6875rem] text-muted-foreground">{s.completed_by_name.split(' ')[0]}</span>}
             {canEdit && onRemove && (
               <button type="button" onClick={() => onRemove(s)} aria-label={`Remove step ${s.title}`} className="p-1 rounded text-muted-foreground/60 hover:text-destructive">
                 <X className="w-3.5 h-3.5" />

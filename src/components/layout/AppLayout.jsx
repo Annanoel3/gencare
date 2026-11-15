@@ -113,7 +113,7 @@ function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
                 >
                   <child.icon className="w-4 h-4" />
                   <span className="flex-1">{child.label}</span>
-                  {child.badge > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold flex items-center justify-center">{child.badge > 99 ? '99+' : child.badge}</span>}
+                  {child.badge > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[0.6875rem] font-semibold flex items-center justify-center">{child.badge > 99 ? '99+' : child.badge}</span>}
                 </Link>
               );
             })}
@@ -271,22 +271,23 @@ function AppShell() {
       </main>
 
       {/* Bottom nav */}
-      <div className="app-bottom-nav fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around py-2 px-2 z-40">
+      {/* Five even spots; the words grow with the text size but stop at 13px so all five fit in Big text mode. */}
+      <div className="app-bottom-nav fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around py-2 px-1 z-40">
         {mobileBottomNav.map(item => {
           const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-xs transition-all ${
+              className={`flex-1 min-w-0 flex flex-col items-center gap-1 px-0.5 py-1.5 rounded-lg text-xs transition-all ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
               <span className="relative">
                 <item.icon className="w-5 h-5" />
-                {item.unread && unread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold flex items-center justify-center">{unread > 99 ? '99+' : unread}</span>}
+                {item.unread && unread > 0 && <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[0.625rem] font-semibold flex items-center justify-center">{unread > 99 ? '99+' : unread}</span>}
               </span>
-              <span className="text-[10px]">{item.label}</span>
+              <span className="text-[min(0.625rem,13px)] max-w-full truncate">{item.label}</span>
             </Link>
           );
         })}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { TEXT_SIZES, savedTextSize, setTextSize } from '@/lib/textSize';
+import { TEXT_SIZES, BIG, savedTextSize, setTextSize } from '@/lib/textSize';
 import MissingNote from '@/components/shared/MissingNote';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
@@ -10,6 +10,7 @@ import { previewWelcome } from '@/components/onboarding/WelcomeDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { signOut } from '@/lib/widgets';
 
@@ -58,9 +59,21 @@ export default function Settings() {
       </div>
 
       <div className="space-y-6 max-w-2xl">
+        {/* Big text mode, first thing on the page so it's easy to find (Anna, Nov 15 2026:
+            "The text is still too small for my dad"). Kept on this phone (lib/textSize). */}
+        {/* The words sit under the name and switch so they keep the card's whole width when big. */}
+        <div className="bg-card rounded-2xl border-2 border-primary/30 p-5 md:p-6">
+          <div className="flex items-center gap-3">
+            <div className="big-hide w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0"><span className="font-heading font-bold text-primary text-lg leading-none" aria-hidden="true">Aa</span></div>
+            <h2 className="flex-1 min-w-0 font-heading text-lg font-semibold"><label htmlFor="big-text">Big text mode</label></h2>
+            <Switch id="big-text" checked={textSize === BIG.value} onCheckedChange={(on) => { const v = on ? BIG.value : 'normal'; setTextSize(v); setTextSizeState(v); }} />
+          </div>
+          <p className="big-flush text-xs text-muted-foreground mt-1 pl-[3.25rem]">Makes the words and buttons much bigger on this phone.</p>
+        </div>
+
         {/* Family, plan, notifications, phone calendar */}
         <Link to="/family-settings" className="flex items-center gap-3 bg-card rounded-2xl border border-border/50 p-5 md:p-6 hover:bg-muted/40 transition-colors">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Users className="w-5 h-5 text-primary" /></div>
+          <div className="big-hide w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Users className="w-5 h-5 text-primary" /></div>
           <div className="flex-1">
             <h2 className="font-heading text-lg font-semibold">My Family</h2>
             <p className="text-xs text-muted-foreground">Who's in it, invites, your plan, notifications and phone calendar.</p>
@@ -70,7 +83,7 @@ export default function Settings() {
         {/* The owner's record keeping (admins only). */}
         {user?.role === 'admin' && (
           <Link to="/activity" className="flex items-center gap-3 bg-card rounded-2xl border border-border/50 p-5 md:p-6 hover:bg-muted/40 transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><ActivityIcon className="w-5 h-5 text-primary" /></div>
+            <div className="big-hide w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><ActivityIcon className="w-5 h-5 text-primary" /></div>
             <div className="flex-1">
               <h2 className="font-heading text-lg font-semibold">App activity</h2>
               <p className="text-xs text-muted-foreground">Only you see this: who uses GenCare where, what works and what breaks.</p>
@@ -79,7 +92,7 @@ export default function Settings() {
         )}
         {user?.role === 'admin' && (
           <button type="button" onClick={previewWelcome} className="w-full text-left flex items-center gap-3 bg-card rounded-2xl border border-border/50 p-5 hover:bg-muted/40 transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><MessageCircleHeart className="w-5 h-5 text-primary" /></div>
+            <div className="big-hide w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><MessageCircleHeart className="w-5 h-5 text-primary" /></div>
             <div className="flex-1">
               <h2 className="font-heading text-lg font-semibold">Preview the welcome chat</h2>
               <p className="text-xs text-muted-foreground">Only you see this: the chat new people get. Nothing you type in it is saved.</p>
@@ -90,7 +103,7 @@ export default function Settings() {
         {/* Account / Email */}
         <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <div className="big-hide w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Mail className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -103,7 +116,7 @@ export default function Settings() {
               <Label className="text-xs text-muted-foreground">Current Email</Label>
               <Input value={loadingUser ? 'Loading...' : (user?.email || 'N/A')} readOnly className="mt-1 bg-muted/50 cursor-not-allowed" />
             </div>
-            <Button variant="outline" onClick={() => setEmailDialogOpen(true)} className="gap-2">
+            <Button variant="outline" onClick={() => setEmailDialogOpen(true)} className="gap-2 max-w-full h-auto min-h-10 whitespace-normal">
               <Send className="w-4 h-4" /> Request Email Change
             </Button>
           </div>
@@ -112,7 +125,7 @@ export default function Settings() {
         {/* Appearance */}
         <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+            <div className="big-hide w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
               {theme === 'dark' ? <Moon className="w-5 h-5 text-accent" /> : <Sun className="w-5 h-5 text-accent" />}
             </div>
             <div>
@@ -142,7 +155,7 @@ export default function Settings() {
           </div>
           {/* Text size, kept on this phone (lib/textSize). */}
           <h3 className="text-sm font-medium mt-5 mb-1">Text size</h3>
-          <p className="text-xs text-muted-foreground mb-2.5">Makes the words and buttons bigger on this phone.</p>
+          <p className="text-xs text-muted-foreground mb-2.5">{textSize === BIG.value ? 'Big text mode is on (at the top of this page). Pick one of these to go back to a smaller size.' : 'Makes the words and buttons bigger on this phone.'}</p>
           <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Text size">
             {TEXT_SIZES.map((t, i) => (
               <button key={t.value} type="button" role="radio" aria-checked={textSize === t.value}

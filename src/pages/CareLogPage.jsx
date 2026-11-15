@@ -253,7 +253,7 @@ export default function CareLogPage() {
                         className={`rounded-2xl border p-2.5 min-h-[76px] flex flex-col items-center justify-center gap-1 text-center transition-all active:scale-95 ${done ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30' : 'border-border/60 bg-card'}`}>
                         <span className="text-2xl leading-none">{q.icon}</span>
                         <span className="text-xs font-medium leading-tight">{q.label}{mine && privacy.isPrivateThing(buttonKey(q), person) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only me" />}</span>
-                        {done && <span className="text-[10px] leading-tight text-emerald-700 dark:text-emerald-400 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" />{format(parseISO(done.timestamp), 'h:mm a')}{done.logged_by_name ? ` · ${firstName(done.logged_by_name)}` : ''}</span>}
+                        {done && <span className="text-[0.625rem] leading-tight text-emerald-700 dark:text-emerald-400 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" />{format(parseISO(done.timestamp), 'h:mm a')}{done.logged_by_name ? ` · ${firstName(done.logged_by_name)}` : ''}</span>}
                       </button>
                     );
                   })}

@@ -165,7 +165,7 @@ export default function FamilySettings() {
               <span className="text-sm">Reminders before appointments, due reminders, and the 7 AM "today" summary</span>
               <Switch checked={prefs.notify_reminders} disabled={!prefs.push_enabled} onCheckedChange={(v) => setPref('notify_reminders', !!v)} />
             </label>
-            <Button variant="outline" size="sm" onClick={testPush} disabled={busy === 'test'} className="gap-2 mt-1"><Send className="w-4 h-4" /> Send me a test notification</Button>
+            <Button variant="outline" size="sm" onClick={testPush} disabled={busy === 'test'} className="gap-2 mt-1 max-w-full h-auto min-h-9 whitespace-normal"><Send className="w-4 h-4" /> Send me a test notification</Button>
           </div>
         </div>
 

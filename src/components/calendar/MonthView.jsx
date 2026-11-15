@@ -47,7 +47,7 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
       <PinchZoom storageKey="gencare_cal_zoom_month" mode="pan">
       <div className="grid grid-cols-7 gap-px mb-1">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="text-center text-[13px] md:text-xs font-medium text-muted-foreground py-1">{d}</div>
+          <div key={d} className="text-center text-[0.8125rem] md:text-xs font-medium text-muted-foreground py-1">{d}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-px">
@@ -70,7 +70,7 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
                 'hover:bg-muted'
               }`}
             >
-              <span className={`self-start text-[15px] md:text-xs leading-6 md:leading-4 font-semibold md:font-normal min-w-6 text-center md:min-w-0 md:text-left px-0.5 rounded-full ${today ? 'bg-primary text-primary-foreground md:bg-transparent md:text-primary md:font-bold' : 'text-foreground/80 md:text-muted-foreground'}`}>{format(day, 'd')}</span>
+              <span className={`self-start text-[0.9375rem] md:text-xs leading-6 md:leading-4 font-semibold md:font-normal min-w-6 text-center md:min-w-0 md:text-left px-0.5 rounded-full ${today ? 'bg-primary text-primary-foreground md:bg-transparent md:text-primary md:font-bold' : 'text-foreground/80 md:text-muted-foreground'}`}>{format(day, 'd')}</span>
               <div className="flex flex-col gap-0.5 md:gap-px mt-0.5">
                 {shown.map(a => {
                   // Care events are colored chips; the rest are plain text.
@@ -82,14 +82,14 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
                   return (
                     <span
                       key={a.id}
-                      className={`rounded px-[2px] md:px-1 text-[12px] leading-[15px] font-medium line-clamp-2 md:font-normal md:text-[11px] md:leading-4 md:line-clamp-1 ${color ? `text-white ${color}` : 'text-foreground'} ${checkOn(a, a.date) || eventTiming(a, now) === 'past' ? 'opacity-50' : ''}`}
+                      className={`rounded px-[2px] md:px-1 text-[length:var(--cal-chip)] leading-[var(--cal-chip-lh)] font-medium line-clamp-2 md:font-normal md:text-[11px] md:leading-4 md:line-clamp-1 ${color ? `text-white ${color}` : 'text-foreground'} ${checkOn(a, a.date) || eventTiming(a, now) === 'past' ? 'opacity-50' : ''}`}
                       title={a.title}
                     >
                       <Words text={label} />
                     </span>
                   );
                 })}
-                {extra > 0 && <span className="text-[12px] md:text-[10px] font-medium leading-4 px-[3px] md:px-1 text-muted-foreground">+{extra} more</span>}
+                {extra > 0 && <span className="text-[length:var(--cal-chip)] md:text-[10px] font-medium leading-[var(--cal-chip-lh)] px-[3px] md:px-1 text-muted-foreground">+{extra} more</span>}
               </div>
             </button>
           );

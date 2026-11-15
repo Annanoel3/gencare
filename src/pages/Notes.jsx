@@ -789,7 +789,7 @@ export default function Notes() {
   const card = "rounded-2xl border border-border/50 bg-card p-4";
   const heading = "text-foreground";
   const soft = "text-muted-foreground";
-  const inputCls = "w-full rounded-lg border border-border bg-background px-2.5 py-2 text-[15px] outline-none";
+  const inputCls = "w-full rounded-lg border border-border bg-background px-2.5 py-2 text-[0.9375rem] outline-none";
   const open = records.find((r) => r.id === openId) || null;
   const mine = (r) => !r?.user_id || r.user_id === me?.id;
 
@@ -798,7 +798,7 @@ export default function Notes() {
       <DialogContent className="max-w-md w-[calc(100vw-2rem)]">
         <div className="space-y-4 pt-2">
           <h2 className="text-xl font-bold">{access?.reason === "subscribed" ? "This month's recording time is used up" : "Your family's free recording time is used up"}</h2>
-          <p className="text-[15px] leading-relaxed text-muted-foreground">
+          <p className="text-[0.9375rem] leading-relaxed text-muted-foreground">
             {access?.reason === "subscribed"
               ? `Your family's minutes come back on ${nextMonthStart()}.`
               : `The free trial includes ${usage?.limit_seconds ? Math.round(usage.limit_seconds / 60) : 60} minutes of recording a month. GenCare Family gives the whole family far more, and they come back every month.`}
@@ -876,7 +876,7 @@ export default function Notes() {
       <DialogContent className="max-w-md w-[calc(100vw-2rem)]">
         <div className="space-y-4 pt-2">
           <h2 className="text-xl font-bold">Delete this recording?</h2>
-          <p className="text-[15px] leading-relaxed text-muted-foreground">Its notes and transcript will be gone for good, for the whole family. Reminders you already added stay on the list.</p>
+          <p className="text-[0.9375rem] leading-relaxed text-muted-foreground">Its notes and transcript will be gone for good, for the whole family. Reminders you already added stay on the list.</p>
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(null)}>Keep it</Button>
             <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={() => deleteRecording(confirmDelete)}>Delete</Button>
@@ -1241,7 +1241,7 @@ export default function Notes() {
             <p className={`text-sm ${soft}`}>Questions you don't want to forget. They stay on screen while you record, and your notes say which got answered. Anyone in the family can add one.</p>
             <PrepPointsList points={qs} onChange={(next) => saveQuestions(prepAppt, next)} />
             <form onSubmit={(e) => { e.preventDefault(); addQuestion(); }} className="flex gap-2">
-              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="A question to bring up" className="flex-1 min-w-0 h-12 rounded-xl border border-border bg-background px-3 text-[15px] outline-none" />
+              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="A question to bring up" className="flex-1 min-w-0 h-12 rounded-xl border border-border bg-background px-3 text-[0.9375rem] outline-none" />
               <Button type="submit" disabled={!draft.trim()} className="h-12 px-4 rounded-xl shrink-0"><Plus className="w-4 h-4 mr-1" />Add</Button>
             </form>
           </div>
@@ -1270,7 +1270,7 @@ export default function Notes() {
         </div>
 
         <div className={`${card} space-y-3`}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What is it? (optional)" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[15px] outline-none" />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What is it? (optional)" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[0.9375rem] outline-none" />
           <Button onClick={() => startRecording()} disabled={busy || !!progress} className="w-full h-14 rounded-2xl text-base bg-red-600 hover:bg-red-700 text-white">
             {busy ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Mic className="w-5 h-5 mr-2" />} Record
           </Button>
@@ -1307,7 +1307,7 @@ export default function Notes() {
           <div className="space-y-2">
             <h2 className="text-lg font-bold">Your family's recordings</h2>
             <div className="flex gap-2">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") askNotes(); }} placeholder="Search or ask the notes" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[15px] outline-none" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") askNotes(); }} placeholder="Search or ask the notes" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[0.9375rem] outline-none" />
               {search.trim().length >= 3 && (
                 <Button onClick={askNotes} disabled={!!asked?.loading} className="shrink-0 h-auto rounded-xl">{asked?.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask"}</Button>
               )}

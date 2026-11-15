@@ -46,7 +46,7 @@ export default function WellnessHistory({ userId, onPick, footer }) {
         </div>
 
         <div className="grid grid-cols-7 gap-1 text-center">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <span key={i} className="text-[11px] font-medium text-muted-foreground pb-1">{d}</span>)}
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <span key={i} className="text-[0.6875rem] font-medium text-muted-foreground pb-1">{d}</span>)}
           {Array.from({ length: lead }, (_, i) => <span key={`b${i}`} />)}
           {days.map((d) => {
             const key = format(d, 'yyyy-MM-dd');
@@ -59,7 +59,7 @@ export default function WellnessHistory({ userId, onPick, footer }) {
                 aria-label={`${format(d, 'EEEE, MMMM d')}${c ? `: ${m?.label || 'note'}` : ', no check-in'}`}>
                 <span className={`h-8 w-8 rounded-md flex items-center justify-center text-lg ${c ? '' : 'bg-muted/60'}`}>{m?.emoji || (c ? '📝' : '')}</span>
                 <span className={`h-1 w-6 rounded-full ${c?.stress ? STRESS_COLORS[c.stress - 1] : 'bg-transparent'}`} />
-                <span className="text-[10px] text-muted-foreground leading-none">{format(d, 'd')}</span>
+                <span className="text-[0.625rem] text-muted-foreground leading-none">{format(d, 'd')}</span>
               </button>
             );
           })}
@@ -75,7 +75,7 @@ export default function WellnessHistory({ userId, onPick, footer }) {
                 return <span key={d.toISOString()} className={`flex-1 rounded-sm ${s ? moodOf(c).bar : 'bg-muted/50'}`} style={{ height: s ? `${s * 20}%` : '6%' }} />;
               })}
             </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground mt-1"><span>{format(month, 'MMM d')}</span><span>Taller is a better day</span><span>{format(endOfMonth(month), 'MMM d')}</span></div>
+            <div className="flex justify-between text-[0.625rem] text-muted-foreground mt-1"><span>{format(month, 'MMM d')}</span><span>Taller is a better day</span><span>{format(endOfMonth(month), 'MMM d')}</span></div>
           </div>
         )}
 

@@ -364,7 +364,7 @@ export default function CalendarPage() {
                 {syncing || resorting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MoreHorizontal className="w-5 h-5" />} More
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72 p-1.5">
+            <DropdownMenuContent align="end" className="w-[min(18rem,calc(100vw-2rem))] p-1.5">
               <DropdownMenuItem onSelect={() => setPhotoOpen(true)} className="gap-3 py-3 text-base"><Camera className="w-5 h-5 text-primary" /> Add events from a photo</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setPhoneOpen(true)} className="gap-3 py-3 text-base"><Smartphone className="w-5 h-5 text-primary" /> Get events from my phone</DropdownMenuItem>
               <DropdownMenuItem onSelect={sync} className="gap-3 py-3 text-base"><RefreshCw className="w-5 h-5 text-primary" /> Check my phone for changes now</DropdownMenuItem>

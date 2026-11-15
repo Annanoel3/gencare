@@ -51,23 +51,24 @@ export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
           const overdue = t.due && !isToday(t.due) && isPast(startOfDay(t.due));
           const color = t.family_member_id ? getMemberColorByMemberId(t.family_member_id, members) : null;
           return (
-            <div key={t.id} className="flex items-center gap-3 py-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{t.title}</p>
+            // With big text the Done button moves under the words instead of squeezing them.
+            <div key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
+              <div className="flex-1 min-w-[10rem]">
+                <p className="text-sm font-medium title-fit">{t.title}</p>
                 {/* Wraps instead of cutting off "High priority". */}
                 <p className="text-xs text-muted-foreground">
                   {t.family_member_name && <span className="inline-flex items-center gap-1 mr-2">{color && <span className={`w-2 h-2 rounded-full ${color}`} />}{t.family_member_name}</span>}
                   {t.due && (
-                    <span className={overdue ? 'text-destructive' : ''}>
+                    <span className={`whitespace-nowrap ${overdue ? 'text-destructive' : ''}`}>
                       {isToday(t.due) ? 'Today' : overdue ? `Overdue · ${format(t.due, 'MMM d')}` : format(t.due, 'MMM d')}
                       {t.due_time ? ` ${time12(t.due_time)}` : ''}
                     </span>
                   )}
-                  {PRIORITY_WORD[t.priority] && <span className={`ml-2 font-medium ${t.priority === 'urgent' ? 'text-destructive' : 'text-orange-600'}`}>{PRIORITY_WORD[t.priority]}</span>}
+                  {PRIORITY_WORD[t.priority] && <span className={`ml-2 font-medium whitespace-nowrap ${t.priority === 'urgent' ? 'text-destructive' : 'text-orange-600'}`}>{PRIORITY_WORD[t.priority]}</span>}
                 </p>
               </div>
               {/* The same Done button as everywhere else (it used to be a small circle). */}
-              <DoneButton busy={complete.isPending && complete.variables?.id === t.id} onDone={() => complete.mutate(t)} label={t.title} className="flex-shrink-0" />
+              <DoneButton busy={complete.isPending && complete.variables?.id === t.id} onDone={() => complete.mutate(t)} label={t.title} className="flex-shrink-0 ml-auto" />
             </div>
           );
         })}

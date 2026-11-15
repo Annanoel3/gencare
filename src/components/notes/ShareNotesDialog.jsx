@@ -71,7 +71,7 @@ export default function ShareNotesDialog({ open, record, others = [], first = fa
               <div className="rounded-xl border border-border p-3 space-y-2">
                 <p className="text-sm font-medium">Pick who sees them</p>
                 {others.map((u) => (
-                  <label key={u.id} className="flex items-center gap-3 py-1.5 text-[15px]">
+                  <label key={u.id} className="flex items-center gap-3 py-1.5 text-[0.9375rem]">
                     <Checkbox checked={picked.includes(u.id)} onCheckedChange={() => toggle(u.id)} />
                     {nameOf(u)}
                   </label>

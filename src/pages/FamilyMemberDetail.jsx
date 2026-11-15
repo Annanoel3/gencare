@@ -139,14 +139,15 @@ export default function FamilyMemberDetail() {
         <ArrowLeft className="w-4 h-4" /> Back to Family
       </Link>
 
-      <div className="flex items-center gap-4 mb-8">
+      {/* Wraps so Edit moves under the name when the text is big, instead of off the screen. */}
+      <div className="flex flex-wrap items-center gap-4 mb-8">
         <Avatar className="w-16 h-16">
           <AvatarImage src={member.photo_url} />
           <AvatarFallback className={`${getMemberColorClass(member, members)} text-white text-xl font-bold`}>
             {member.name?.charAt(0)}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1">
+        <div className="flex-1 min-w-[8rem]">
           <h1 className="font-heading text-2xl font-bold">{member.name}</h1>
           <p className="text-muted-foreground">{[relationshipLabel(member, me?.id), member.birthdate && isValid(parseISO(member.birthdate)) ? `Born ${format(parseISO(member.birthdate), 'MMM d, yyyy')}` : ''].filter(Boolean).join(' · ')}</p>
           {/* Their Care Log, for the people the family takes care of and pets (Nov 10 2026). */}
@@ -156,7 +157,7 @@ export default function FamilyMemberDetail() {
           {pet ? null : member.linked_user_id ? (
             <p className="text-xs text-primary font-medium mt-1">{member.linked_user_id === me?.id ? 'This is you' : 'Uses GenCare'}</p>
           ) : (
-            <button type="button" onClick={() => setInviteOpen(true)} className="text-xs text-primary font-medium mt-1 hover:underline">Invite {member.name.split(' ')[0]} to GenCare</button>
+            <button type="button" onClick={() => setInviteOpen(true)} className="text-xs text-primary font-medium mt-1 text-left hover:underline">Invite {member.name.split(' ')[0]} to GenCare</button>
           )}
           {/* Every pet shares the pet color. */}
           {!pet && <MemberColorPicker
@@ -170,11 +171,11 @@ export default function FamilyMemberDetail() {
           />}
         </div>
         {!editing ? (
-          <Button variant="outline" onClick={startEditing} className="gap-2 rounded-xl">
+          <Button variant="outline" onClick={startEditing} className="gap-2 rounded-xl ml-auto">
             <Edit className="w-4 h-4" /> Edit
           </Button>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex gap-2 ml-auto">
             <Button variant="outline" onClick={() => setEditing(false)} className="gap-2 rounded-xl"><X className="w-4 h-4" /> Cancel</Button>
             <Button onClick={saveEditing} disabled={updateMutation.isPending} className="gap-2 rounded-xl">
               <Save className="w-4 h-4" /> Save
