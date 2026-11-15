@@ -26,7 +26,7 @@ export function blanksWords(first, second) {
   return `the ${/^\d/.test(one) ? one : one.toLowerCase()} ${labelOf(MONTHLY_SECOND, b.second)}`;
 }
 
-function Column({ items, value, onPick, label }) {
+function Column({ items, value, onPick, label, lineBefore = '' }) {
   const box = useRef(null);
   useEffect(() => {
     // Open on the picked one.
@@ -38,10 +38,14 @@ function Column({ items, value, onPick, label }) {
       {items.map((o) => {
         const on = o.value === value;
         return (
-          <button key={o.value} type="button" role="option" aria-selected={on} data-on={on ? '1' : '0'} onClick={() => onPick(o.value)}
+          <React.Fragment key={o.value}>
+          {/* A thin line between First...Last and 1st, 2nd, 3rd... */}
+          {o.value === lineBefore && <div role="separator" className="my-1 mx-2 border-t border-border" />}
+          <button type="button" role="option" aria-selected={on} data-on={on ? '1' : '0'} onClick={() => onPick(o.value)}
             className={`w-full rounded-lg px-3 py-2.5 text-left text-base ${on ? 'bg-primary text-primary-foreground font-medium' : 'hover:bg-muted'}`}>
             {o.label}
           </button>
+          </React.Fragment>
         );
       })}
     </div>
@@ -82,7 +86,7 @@ export default function MonthlyBlanks({ first, second, onChange, shortMonths = '
           </DialogHeader>
           <div className="grid grid-cols-2 gap-2">
             {/* A day number goes with "day"; a day of the week turns a day number into its week (the 14th -> second). */}
-            <Column label="Which one" items={MONTHLY_FIRST} value={pick.first} onPick={(v) => setPick((p) => ({ first: v, second: v.startsWith('d') ? 'day' : p.second }))} />
+            <Column label="Which one" items={MONTHLY_FIRST} lineBefore="d1" value={pick.first} onPick={(v) => setPick((p) => ({ first: v, second: v.startsWith('d') ? 'day' : p.second }))} />
             <Column label="Day or day of the week" items={MONTHLY_SECOND} value={pick.second} onPick={(v) => setPick((p) => (v !== 'day' && p.first.startsWith('d') ? normalizeBlanks(p.first, v) : { first: p.first, second: v }))} />
           </div>
           <Button type="button" className="w-full mt-1" onClick={() => { setOpen(false); if (pick.first !== first || pick.second !== second) onChange(pick.first, pick.second); }}>Done</Button>
