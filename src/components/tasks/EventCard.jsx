@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import AddressLink from '@/components/shared/AddressLink';
 import { format, parseISO, isValid } from 'date-fns';
-import { Lock, Users, Repeat, Mic, Check, Loader2 } from 'lucide-react';
+import { Lock, Users, Repeat, Mic } from 'lucide-react';
+import DoneButton from '@/components/shared/DoneButton';
 import { toast } from '@/components/ui/use-toast';
 import { track } from '@/lib/activity';
 import { checkOn, setCheck, firstName } from '@/lib/claims';
@@ -23,7 +24,7 @@ function fmtTime(t) {
 }
 
 /**
- * An event on the To-do page, next to the day's reminders. The circle checks
+ * An event on the Reminders page, next to the day's reminders. Done checks
  * it off (anyone in the family; its reminders stop), tap the rest to open
  * it, and "I'll take it" says you'll handle it.
  */
@@ -43,7 +44,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
   const check = local === undefined ? saved : local;
   const done = !!check;
   const tick = async (e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     if (busy) return;
     const next = !done;
     setBusy(true);
@@ -80,16 +81,6 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
     >
       {color && (care || appt.visibility === 'private') && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
       <div className="flex items-start gap-3 p-3.5 pl-4">
-        <button
-          type="button"
-          onClick={tick}
-          onKeyDown={(e) => e.stopPropagation()}
-          disabled={busy}
-          aria-label={done ? 'Mark not done' : 'Mark done'}
-          className={`mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${done ? 'bg-emerald-500 border-emerald-500' : 'border-primary/40 hover:border-primary hover:bg-primary/10'}`}
-        >
-          {busy ? <Loader2 className="w-3 h-3 animate-spin text-primary" /> : done ? <Check className="w-3 h-3 text-white" /> : null}
-        </button>
         <div className="flex-1 min-w-0">
           {/* Who it's for shows just below, so not in the title too. */}
           <p className={`font-medium text-sm leading-snug ${done ? 'line-through' : ''}`}>{shownTitle(appt, members, !!appt.family_member_name)}</p>
@@ -103,13 +94,17 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
             {appt.span_days > 1 && <span>Day {appt.span_index + 1} of {appt.span_days}</span>}
             {cat && cat !== 'Other' && <span>{cat}</span>}
             {appt.recurrence && <span className="inline-flex items-center gap-0.5"><Repeat className="w-3 h-3" />{repeatLabelOn(appt.recurrence, appt.series_date || appt.date)}</span>}
-            {appt.visibility === 'private' && <span className="inline-flex items-center gap-0.5"><Lock className="w-3 h-3" />Only you</span>}
+            {appt.visibility === 'private' && <span className="inline-flex items-center gap-0.5"><Lock className="w-3 h-3" />Only me</span>}
             {appt.visibility === 'some' && <span className="inline-flex items-center gap-0.5"><Users className="w-3 h-3" />Shared</span>}
             {done && <span>done by {doneBy || 'someone'}</span>}
             {appt.location && <AddressLink address={appt.location} className="inline-flex items-center gap-1 text-primary max-w-[14rem] min-w-0" />}
           </div>
           {appt.own && <p className="text-xs text-muted-foreground mt-1">This is "{appt.own.title}". Your family just sees "{appt.title}".</p>}
-          {!done && <ClaimButton kind="event" item={appt} date={appt.date} className="mt-2" />}
+          {/* The same Done button as reminders (it was a small circle on the left). */}
+          <div className="flex flex-wrap items-center gap-2 mt-2.5">
+            <DoneButton done={done} busy={busy} onDone={tick} onUndo={tick} label={appt.title} />
+            {!done && <ClaimButton kind="event" item={appt} date={appt.date} />}
+          </div>
         </div>
         {canRecord && isRecordable(appt) && (
           <Link

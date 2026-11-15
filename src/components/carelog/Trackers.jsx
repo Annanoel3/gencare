@@ -129,7 +129,7 @@ export default function Trackers({ person, logs, me, onChanged, privacy = null }
   return (
     <section className="rounded-2xl border border-border/50 bg-card p-4">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="font-heading text-base font-semibold flex items-center gap-2"><LineChart className="w-4 h-4 text-primary" /> Track something</h2>
+        <h2 className="font-heading text-base font-semibold flex items-center gap-2"><LineChart className="w-4 h-4 text-primary" /> Keep track of something else</h2>
         <Button size="sm" variant="ghost" className="h-8 gap-1 rounded-full" onClick={() => start('')}><Plus className="w-4 h-4" /> New</Button>
       </div>
       {trackers.length === 0 ? (
@@ -142,7 +142,7 @@ export default function Trackers({ person, logs, me, onChanged, privacy = null }
             return (
               <li key={t.name} className="flex items-center gap-3 py-2">
                 <button type="button" className="flex-1 min-w-0 text-left" onClick={() => setView(t.name)}>
-                  <span className="block text-sm font-medium truncate">{t.name}{priv(t.name) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only you" />}</span>
+                  <span className="block text-sm font-medium truncate">{t.name}{priv(t.name) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only me" />}</span>
                   <span className="block text-xs text-muted-foreground truncate">{last?.response}{d && isValid(d) ? ` · ${format(d, 'MMM d, h:mm a')}` : ''}{last?.logged_by_name ? ` · ${first(last.logged_by_name)}` : ''}</span>
                 </button>
                 <Button size="sm" variant="secondary" className="h-8 rounded-full" onClick={() => start(t.name)}>Add</Button>
@@ -155,7 +155,7 @@ export default function Trackers({ person, logs, me, onChanged, privacy = null }
       <Dialog open={!!open} onOpenChange={(o) => { if (!o && !saving) setOpen(null); }}>
         <DialogContent className="max-w-md w-[calc(100vw-2rem)]">
           <DialogHeader>
-            <DialogTitle>{open?.name ? open.name : 'Track something new'}</DialogTitle>
+            <DialogTitle>{open?.name ? open.name : 'Keep track of something new'}</DialogTitle>
             <DialogDescription>{privacy ? (open?.name ? (priv(open.name) ? 'Only you can see it.' : 'Everyone in the family can see it.') : 'Just for you, or for the family to see too.') : `For ${first(person.name)}. Everyone in the family can see it.`}</DialogDescription>
           </DialogHeader>
           {!open?.name && (

@@ -17,7 +17,10 @@
     --secondary: 35 40% 95%;
     --secondary-foreground: 200 15% 25%;
     --muted: 40 15% 94%;
-    --muted-foreground: 200 10% 45%;
+    /* Darker grey for helper text, easier to read (Anna, Nov 14 2026; was 45%). */
+    --muted-foreground: 200 12% 34%;
+    /* Example text in an empty box stays the lighter grey, so it doesn't look filled in. */
+    --placeholder: 200 10% 45%;
     --accent: 15 70% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 55%;
@@ -57,7 +60,8 @@
     --secondary: 200 10% 15%;
     --secondary-foreground: 40 15% 90%;
     --muted: 200 10% 15%;
-    --muted-foreground: 40 10% 55%;
+    --muted-foreground: 40 10% 70%;
+    --placeholder: 40 10% 55%;
     --accent: 15 70% 55%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 40%;
@@ -115,3 +119,4 @@
 .ios-edge .app-bottom-nav { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
 .ios-edge .app-menu { padding-top: calc(1rem + env(safe-area-inset-top)); }
 .ios-edge .app-fab { bottom: calc(5rem + env(safe-area-inset-bottom)); }
+.ios-edge .app-page { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }

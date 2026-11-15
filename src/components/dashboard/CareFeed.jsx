@@ -57,8 +57,9 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
       id: t.id,
       memberId: t.family_member_id,
       memberName: t.family_member_name,
-      label: 'Task',
-      detail: [t.title, t.assigned_to && `→ ${t.assigned_to}`].filter(Boolean).join(' · '),
+      // The page is called Reminders now, and who's doing it in words, not an arrow.
+      label: 'Reminder',
+      detail: [t.title, t.assigned_to && `Assigned to ${String(t.assigned_to).split(' ')[0]}`].filter(Boolean).join(' · '),
       allDay: !t.due_time,
       when,
     });
@@ -104,10 +105,10 @@ export default function CareFeed({ members = [], memberId, scope = 'today', limi
           return (
           <div key={i.id} className={`flex items-center gap-3 p-2.5 rounded-xl ${i.tint || getMemberLightColorByMemberId(i.memberId, members)} ${over ? 'opacity-60' : ''}`}>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
+              <p className="text-sm font-medium">
                 {i.memberName || 'Family'} <span className="text-muted-foreground font-normal">· {i.label}</span>
               </p>
-              {i.detail && <p className="text-xs text-muted-foreground truncate">{i.detail}</p>}
+              {i.detail && <p className="text-xs text-muted-foreground line-clamp-2">{i.detail}</p>}
             </div>
             {i.when && (
               <span className="flex flex-col items-end flex-shrink-0 text-xs text-muted-foreground">

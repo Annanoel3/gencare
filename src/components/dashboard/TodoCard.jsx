@@ -2,10 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseISO, isValid, isToday, isPast, startOfDay, format } from 'date-fns';
-import { Check } from 'lucide-react';
 import { useFamily } from '@/lib/family';
 import { getMemberColorByMemberId } from '@/utils/memberColors';
-import { completeTask } from '@/lib/tasks';
+import { completeTask, time12, PRIORITY_WORD } from '@/lib/tasks';
+import DoneButton from '@/components/shared/DoneButton';
 
 /**
  * The family's open tasks on the home page, newest-due first, tick to complete.
@@ -52,27 +52,22 @@ export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
           const color = t.family_member_id ? getMemberColorByMemberId(t.family_member_id, members) : null;
           return (
             <div key={t.id} className="flex items-center gap-3 py-2">
-              <button
-                onClick={() => complete.mutate(t)}
-                disabled={complete.isPending}
-                aria-label={`Mark "${t.title}" done`}
-                className="w-6 h-6 rounded-full border-2 border-primary/40 hover:border-primary hover:bg-primary/10 flex items-center justify-center flex-shrink-0 transition-all"
-              >
-                <Check className="w-3 h-3 text-primary opacity-0 hover:opacity-100" />
-              </button>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{t.title}</p>
-                <p className="text-xs text-muted-foreground truncate">
+                {/* Wraps instead of cutting off "High priority". */}
+                <p className="text-xs text-muted-foreground">
                   {t.family_member_name && <span className="inline-flex items-center gap-1 mr-2">{color && <span className={`w-2 h-2 rounded-full ${color}`} />}{t.family_member_name}</span>}
                   {t.due && (
                     <span className={overdue ? 'text-destructive' : ''}>
                       {isToday(t.due) ? 'Today' : overdue ? `Overdue · ${format(t.due, 'MMM d')}` : format(t.due, 'MMM d')}
-                      {t.due_time ? ` ${t.due_time}` : ''}
+                      {t.due_time ? ` ${time12(t.due_time)}` : ''}
                     </span>
                   )}
-                  {t.priority === 'urgent' && <span className="ml-2 text-destructive">Urgent</span>}
+                  {PRIORITY_WORD[t.priority] && <span className={`ml-2 font-medium ${t.priority === 'urgent' ? 'text-destructive' : 'text-orange-600'}`}>{PRIORITY_WORD[t.priority]}</span>}
                 </p>
               </div>
+              {/* The same Done button as everywhere else (it used to be a small circle). */}
+              <DoneButton busy={complete.isPending && complete.variables?.id === t.id} onDone={() => complete.mutate(t)} label={t.title} className="flex-shrink-0" />
             </div>
           );
         })}

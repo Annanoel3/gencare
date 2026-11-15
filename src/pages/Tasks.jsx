@@ -168,25 +168,31 @@ export default function Tasks() {
 
   return (
     <div className="pb-24 lg:pb-8">
-      <div className="flex items-center justify-between gap-3 mb-5">
-        <div className="min-w-0">
-          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3">
-            <BellRing className="w-7 h-7 text-primary" />
+      <div className="mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3 min-w-0">
+            <BellRing className="w-7 h-7 text-primary flex-shrink-0" />
             Reminders
           </h1>
-          <p className="text-muted-foreground mt-1">Events, reminders and things to do. Anyone in the family can tick them off.</p>
+          {/* Words under the two buttons (they were just a bell and a list icon). */}
+          <div className="flex gap-2 flex-shrink-0">
+            <Button variant="outline" onClick={() => openReminder(null)} className="rounded-xl h-auto w-[4.75rem] flex-col gap-0.5 px-1 py-1.5">
+              <BellRing className="w-5 h-5" /><span className="text-xs font-medium">Reminder</span>
+            </Button>
+            <Button variant="outline" onClick={() => newTask('checklist')} className="rounded-xl h-auto w-[4.75rem] flex-col gap-0.5 px-1 py-1.5">
+              <ListChecks className="w-5 h-5" /><span className="text-xs font-medium">Checklist</span>
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Button variant="outline" size="icon" onClick={() => openReminder(null)} className="rounded-xl" aria-label="New reminder"><BellRing className="w-4 h-4" /></Button>
-          <Button variant="outline" size="icon" onClick={() => newTask('checklist')} className="rounded-xl" aria-label="New checklist"><ListChecks className="w-4 h-4" /></Button>
-        </div>
+        <p className="text-muted-foreground mt-1">Events, reminders and things to do. Anyone in the family can tick them off.</p>
       </div>
 
       {/* One way to add things: a reminder (Anna, Oct 29 2026: "get rid of the add task... people can
           just use reminders for things that would be tasks too"). Typing here opens it with the words in. */}
-      <form onSubmit={(e) => { e.preventDefault(); const t = quick.trim(); if (!t) return; openReminder({ medication_name: t, frequency: 'Once', times: defaultTimes('Once') }); setQuick(''); }} className="flex items-center gap-2 mb-6">
+      {/* The + is always full color: with nothing typed it opens the full form (it used to sit pale and look broken). */}
+      <form onSubmit={(e) => { e.preventDefault(); const t = quick.trim(); if (!t) { openReminder(null); return; } openReminder({ medication_name: t, frequency: 'Once', times: defaultTimes('Once') }); setQuick(''); }} className="flex items-center gap-2 mb-6">
         <Input value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="Add a reminder…" enterKeyHint="next" aria-label="New reminder" className="h-11 rounded-xl text-base" />
-        <Button type="submit" size="icon" disabled={!quick.trim()} className="h-11 w-11 rounded-xl shrink-0" aria-label="Add reminder"><Plus className="w-5 h-5" /></Button>
+        <Button type="submit" size="icon" className="h-11 w-11 rounded-xl shrink-0" aria-label="Add reminder"><Plus className="w-5 h-5" /></Button>
       </form>
 
       <Tabs value={tab} onValueChange={setTab}>

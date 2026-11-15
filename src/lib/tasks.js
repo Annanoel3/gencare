@@ -77,6 +77,16 @@ export function taskFromBlanks(m) {
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+/** The words a list shows for a to-do's priority, the same everywhere (only the two that matter). */
+export const PRIORITY_WORD = { urgent: 'Urgent', high: 'High priority' };
+
+/** "17:00" -> "5:00 PM" (anything that isn't a time comes back as it was). */
+export function time12(t) {
+  if (!t) return '';
+  const [h, m] = String(t).split(':').map(Number);
+  if (Number.isNaN(h)) return String(t);
+  return `${((h + 11) % 12) + 1}:${String(m || 0).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
 export const CATEGORIES = ['Appointments', 'School', 'Grocery', 'Household', 'Transportation', 'Financial', 'Personal Care', 'Other'];
 
 export const isOpen = (t) => t && (t.status === 'pending' || t.status === 'in_progress');

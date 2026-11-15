@@ -32,7 +32,7 @@ export default function ReminderCard({ item, logs, onOpen, inactive, focus = fal
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold">{item.medication_name}</h3>
-              {isPrivate(item) && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Lock className="w-3 h-3" /> Just you</span>}
+              {isPrivate(item) && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Lock className="w-3 h-3" /> Only me</span>}
               {runsOutSoon && !inactive && <Badge variant="destructive" className="text-xs gap-1"><AlertCircle className="w-3 h-3" /> {item.refill_date < todayStr() ? 'Ran out' : 'Runs out soon'}</Badge>}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">{[item.dosage, howText(item)].filter(Boolean).join(' · ')}</p>

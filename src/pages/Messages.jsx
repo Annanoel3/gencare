@@ -7,6 +7,7 @@ import { format, isToday } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { serverDate } from '@/lib/serverTime';
 import { useFamily } from '@/lib/family';
+import { shortNames } from '@/lib/names';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,6 +47,7 @@ export default function Messages() {
   // Other people's announcements set for later stay out of sight until then.
   const messages = shownMessages(all, me);
   const { data: members = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list() });
+  const aboutNames = shortNames(members);
 
   // Opening the page clears the unread badge.
   useEffect(() => {
@@ -137,28 +139,35 @@ export default function Messages() {
             ))}
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           {!replyTo && (
             <>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="w-[150px] h-9 rounded-lg text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.value}</SelectItem>)}</SelectContent>
-              </Select>
-              <Select value={aboutId || NOBODY} onValueChange={(v) => setAboutId(v === NOBODY ? '' : v)}>
-                <SelectTrigger className="w-[150px] h-9 rounded-lg text-xs"><SelectValue placeholder="About…" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NOBODY}>Not about anyone</SelectItem>
-                  {members.map((m) => <SelectItem key={m.id} value={m.id}>About {m.name.split(' ')[0]}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {/* Labeled, so "General" and "No one" say what they're choosing (Anna, Nov 14 2026). */}
+              <label className="block">
+                <span className="block text-xs font-medium text-muted-foreground mb-1">Topic</span>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-[150px] h-10 rounded-lg text-sm" aria-label="Topic"><SelectValue /></SelectTrigger>
+                  <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.value}</SelectItem>)}</SelectContent>
+                </Select>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-medium text-muted-foreground mb-1">About</span>
+                <Select value={aboutId || NOBODY} onValueChange={(v) => setAboutId(v === NOBODY ? '' : v)}>
+                  <SelectTrigger className="w-[150px] h-10 rounded-lg text-sm" aria-label="About"><SelectValue placeholder="No one" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NOBODY}>No one</SelectItem>
+                    {members.map((m) => <SelectItem key={m.id} value={m.id}>{aboutNames.get(m.id) || m.name.split(' ')[0]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </label>
             </>
           )}
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={pickFiles} />
-          <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading} className="h-9 gap-1.5" aria-label="Add photo">
-            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}<span className="hidden sm:inline">Photo</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading} className="h-10 gap-1.5 rounded-lg" aria-label="Add photo">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}<span>Photo</span>
           </Button>
           <div className="flex-1" />
-          <Button onClick={() => post.mutate()} disabled={!canPost} className="rounded-xl gap-2 h-9"><Send className="w-4 h-4" /> {replyTo ? 'Reply' : 'Post'}</Button>
+          <Button onClick={() => post.mutate()} disabled={!canPost} className="rounded-xl gap-2 h-10"><Send className="w-4 h-4" /> {replyTo ? 'Reply' : 'Post'}</Button>
         </div>
         {!replyTo && category === 'Announcement' && (
           // Same as Home's Announce (lib/messages): 3 days on Home, everyone
@@ -211,6 +220,7 @@ function when(d) {
 
 function Post({ msg, replies, me, members, onPin, onReply, onDelete, onEdit, onView, focus }) {
   const mine = me && msg.author_user_id === me.id;
+  const [editing, setEditing] = useState(false);
   const tint = msg.family_member_id ? getMemberLightColorByMemberId(msg.family_member_id, members) : 'bg-card';
   const dot = msg.family_member_id ? getMemberColorByMemberId(msg.family_member_id, members) : null;
   const photos = Array.isArray(msg.photos) && msg.photos.length ? msg.photos : (msg.photo_url ? [msg.photo_url] : []);
@@ -223,51 +233,69 @@ function Post({ msg, replies, me, members, onPin, onReply, onDelete, onEdit, onV
             <span className="font-semibold text-sm">{msg.author_name || 'Someone'}</span>
             <Badge variant="secondary" className={`text-xs ${categoryColor(msg.category)}`}>{msg.category}</Badge>
             {msg.family_member_name && <Badge variant="outline" className="text-xs gap-1">{dot && <span className={`w-2 h-2 rounded-full ${dot}`} />}{msg.family_member_name}</Badge>}
-            {msg.task_id && <Link to="/tasks" className="text-xs text-primary inline-flex items-center gap-1"><ClipboardList className="w-3 h-3" /> task</Link>}
+            {msg.task_id && <Link to="/tasks" className="text-xs text-primary inline-flex items-center gap-1"><ClipboardList className="w-3 h-3" /> reminder</Link>}
           </div>
-          <Body msg={msg} mine={mine} onEdit={onEdit} />
+          <Body msg={msg} onEdit={onEdit} editing={editing} setEditing={setEditing} />
           {photos.length > 0 && (
             <div className="flex gap-2 mt-2 overflow-x-auto">
               {photos.map((u) => <PrivateImage key={u} fileUri={u} className="w-28 h-28 rounded-lg object-cover border border-border/60 flex-shrink-0 cursor-zoom-in" onClick={() => onView(u)} />)}
             </div>
           )}
-          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-            <span>{isScheduled(msg) ? `Goes out ${when(msg.announce_at)} · only you can see it` : when(postedAt(msg))}{msg.edited_at ? ' · edited' : ''}</span>
-            <button type="button" onClick={onReply} className="hover:text-foreground inline-flex items-center gap-1"><Reply className="w-3 h-3" /> Reply</button>
-            <button type="button" onClick={onPin} className="hover:text-foreground inline-flex items-center gap-1"><Pin className="w-3 h-3" /> {msg.is_pinned ? 'Unpin' : 'Pin'}</button>
-            {mine && <DeleteButton onConfirm={() => onDelete(msg)} replies={replies.length} />}
-          </div>
-          {replies.length > 0 && (
-            <div className="mt-3 space-y-2 border-l-2 border-border/60 pl-3">
-              {replies.map((r) => <ReplyRow key={r.id} msg={r} me={me} onDelete={onDelete} onEdit={onEdit} onView={onView} />)}
-            </div>
-          )}
+          <p className="mt-2 text-xs text-muted-foreground">{isScheduled(msg) ? `Goes out ${when(msg.announce_at)} · only you can see it` : when(postedAt(msg))}{msg.edited_at ? ' · edited' : ''}</p>
         </div>
       </div>
+      {/* Reply, Pin, Edit and Delete as real buttons with words, across the whole card so they fit
+          on one line (they were tiny words, and Edit a tiny pencil; Anna, Nov 14 2026). */}
+      {!editing && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-3">
+          <PostAction onClick={onReply} icon={Reply}>Reply</PostAction>
+          <PostAction onClick={onPin} icon={Pin}>{msg.is_pinned ? 'Unpin' : 'Pin'}</PostAction>
+          {mine && <PostAction onClick={() => setEditing(true)} icon={Pencil}>Edit</PostAction>}
+          {mine && <DeleteButton onConfirm={() => onDelete(msg)} replies={replies.length} />}
+        </div>
+      )}
+      {replies.length > 0 && (
+        <div className="mt-3 ml-12 space-y-3 border-l-2 border-border/60 pl-3">
+          {replies.map((r) => <ReplyRow key={r.id} msg={r} me={me} onDelete={onDelete} onEdit={onEdit} onView={onView} />)}
+        </div>
+      )}
     </div>
+  );
+}
+
+function PostAction({ onClick, icon: Icon, children, className = '' }) {
+  return (
+    <Button type="button" variant="outline" size="sm" onClick={onClick} className={`h-9 rounded-lg gap-1 px-2.5 bg-card/80 ${className}`}>
+      <Icon className="w-4 h-4" /> {children}
+    </Button>
   );
 }
 
 function ReplyRow({ msg, me, onDelete, onEdit, onView }) {
   const mine = me && msg.author_user_id === me.id;
   const photos = Array.isArray(msg.photos) ? msg.photos : [];
+  const [editing, setEditing] = useState(false);
   return (
     <div>
       <p className="text-xs"><span className="font-semibold">{msg.author_name?.split(' ')[0] || 'Someone'}</span> <span className="text-muted-foreground">· {when(msg.created_date)}{msg.edited_at ? ' · edited' : ''}</span></p>
-      <Body msg={msg} mine={mine} onEdit={onEdit} small />
+      <Body msg={msg} onEdit={onEdit} editing={editing} setEditing={setEditing} />
       {photos.length > 0 && <div className="flex gap-2 mt-1">{photos.map((u) => <PrivateImage key={u} fileUri={u} className="w-16 h-16 rounded-md object-cover border border-border/60 cursor-zoom-in" onClick={() => onView(u)} />)}</div>}
-      {mine && <div className="text-xs text-muted-foreground mt-0.5"><DeleteButton onConfirm={() => onDelete(msg)} replies={0} /></div>}
+      {mine && !editing && (
+        <div className="flex flex-wrap gap-2 mt-1.5">
+          <PostAction onClick={() => setEditing(true)} icon={Pencil}>Edit</PostAction>
+          <DeleteButton onConfirm={() => onDelete(msg)} replies={0} reply />
+        </div>
+      )}
     </div>
   );
 }
 
-function Body({ msg, mine, onEdit, small }) {
-  const [editing, setEditing] = useState(false);
+function Body({ msg, onEdit, editing, setEditing }) {
   const [text, setText] = useState(msg.content || '');
   if (editing) {
     return (
       <div className="mt-1">
-        <Textarea value={text} onChange={(e) => setText(e.target.value)} className="min-h-[60px] text-sm" autoFocus />
+        <Textarea value={text} onChange={(e) => setText(e.target.value)} className="min-h-[6rem] text-sm" autoFocus />
         <div className="flex gap-2 mt-1">
           <Button size="sm" variant="outline" onClick={() => { setEditing(false); setText(msg.content || ''); }}>Cancel</Button>
           <Button size="sm" onClick={() => { onEdit(msg.id, text); setEditing(false); }} disabled={!text.trim()} className="gap-1"><Check className="w-3.5 h-3.5" /> Save</Button>
@@ -275,23 +303,18 @@ function Body({ msg, mine, onEdit, small }) {
       </div>
     );
   }
-  return (
-    <p className={`${small ? 'text-sm' : 'text-sm'} whitespace-pre-wrap group`}>
-      {msg.content}
-      {mine && <button type="button" onClick={() => setEditing(true)} aria-label="Edit" className="ml-2 align-middle text-muted-foreground opacity-60 hover:opacity-100"><Pencil className="w-3 h-3 inline" /></button>}
-    </p>
-  );
+  return <p className="text-sm whitespace-pre-wrap">{msg.content}</p>;
 }
 
-function DeleteButton({ onConfirm, replies }) {
+function DeleteButton({ onConfirm, replies, reply = false }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="hover:text-destructive inline-flex items-center gap-1"><Trash2 className="w-3 h-3" /> Delete</button>
+      <PostAction onClick={() => setOpen(true)} icon={Trash2} className="text-destructive hover:text-destructive">Delete</PostAction>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+            <AlertDialogTitle>{reply ? 'Delete this reply?' : 'Delete this post?'}</AlertDialogTitle>
             <AlertDialogDescription>{replies > 0 ? `Its ${replies} ${replies === 1 ? 'reply goes' : 'replies go'} too. ` : ''}Everyone in the family loses it. This can't be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

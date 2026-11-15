@@ -16,6 +16,9 @@ import { isRecordable, categoryOf, CATEGORIES } from './EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import { EVENT_REPEATS, repeatLabel, parseRRule, monthlyWeekdayOf, monthlyWeekdayRule, weekOfMonth, weekFromEnd, monthlyBlanks, monthlyFromBlanks, sameBlanks } from '@/lib/occurrences';
 import MonthlyBlanks from '@/components/shared/MonthlyBlanks';
+import MissingNote from '@/components/shared/MissingNote';
+import { shortNames } from '@/lib/names';
+import { andList } from '@/lib/reminders';
 import AddressField from '@/components/shared/AddressField';
 import NotesField from '@/components/shared/NotesField';
 import PhotoBatchRow from '@/components/calendar/PhotoBatchRow';
@@ -71,9 +74,21 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   const lastSaved = useRef('');
   const timer = useRef(null);
   const [saveState, setSaveState] = useState(''); // '' | 'saving' | 'saved' | 'error' | 'needs_title'
+  // "Share with" shows as one line with Change until it's tapped; and the Add
+  // button says what's missing instead of sitting grey (Anna, Nov 14 2026).
+  const [shareOpen, setShareOpen] = useState(false);
+  const [missing, setMissing] = useState(false);
   const canRecord = usePluginPresent('RecorderBridge');
   const { me, members: accounts } = useFamily();
   const others = (accounts || []).filter((u) => u.id !== me?.id);
+  // Names that tell people apart ("David C.", "David (Son)"; lib/names).
+  const memberNames = shortNames(members || []);
+  const accountNames = shortNames(others);
+  const sharedNames = (form.shared_with || []).map((id) => accountNames.get(id)).filter(Boolean);
+  const shareWords = form.visibility === 'private' ? 'Only me'
+    : form.visibility === 'auto' ? 'Let GenCare decide'
+    : form.visibility === 'some' && sharedNames.length ? `Me and ${andList(sharedNames)}`
+    : 'Everyone in the family';
   // Picked every other person one by one: that's the whole family.
   const everyone = (f) => others.length > 0 && others.every((u) => (f.shared_with || []).includes(u.id));
   const editing = !!appt?.id;
@@ -83,6 +98,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     if (!open) return;
     setConfirmDelete(false);
     setShowRepeat(false);
+    setShareOpen(false);
+    setMissing(false);
     setMoved(''); setAnchor(''); setChosen(null); setAskMonthly(false);
     setNoEnd(!!appt?.recurrence && !untilOf(appt.recurrence));
     setStopped('');
@@ -167,6 +184,11 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     setForm((f) => ({ ...f, recurrence: m.rule, date: m.date }));
   };
   const needsEnd = repeating && !form.until && !noEnd;
+  // What Add still needs, said in words (shown after Add is tapped, gone once it's filled in).
+  const whyMissing = !form.title.trim() ? 'Add a title first (under What).'
+    : !form.date ? 'Pick a day first.'
+    : needsEnd ? "Pick the last day it repeats, or tick I don't know."
+    : '';
   // "Stop repeating": the days up to today stay; nothing after. One that
   // hasn't started yet just becomes a one-time event on its first day.
   const stopRepeating = () => {
@@ -215,6 +237,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   }
 
   const submit = () => {
+    if (whyMissing) { setMissing(true); return; }
     const data = buildData(form);
     // What the person left for GenCare to fill in after it's added.
     const left = {
@@ -281,9 +304,9 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               {/* A phone event's repeat can be changed here too (Anna, Nov 14 2026); phoneCalendar keeps it until the phone's changes. */}
               {repeating || showRepeat ? (
                   <div className="flex items-center gap-1 min-w-0 max-w-full">
-                    <Repeat className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <Repeat className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (!repeating) { setNoEnd(false); set('until', ''); } setMoved(''); setAnchor(''); setChosen(null); set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); setAskMonthly(v === 'RRULE:FREQ=MONTHLY'); }}>
-                      <SelectTrigger className="h-8 text-xs w-auto max-w-full gap-1 border-none shadow-none px-1 text-left"><SelectValue placeholder="Doesn't repeat" /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm w-auto max-w-full gap-1 border-none shadow-none px-1 text-left"><SelectValue placeholder="Doesn't repeat" /></SelectTrigger>
                       <SelectContent>
                         {repeatChoices.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}
                         {/* A repeat that isn't one of the choices ("every Wednesday") still shows. */}
@@ -291,7 +314,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                       </SelectContent>
                     </Select>
                   </div>
-                ) : <button type="button" onClick={() => setShowRepeat(true)} className="text-xs text-primary flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeat</button>}
+                ) : <button type="button" onClick={() => setShowRepeat(true)} className="text-sm font-medium text-primary flex items-center gap-1.5 py-1"><Repeat className="w-4 h-4" /> Repeat</button>}
             </div>
             {blanks && (
               <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={changeBlanks} autoOpen={askMonthly} onOpened={() => setAskMonthly(false)}
@@ -300,9 +323,9 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             {repeating && (
               <div className={`mt-2 rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
                 <Label className="text-xs">Last day it repeats</Label>
-                <div className="flex items-center gap-3 mt-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-1">
                   <Input type="date" value={form.until || ''} min={form.date || undefined} disabled={noEnd}
-                    onChange={(e) => { set('until', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-0" aria-label="Last day it repeats" />
+                    onChange={(e) => { set('until', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-[9.5rem]" aria-label="Last day it repeats" />
                   <label className="flex items-center gap-2 text-sm whitespace-nowrap">
                     <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('until', ''); }} /> I don't know
                   </label>
@@ -319,16 +342,34 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
           </div>
 
           <div>
-            <Label>Who</Label>
+            <Label>Who it's for</Label>
             <div className="flex flex-wrap gap-2 mt-1.5">
               {orderMembers(members, me?.id).map((m) => (
-                <Chip key={m.id} on={form.family_member_id === m.id} onClick={() => pick('member', () => set('family_member_id', form.family_member_id === m.id ? NONE : m.id))}>{(m.name || '').split(' ')[0]}</Chip>
+                <Chip key={m.id} on={form.family_member_id === m.id} onClick={() => pick('member', () => set('family_member_id', form.family_member_id === m.id ? NONE : m.id))}>{memberNames.get(m.id) || (m.name || '').split(' ')[0]}</Chip>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-2 mb-1.5 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> Who sees it</p>
-            <div className="flex flex-wrap gap-2">
+          </div>
+
+          <div>
+            {/* Who sees it, as one line with Change (it was a second row of name chips right under Who). */}
+            <Label>Share with</Label>
+            {!shareOpen ? (
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-border/60 bg-muted/40 pl-3 pr-2 py-2">
+                <span className="flex items-center gap-2 text-sm min-w-0 flex-1 basis-[12rem]">
+                  {form.visibility === 'private' ? <Lock className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                    : form.visibility === 'auto' ? <Sparkles className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                    : <Users className="w-4 h-4 flex-shrink-0 text-muted-foreground" />}
+                  <span className="min-w-0">
+                    <span className="block">{shareWords}</span>
+                    {form.visibility === 'auto' && <span className="block text-xs text-muted-foreground mt-0.5">Family plans go to everyone. Personal things stay with you.</span>}
+                  </span>
+                </span>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShareOpen(true)} className="flex-shrink-0 rounded-lg bg-card">Change</Button>
+              </div>
+            ) : (
+            <div className="flex flex-wrap gap-2 mt-1.5">
               {!editing && sharingDefault === 'auto' && (
-                <Chip on={form.visibility === 'auto'} onClick={() => set('visibility', 'auto')}><Sparkles className="w-3 h-3" /> GenCare decides</Chip>
+                <Chip on={form.visibility === 'auto'} onClick={() => set('visibility', 'auto')}><Sparkles className="w-3 h-3" /> Let GenCare decide</Chip>
               )}
               <Chip on={form.visibility === 'family'} onClick={() => pick('visibility', () => set('visibility', 'family'))}>Whole family</Chip>
               <Chip on={form.visibility === 'private'} onClick={() => pick('visibility', () => set('visibility', 'private'))}><Lock className="w-3 h-3" /> Only me</Chip>
@@ -343,10 +384,11 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                     // join later see it too (a list would leave them out).
                     const all = others.length > 0 && others.every((o) => next.includes(o.id));
                     setForm((f) => ({ ...f, visibility: all ? 'family' : next.length ? 'some' : 'private', shared_with: all ? [] : next }));
-                  }}>{(u.display_name || u.full_name || u.email || '?').split(' ')[0]}</Chip>
+                  }}>{accountNames.get(u.id) || '?'}</Chip>
                 );
               })}
             </div>
+            )}
           </div>
 
           {editing && (
@@ -406,11 +448,14 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                 <Button onClick={close}>Done</Button>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose}>Cancel</Button>
-                <Button onClick={submit} disabled={!form.title.trim() || !form.date || needsEnd || saving}>
-                  {saving ? 'Saving…' : 'Add'}
-                </Button>
+              <div className="flex flex-col items-end gap-1.5">
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={onClose}>Cancel</Button>
+                  <Button onClick={submit} disabled={saving}>
+                    {saving ? 'Saving…' : 'Add'}
+                  </Button>
+                </div>
+                <MissingNote text={missing ? whyMissing : ''} />
               </div>
             )}
           </div>

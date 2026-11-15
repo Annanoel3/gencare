@@ -146,7 +146,7 @@ export async function markSlot(slot, status, me) {
 // multiple people or pets on 'for'"): family_member_ids has them all;
 // family_member_id is the first (its color) and family_member_name reads
 // "Peach and Kaiju" (one person keeps their full name, like before).
-const andList = (list) => (list.length <= 1 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`);
+export const andList = (list) => (list.length <= 1 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`);
 /** Who a reminder's for, as ids: family_member_ids, or the one family_member_id of an older one. */
 export const forIds = (m) => (Array.isArray(m?.family_member_ids) && m.family_member_ids.length ? m.family_member_ids : m?.family_member_id ? [m.family_member_id] : []);
 

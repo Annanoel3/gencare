@@ -6,7 +6,9 @@ import { BarChart3 } from 'lucide-react';
 // dedicated apps give, as a small table, newest day first. A baby gets feeds,
 // sleep and diapers (what a checkup asks about); a cared-for adult gets meals,
 // walks and exercise, good and hard days, and falls; a pet gets fed and
-// walks. Nothing shows until there's been a log on two different days.
+// walks. Nothing shows until there's been a log on two different days. Only
+// days with something in the table get a row (Anna, Nov 14 2026: a week of
+// rows of zeros and dashes was hard to read), and nothing at all if none do.
 
 const dayOf = (iso) => { const d = iso ? parseISO(iso) : null; return d && isValid(d) ? format(d, 'yyyy-MM-dd') : ''; };
 const hours = (min) => (min ? `${Math.round(min / 6) / 10}h` : '–');
@@ -55,6 +57,9 @@ export default function WeekSummary({ band, logs }) {
   const byDay = new Map(days.map((d) => [d, []]));
   for (const l of logs) { const d = dayOf(l.timestamp); if (byDay.has(d)) byDay.get(d).push(l); }
   if ([...byDay.values()].filter((ls) => ls.length).length < 2) return null;
+  const counts = (v) => v !== 0 && v !== '0' && v !== '–' && v !== '' && v != null;
+  const rows = days.map((d, i) => ({ d, i, ls: byDay.get(d) })).filter(({ ls }) => ls.length && cols.some(([, fn]) => counts(fn(ls))));
+  if (!rows.length) return null;
 
   return (
     <section className="rounded-2xl border border-border/50 bg-card p-4">
@@ -67,8 +72,7 @@ export default function WeekSummary({ band, logs }) {
           </tr>
         </thead>
         <tbody>
-          {days.map((d, i) => {
-            const ls = byDay.get(d);
+          {rows.map(({ d, i, ls }) => {
             return (
               <tr key={d} className="border-t border-border/40">
                 <td className="py-1.5">{i === 0 ? 'Today' : format(parseISO(d), 'EEE d')}</td>

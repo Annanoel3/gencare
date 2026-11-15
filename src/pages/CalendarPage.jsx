@@ -11,7 +11,9 @@ import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/ev
 import { realEvent } from '@/lib/sameEvent';
 import { snapshotEvent, notifyEvent } from '@/lib/eventChanges';
 import SharingChoiceDialog from '@/components/calendar/SharingChoice';
-import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw, Camera } from 'lucide-react';
+import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw, Camera, MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { shortNames } from '@/lib/names';
 import MonthView from '@/components/calendar/MonthView';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
@@ -110,12 +112,11 @@ export default function CalendarPage() {
   // Someone who has since been removed: back to everyone.
   const personKnown = person === 'pets' ? members.some(isPet) : people.some((m) => m.id === person) || unlinked.some((u) => u.id === person);
   const shown = !person || !membersFetched || personKnown ? person : '';
-  const firsts = people.map((m) => String(m.name || '').trim().split(' ')[0]);
-  const chipName = (m, i) => (firsts.filter((f) => f === firsts[i]).length > 1 ? m.name : firsts[i]) || m.name || '?';
-  const accountName = (u) => String(u.full_name || u.email || '?').split(' ')[0];
+  // Names that tell people apart, family members and accounts together ("David C.", "David (Son)").
+  const chipNames = shortNames([...people, ...unlinked]);
+  const chipName = (m) => chipNames.get(m.id) || '?';
   const shownName = shown === 'pets' ? 'the pets'
-    : people.find((m) => m.id === shown) ? chipName(people.find((m) => m.id === shown), people.findIndex((m) => m.id === shown))
-    : unlinked.find((u) => u.id === shown) ? accountName(unlinked.find((u) => u.id === shown)) : '';
+    : people.some((m) => m.id === shown) || unlinked.some((u) => u.id === shown) ? chipNames.get(shown) || '' : '';
   const showsFor = (a) => !shown || whoseEvent(a, members) === shown;
   // Something just added that the picked person's view would hide: show
   // everyone, so it's never added and then "not there".
@@ -333,6 +334,15 @@ export default function CalendarPage() {
     } finally { setSyncing(false); }
   };
 
+  // Anna, Oct 30 2026: say what plain text means, and how to fix it. Right
+  // under the calendar it describes, so the calendar itself starts higher up
+  // (Nov 14 2026; it was a paragraph above it).
+  const colorNote = (
+    <p className="text-xs text-muted-foreground mt-2 px-1">
+      Events in plain text, with no color, aren't care-related. If GenCare got one wrong, tap it and turn on Care-related.
+    </p>
+  );
+
   return (
     <div className="pb-24 lg:pb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -343,16 +353,25 @@ export default function CalendarPage() {
           </h1>
           <p className="text-muted-foreground mt-1">The whole family's appointments and events, in one place.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {me?.role === 'admin' && (
-            <Button variant="outline" onClick={resort} disabled={resorting} className="rounded-xl gap-2" title="Only your account sees this">
-              {resorting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Sort again
-            </Button>
-          )}
-          <Button variant="outline" onClick={() => setPhoneOpen(true)} className="rounded-xl gap-2"><Smartphone className="w-4 h-4" /> Phone calendar</Button>
-          <Button variant="outline" onClick={sync} disabled={syncing} className="rounded-xl gap-2" aria-label="Sync with your phone calendar"><RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> Sync</Button>
-          <Button variant="outline" onClick={() => setPhotoOpen(true)} className="rounded-xl gap-2"><Camera className="w-4 h-4" /> From a photo</Button>
-          <Button onClick={openNew} className="rounded-xl gap-2"><Plus className="w-4 h-4" /> Add Event</Button>
+        {/* Add event up top; the rest in one More button with plain names, so the
+            calendar isn't pushed down by a stack of buttons (Anna, Nov 14 2026). */}
+        <div className="flex gap-2">
+          <Button onClick={openNew} className="rounded-xl gap-2 flex-1 sm:flex-none h-11"><Plus className="w-5 h-5" /> Add event</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="rounded-xl gap-2 flex-1 sm:flex-none h-11" disabled={syncing || resorting}>
+                {syncing || resorting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MoreHorizontal className="w-5 h-5" />} More
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72 p-1.5">
+              <DropdownMenuItem onSelect={() => setPhotoOpen(true)} className="gap-3 py-3 text-base"><Camera className="w-5 h-5 text-primary" /> Add events from a photo</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPhoneOpen(true)} className="gap-3 py-3 text-base"><Smartphone className="w-5 h-5 text-primary" /> Get events from my phone</DropdownMenuItem>
+              <DropdownMenuItem onSelect={sync} className="gap-3 py-3 text-base"><RefreshCw className="w-5 h-5 text-primary" /> Check my phone for changes now</DropdownMenuItem>
+              {me?.role === 'admin' && (
+                <DropdownMenuItem onSelect={resort} className="gap-3 py-3 text-base"><Sparkles className="w-5 h-5 text-primary" /> Sort again (only you see this)</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -361,22 +380,20 @@ export default function CalendarPage() {
           knows); gray is only you. Tap a name for just their events. */}
       <div className="flex flex-wrap items-center gap-2 mb-4 px-1" role="group" aria-label="Whose events to show">
         <PersonChip on={!shown} onClick={() => setPerson('')}>Everyone</PersonChip>
-        {people.map((m, i) => (
-          <PersonChip key={m.id} on={shown === m.id} dot={getMemberColorClass(m, members)} onClick={() => setPerson(shown === m.id ? '' : m.id)}>{chipName(m, i)}</PersonChip>
+        {people.map((m) => (
+          <PersonChip key={m.id} on={shown === m.id} dot={getMemberColorClass(m, members)} onClick={() => setPerson(shown === m.id ? '' : m.id)}>{chipName(m)}</PersonChip>
         ))}
         {unlinked.map((u) => (
-          <PersonChip key={u.id} on={shown === u.id} dot={getUserColorClass(u.id, members, accounts)} onClick={() => setPerson(shown === u.id ? '' : u.id)}>{accountName(u)}</PersonChip>
+          <PersonChip key={u.id} on={shown === u.id} dot={getUserColorClass(u.id, members, accounts)} onClick={() => setPerson(shown === u.id ? '' : u.id)}>{chipName(u)}</PersonChip>
         ))}
         {members.some(isPet) && (
           <PersonChip on={shown === 'pets'} dot={PET_COLOR} onClick={() => setPerson(shown === 'pets' ? '' : 'pets')}>Pets</PersonChip>
         )}
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1">
-          <span className={`w-2.5 h-2.5 rounded-full ${PRIVATE_COLOR}`} /> Only you
+          <span className={`w-2.5 h-2.5 rounded-full ${PRIVATE_COLOR}`} /> Only me
         </span>
-        {/* Anna, Oct 30 2026: say what plain text means, and how to fix it. */}
         <p className="basis-full text-xs text-muted-foreground">
-          {shown ? `Showing only ${shownName === 'the pets' ? 'the pets\'' : `${shownName}'s`} events. ` : 'Tap a name to see only their events. '}
-          Events in plain text, with no color, aren't care-related. If GenCare got one wrong, tap it and turn on Care-related.
+          {shown ? `Showing only ${shownName === 'the pets' ? 'the pets\'' : `${shownName}'s`} events.` : 'Tap a name to see only their events.'}
         </p>
       </div>
 
@@ -396,6 +413,7 @@ export default function CalendarPage() {
             appointments={occurrences}
             members={members}
           />
+          {colorNote}
           <div id="calendar-day" className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6 scroll-mt-20">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading text-lg font-semibold">{format(selectedDate, 'EEEE, MMMM d')}</h3>
@@ -431,6 +449,7 @@ export default function CalendarPage() {
             onOpen={openEdit}
             isFocus={isFocus}
           />
+          {colorNote}
         </TabsContent>
 
         <TabsContent value="day">
@@ -445,6 +464,7 @@ export default function CalendarPage() {
             onOpen={openEdit}
             isFocus={isFocus}
           />
+          {colorNote}
         </TabsContent>
       </Tabs>
 

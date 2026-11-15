@@ -14,7 +14,7 @@ export const SHARING_OPTIONS = [
     desc: 'Appointments, school and family plans go to everyone. Things that look personal, like lunch with a friend, bills or work, stay with you.',
   },
   { value: 'family', icon: Users, label: 'Everyone in the family', desc: 'Everything you add is shared, except work meetings.' },
-  { value: 'private', icon: Lock, label: 'Just me', desc: 'Nothing is shared until you share it.' },
+  { value: 'private', icon: Lock, label: 'Only me', desc: 'Nothing is shared until you share it.' },
 ];
 
 export function SharingOptions({ value, onPick, busy }) {

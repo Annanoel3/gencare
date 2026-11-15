@@ -14,7 +14,20 @@ import PinchZoom from '@/components/shared/PinchZoom';
 // words and is easier to read. Two titles a day, then "+N".
 // On a phone it runs edge to edge with bigger type, and a title wraps onto a
 // second line instead of being cut off (Anna, Nov 10 2026: "everything is way
-// too tiny. Especially for old people").
+// too tiny. Especially for old people"). It wraps between words only: a word
+// too long for the box ends in "…" instead of breaking in half ("Pumpki n
+// patch"); tap the day for the whole title.
+
+/** A title whose words wrap whole, each cut with "…" if it's wider than the box. */
+function Words({ text }) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  return words.map((w, i) => (
+    <React.Fragment key={i}>
+      {i > 0 && ' '}
+      <span className="inline-block max-w-full truncate align-top">{w}</span>
+    </React.Fragment>
+  ));
+}
 export default function MonthView({ currentMonth, setCurrentMonth, selectedDate, setSelectedDate, appointments, members }) {
   const { members: accounts } = useFamily();
   // Over or checked off: the chip fades (lib/eventTiming).
@@ -69,10 +82,10 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
                   return (
                     <span
                       key={a.id}
-                      className={`rounded px-[2px] md:px-1 text-[12px] leading-[15px] font-medium line-clamp-2 break-words hyphens-auto md:font-normal md:text-[11px] md:leading-4 md:line-clamp-1 md:hyphens-none ${color ? `text-white ${color}` : 'text-foreground'} ${checkOn(a, a.date) || eventTiming(a, now) === 'past' ? 'opacity-50' : ''}`}
+                      className={`rounded px-[2px] md:px-1 text-[12px] leading-[15px] font-medium line-clamp-2 md:font-normal md:text-[11px] md:leading-4 md:line-clamp-1 ${color ? `text-white ${color}` : 'text-foreground'} ${checkOn(a, a.date) || eventTiming(a, now) === 'past' ? 'opacity-50' : ''}`}
                       title={a.title}
                     >
-                      {label}
+                      <Words text={label} />
                     </span>
                   );
                 })}

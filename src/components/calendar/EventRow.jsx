@@ -61,10 +61,10 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
         <div className="flex items-start gap-2">
           {/* Who it's for shows just below, so not in the title too. */}
           <p className={`font-medium text-sm flex-1 min-w-0 ${check ? 'line-through text-muted-foreground' : ''}`}>{shownTitle(appt, members, !!appt.family_member_name)}</p>
-          {appt.visibility === 'private' && <Lock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Only you see this" />}
-          {appt.visibility === 'some' && <Users className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Shared with certain people" />}
-          {appt.source === 'phone' && <Smartphone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="From a phone calendar" />}
-          {appt.recurrence && <Repeat className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" aria-label="Repeats" />}
+          {appt.visibility === 'private' && <Lock className="w-[1.125rem] h-[1.125rem] text-foreground/60 flex-shrink-0" aria-label="Only me" />}
+          {appt.visibility === 'some' && <Users className="w-[1.125rem] h-[1.125rem] text-foreground/60 flex-shrink-0" aria-label="Shared with certain people" />}
+          {appt.source === 'phone' && <Smartphone className="w-[1.125rem] h-[1.125rem] text-foreground/60 flex-shrink-0" aria-label="From a phone calendar" />}
+          {appt.recurrence && <Repeat className="w-[1.125rem] h-[1.125rem] text-foreground/60 flex-shrink-0" aria-label="Repeats" />}
         </div>
         <div className="flex flex-wrap gap-2 mt-1 items-center">
           {appt.span_days > 1 && <span className="text-xs text-muted-foreground">Day {appt.span_index + 1} of {appt.span_days}</span>}

@@ -7,12 +7,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 const nameOf = (u) => String(u?.display_name || u?.full_name || u?.email || 'Someone').trim();
 const firstOf = (u) => nameOf(u).split(' ')[0];
 
-/** "Shared with the family" / "Shared with Sam and Lee" / "Only you". */
+/** "Shared with the family" / "Shared with Sam and Lee" / "Only me". */
 export function sharingLabel(record, accounts = []) {
   if (record?.shared_with_family === true) return 'Shared with the family';
   const ids = Array.isArray(record?.shared_with) ? record.shared_with : [];
   const names = ids.map((id) => accounts.find((a) => a.id === id)).filter(Boolean).map(firstOf);
-  if (!names.length) return 'Only you';
+  if (!names.length) return 'Only me';
   if (names.length <= 2) return `Shared with ${names.join(' and ')}`;
   return `Shared with ${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
 }

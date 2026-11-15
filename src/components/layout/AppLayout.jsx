@@ -263,7 +263,8 @@ function AppShell() {
         <AppUpdateCard />
         <NotificationsOffBanner />
         <PullToRefresh onRefresh={async () => { await Promise.all([queryClient.invalidateQueries(), refreshFamily()]); }}>
-          <div className="p-4 w-full">
+          {/* Room at the bottom so the round + button never sits on the last thing on a page. */}
+          <div className="app-page p-4 pb-20 lg:pb-4 w-full">
             <Outlet />
           </div>
         </PullToRefresh>

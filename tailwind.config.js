@@ -4,6 +4,10 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+  		// Small helper text one size up, 13px instead of 12px (Anna, Nov 14 2026: easier for older eyes).
+  		fontSize: {
+  			xs: ['0.8125rem', { lineHeight: '1.125rem' }],
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

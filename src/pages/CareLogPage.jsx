@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { format, parseISO, isValid, isToday, isYesterday, differenceInCalendarDays } from 'date-fns';
+import { time12 } from '@/lib/tasks';
 import { HeartHandshake, Plus, CalendarClock, Check, History, Lock, Users } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useFamily, orderMembers } from '@/lib/family';
@@ -250,7 +251,7 @@ export default function CareLogPage() {
                       <button key={q.key} type="button" onClick={() => tap(q)} disabled={busyKey === q.key}
                         className={`rounded-2xl border p-2.5 min-h-[76px] flex flex-col items-center justify-center gap-1 text-center transition-all active:scale-95 ${done ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30' : 'border-border/60 bg-card'}`}>
                         <span className="text-2xl leading-none">{q.icon}</span>
-                        <span className="text-xs font-medium leading-tight">{q.label}{mine && privacy.isPrivateThing(buttonKey(q), person) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only you" />}</span>
+                        <span className="text-xs font-medium leading-tight">{q.label}{mine && privacy.isPrivateThing(buttonKey(q), person) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only me" />}</span>
                         {done && <span className="text-[10px] leading-tight text-emerald-700 dark:text-emerald-400 flex items-center gap-0.5"><Check className="w-2.5 h-2.5" />{format(parseISO(done.timestamp), 'h:mm a')}{done.logged_by_name ? ` · ${firstName(done.logged_by_name)}` : ''}</span>}
                       </button>
                     );
@@ -307,7 +308,7 @@ export default function CareLogPage() {
                         <button key={l.id} type="button" onClick={() => openEntry(l)} className="w-full text-left flex items-center gap-3 py-2">
                           <span className="text-xs text-muted-foreground w-14 flex-shrink-0">{format(parseISO(l.due_date || l.date), 'MMM d')}</span>
                           <span className="text-base">{s.icon}</span>
-                          <span className="text-sm flex-1 min-w-0 truncate">{l.title || s.label}{l.time ? ` · ${l.time}` : ''}</span>
+                          <span className="text-sm flex-1 min-w-0 truncate">{l.title || s.label}{l.time ? ` · ${time12(l.time)}` : ''}</span>
                         </button>
                       );
                     })}
@@ -337,7 +338,7 @@ export default function CareLogPage() {
           <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[88vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Buttons for {first}</DialogTitle>
-              <DialogDescription>{mine ? 'Turn off the ones you don\'t use. Tap Only you or Family to choose who sees what you log with each one.' : 'Turn off the ones your family doesn\'t use. Everyone sees the same buttons.'}</DialogDescription>
+              <DialogDescription>{mine ? 'Turn off the ones you don\'t use. Tap Only me or Family to choose who sees what you log with each one.' : 'Turn off the ones your family doesn\'t use. Everyone sees the same buttons.'}</DialogDescription>
             </DialogHeader>
             <ul className="divide-y divide-border/40">
               {fitsAge.map((q) => (
@@ -349,7 +350,7 @@ export default function CareLogPage() {
                     return (
                       <button type="button" onClick={() => flip(q)} disabled={!!flipping}
                         className={`inline-flex items-center gap-1 rounded-full border px-2.5 h-7 text-xs font-medium ${priv ? 'border-border bg-muted text-foreground' : 'border-primary/40 text-primary'}`}>
-                        {priv ? <Lock className="w-3 h-3" /> : <Users className="w-3 h-3" />}{flipping === buttonKey(q) ? 'Saving…' : priv ? 'Only you' : 'Family'}
+                        {priv ? <Lock className="w-3 h-3" /> : <Users className="w-3 h-3" />}{flipping === buttonKey(q) ? 'Saving…' : priv ? 'Only me' : 'Family'}
                       </button>
                     );
                   })()}

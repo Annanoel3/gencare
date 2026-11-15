@@ -769,7 +769,7 @@ export default function Notes() {
     if (added.length) base44.functions.invoke("notifyFamily", { kind: "notes", record_id: record.id, user_ids: added }).catch(() => {});
     track("action", everyone ? "notes: shared with family" : ids.length ? "notes: shared with some" : "notes: made private", `${added.length} new`);
     const label = sharingLabel({ ...record, ...sharing }, accounts);
-    toast({ title: label === "Only you" ? "Only you can see these now" : label, description: added.length ? "They'll get a notification that opens the notes." : undefined });
+    toast({ title: label === "Only me" ? "Only you can see these now" : label, description: added.length ? "They'll get a notification that opens the notes." : undefined });
     setShareFor(null);
   };
   const shareNotNow = () => {
@@ -876,7 +876,7 @@ export default function Notes() {
       <DialogContent className="max-w-md w-[calc(100vw-2rem)]">
         <div className="space-y-4 pt-2">
           <h2 className="text-xl font-bold">Delete this recording?</h2>
-          <p className="text-[15px] leading-relaxed text-muted-foreground">Its notes and transcript will be gone for good, for the whole family. Tasks you already added stay on the list.</p>
+          <p className="text-[15px] leading-relaxed text-muted-foreground">Its notes and transcript will be gone for good, for the whole family. Reminders you already added stay on the list.</p>
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={() => setConfirmDelete(null)}>Keep it</Button>
             <Button className="flex-1 bg-red-600 hover:bg-red-700 text-white" onClick={() => deleteRecording(confirmDelete)}>Delete</Button>
@@ -985,7 +985,7 @@ export default function Notes() {
             </div>
             {mine(open) && (() => {
               const label = sharingLabel(open, accounts);
-              const isShared = label !== "Only you";
+              const isShared = label !== "Only me";
               return (
                 <button type="button" onClick={() => { setShareFirst(false); setShareFor(open.id); }} className={`mt-2 inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 ${isShared ? "border-primary/40 text-primary" : "border-border text-muted-foreground"}`}>
                   {isShared ? <Users className="w-3 h-3" /> : <Lock className="w-3 h-3" />} {label} · Change
@@ -1113,7 +1113,7 @@ export default function Notes() {
                       <li key={t.i} className="flex items-start gap-2">
                         <div className="flex-1"><span>{hi(t.text)}</span></div>
                         <Button size="sm" variant={t.added ? "outline" : "default"} disabled={t.added} onClick={() => addTodo(open, t.i)} className="shrink-0">
-                          {t.added ? <><Check className="w-4 h-4 mr-1" />Added</> : <><Plus className="w-4 h-4 mr-1" />Add to tasks</>}
+                          {t.added ? <><Check className="w-4 h-4 mr-1" />Added</> : <><Plus className="w-4 h-4 mr-1" />Add to Reminders</>}
                         </Button>
                       </li>
                     ))}
@@ -1348,7 +1348,7 @@ export default function Notes() {
                       <div className={`text-sm ${soft}`}>
                         {whenText(r.started_at)}{r.duration_ms ? ` · ${clock(r.duration_ms)}` : ""}{evLabel}
                         {STATUS_TEXT[r.status] ? ` · ${progress?.recordId === r.id ? "Working on it…" : STATUS_TEXT[r.status]}` : ""}
-                        {mine(r) && sharingLabel(r, accounts) === "Only you" ? " · only you" : ""}
+                        {mine(r) && sharingLabel(r, accounts) === "Only me" ? " · only me" : ""}
                       </div>
                       {m.snippet && <div className={`text-xs mt-1 ${soft}`}><span className="font-semibold">{m.snippet.where}:</span> {m.snippet.text}</div>}
                     </div>

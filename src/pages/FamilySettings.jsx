@@ -108,7 +108,7 @@ export default function FamilySettings() {
             )}
             <Button variant="outline" size="sm" onClick={() => setInviteOpen(true)} className="gap-2"><QrCode className="w-4 h-4" /> Invite</Button>
           </div>
-          <p className="text-xs text-muted-foreground mb-3">People with accounts who see this family's calendar, tasks and logs. (The people you care for are under Family Members.)</p>
+          <p className="text-xs text-muted-foreground mb-3">People with accounts who see this family's calendar, reminders and logs. (The people you care for are under Family Members.)</p>
           <div className="space-y-2">
             {members.map((u) => (
               <div key={u.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/50">
@@ -155,11 +155,11 @@ export default function FamilySettings() {
               <Switch checked={prefs.push_enabled} onCheckedChange={(v) => setPref('push_enabled', !!v)} />
             </label>
             <label className="flex items-center justify-between gap-3">
-              <span className="text-sm">When someone adds or changes a family event, task or message</span>
+              <span className="text-sm">When someone adds or changes a family event, reminder or message</span>
               <Switch checked={prefs.notify_family_events} disabled={!prefs.push_enabled} onCheckedChange={(v) => setPref('notify_family_events', !!v)} />
             </label>
             <label className="flex items-center justify-between gap-3">
-              <span className="text-sm">Reminders before appointments, due tasks, and the 7 AM "today" summary</span>
+              <span className="text-sm">Reminders before appointments, due reminders, and the 7 AM "today" summary</span>
               <Switch checked={prefs.notify_reminders} disabled={!prefs.push_enabled} onCheckedChange={(v) => setPref('notify_reminders', !!v)} />
             </label>
             <Button variant="outline" size="sm" onClick={testPush} disabled={busy === 'test'} className="gap-2 mt-1"><Send className="w-4 h-4" /> Send me a test notification</Button>

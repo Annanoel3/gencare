@@ -5,6 +5,8 @@ import { Trash2, RotateCcw, Check, Repeat, Loader2, CircleStop } from 'lucide-re
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useFamily, orderMembers } from '@/lib/family';
+import { shortNames } from '@/lib/names';
+import MissingNote from '@/components/shared/MissingNote';
 import { isPet } from '@/utils/memberColors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -44,10 +46,14 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const [noEnd, setNoEnd] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [missing, setMissing] = useState(false);
   const [stepBusy, setStepBusy] = useState(null);
   // An older task that's already for a pet keeps showing its pet.
   const forPeople = orderMembers(members, me?.id).filter((m) => !isPet(m) || m.id === form.family_member_id);
   const [pendingSteps, setPendingSteps] = useState([]); // steps typed before a new task exists
+  // Names that tell people apart ("David C."; lib/names).
+  const peopleNames = shortNames(forPeople);
+  const accountNames = shortNames(accounts);
 
   useEffect(() => {
     if (!open) return;
@@ -55,6 +61,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
     setPendingSteps([]);
     setNoEnd(!!task && task.recurrence && task.recurrence !== 'none' && !task.repeat_until);
     setStopped(false);
+    setMissing(false);
   }, [open, task, kind]);
 
   const stepsQ = useQuery({
@@ -131,6 +138,10 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   useEffect(() => { if (open) setShowTime(false); }, [open, task]);
   const today = format(new Date(), 'yyyy-MM-dd');
   const needsEnd = form.recurrence !== 'none' && !form.repeat_until && !noEnd;
+  // What Add/Save still needs, in words, once it's tapped (it used to just sit grey).
+  const whyMissing = !form.title.trim() ? (isChecklist ? 'Give the checklist a name first.' : 'Write what needs doing first.')
+    : needsEnd ? "Pick the last day it repeats, or tick I don't know."
+    : '';
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const [picking, setPicking] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
@@ -189,9 +200,9 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
       {form.recurrence !== 'none' && (
         <div className={`mt-2 rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
           <Label className="text-xs">Last day it repeats</Label>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-1">
             <Input type="date" value={form.repeat_until || ''} min={form.due_date || today} disabled={noEnd}
-              onChange={(e) => { set('repeat_until', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-0" aria-label="Last day it repeats" />
+              onChange={(e) => { set('repeat_until', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-[9.5rem]" aria-label="Last day it repeats" />
             <label className="flex items-center gap-2 text-sm whitespace-nowrap">
               <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('repeat_until', ''); }} /> I don't know
             </label>
@@ -214,7 +225,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading text-xl">{isNew ? (isChecklist ? 'New checklist' : 'New task') : (isChecklist ? 'Checklist' : 'Task')}</DialogTitle>
+          <DialogTitle className="font-heading text-xl">{isNew ? (isChecklist ? 'New checklist' : 'New reminder') : (isChecklist ? 'Checklist' : 'Reminder')}</DialogTitle>
           <DialogDescription className="sr-only">Edit the task</DialogDescription>
         </DialogHeader>
 
@@ -256,7 +267,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             <Label>Who does it</Label>
             <div className="flex flex-wrap gap-2 mt-1.5">
               <Pill on={!form.assigned_user_id || form.assigned_user_id === NONE} onClick={() => set('assigned_user_id', NONE)}>Anyone</Pill>
-              {accounts.map((a) => <Pill key={a.id} on={form.assigned_user_id === a.id} onClick={() => set('assigned_user_id', a.id)}>{a.id === me?.id ? 'Me' : String(a.display_name || a.full_name || '').split(' ')[0]}</Pill>)}
+              {accounts.map((a) => <Pill key={a.id} on={form.assigned_user_id === a.id} onClick={() => set('assigned_user_id', a.id)}>{a.id === me?.id ? 'Me' : accountNames.get(a.id) || String(a.display_name || a.full_name || '').split(' ')[0]}</Pill>)}
             </div>
             {forPeople.length > 0 && (
               <>
@@ -264,7 +275,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
                 <div className="flex flex-wrap gap-2">
                   <Pill on={!form.family_member_id || form.family_member_id === NONE} onClick={() => set('family_member_id', NONE)}>Whole family</Pill>
                   {/* People only (Anna, Oct 29 2026: pets don't belong here); you first. */}
-                  {forPeople.map((m) => <Pill key={m.id} on={form.family_member_id === m.id} onClick={() => set('family_member_id', m.id)}>{String(m.name || '').split(' ')[0]}</Pill>)}
+                  {forPeople.map((m) => <Pill key={m.id} on={form.family_member_id === m.id} onClick={() => set('family_member_id', m.id)}>{peopleNames.get(m.id) || String(m.name || '').split(' ')[0]}</Pill>)}
                 </div>
               </>
             )}
@@ -272,20 +283,24 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
 
           <NotesField value={form.notes} onChange={(v) => set('notes', v)} placeholder="Anything the person doing it should know" resetKey={`${open}${task?.id || ''}`} />
 
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {!isNew && (
+          {/* Delete and Mark done on their own row, Cancel and Save together below (Save used to wrap onto a line by itself). */}
+          {!isNew && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>
-            )}
-            {!isNew && !done && (
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Mark done</Button>
-            )}
-            {!isNew && done && (
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => reopen.mutate()} disabled={reopen.isPending}><RotateCcw className="w-4 h-4" /> Not done yet</Button>
-            )}
-            <div className="flex-1" />
+              <div className="flex-1" />
+              {!done && (
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Mark done</Button>
+              )}
+              {done && (
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => reopen.mutate()} disabled={reopen.isPending}><RotateCcw className="w-4 h-4" /> Not done yet</Button>
+              )}
+            </div>
+          )}
+          <div className="flex items-center justify-end gap-2 pt-1">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={() => save.mutate()} disabled={!form.title.trim() || needsEnd || save.isPending}>{save.isPending ? 'Saving…' : isNew ? 'Add' : 'Save'}</Button>
+            <Button onClick={() => { if (whyMissing) { setMissing(true); return; } save.mutate(); }} disabled={save.isPending}>{save.isPending ? 'Saving…' : isNew ? 'Add' : 'Save'}</Button>
           </div>
+          <MissingNote text={missing ? whyMissing : ''} className="-mt-2" />
           {save.isError && <p className="text-xs text-destructive">Couldn't save: {save.error?.message || 'try again'}</p>}
         </div>
       </DialogContent>

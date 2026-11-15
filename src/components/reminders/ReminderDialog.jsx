@@ -10,6 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import { Choices } from '@/components/shared/MoreOptions';
 import NotesField from '@/components/shared/NotesField';
 import { useFamily, orderMembers } from '@/lib/family';
+import { shortNames } from '@/lib/names';
+import MissingNote from '@/components/shared/MissingNote';
 import { format, parseISO, addDays } from 'date-fns';
 import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME, forIds } from '@/lib/reminders';
 
@@ -44,6 +46,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   // no end_date). Stop repeating ends it today.
   const [noEnd, setNoEnd] = useState(false);
   const [stopped, setStopped] = useState(false);
+  const [missing, setMissing] = useState(false);
   const editing = !!med?.id;
   const { me } = useFamily();
   const people = orderMembers(members, me?.id); // people first, then pets
@@ -52,6 +55,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
     if (!open) return;
     setConfirmDelete(false);
     setStopped(false);
+    setMissing(false);
     setNoEnd(!!med?.id && !med.end_date && med.frequency !== 'Once' && med.frequency !== ONE_TIME);
     if (med) {
       setForm({
@@ -110,7 +114,15 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
 
   const stopRepeating = () => { set('end_date', todayStr()); setNoEnd(false); setStopped(true); };
   const ordered = (ids = []) => people.map((m) => m.id).filter((id) => ids.includes(id)).concat(ids.filter((id) => !people.some((m) => m.id === id)));
+  // What Save/Add still needs, in words, shown once it's tapped (it used to just sit grey).
+  const whyMissing = !form.medication_name.trim() ? 'Write what it is first (under What).'
+    : form.how === 'days' && !form.days_of_week.length ? 'Pick at least one day.'
+    : oneTime && !times.length ? 'Pick a time.'
+    : needsEnd ? "Pick the last day it reminds, or tick I don't know."
+    : '';
+  const forNames = shortNames(people);
   const save = () => {
+    if (whyMissing) { setMissing(true); return; }
     const sorted = [...new Set(times)].sort();
     onSave({
       ...form,
@@ -186,9 +198,9 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           </div>
           <div className={`rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
             <Label className="text-xs">Last day it reminds</Label>
-            <div className="flex items-center gap-3 mt-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-1">
               <Input type="date" value={form.end_date || ''} min={editing ? undefined : todayStr()} disabled={noEnd}
-                onChange={(e) => { set('end_date', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-0" aria-label="Last day it reminds" />
+                onChange={(e) => { set('end_date', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-[9.5rem]" aria-label="Last day it reminds" />
               <label className="flex items-center gap-2 text-sm whitespace-nowrap">
                 <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('end_date', ''); }} /> I don't know
               </label>
@@ -205,7 +217,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           <div>
             <Label>Who gets reminded</Label>
             <div className="grid grid-cols-2 gap-2 mt-1">
-              {[['family', 'Everyone', Users], ['private', 'Just me', Lock]].map(([v, label, Icon]) => (
+              {[['family', 'Everyone', Users], ['private', 'Only me', Lock]].map(([v, label, Icon]) => (
                 <button key={v} type="button" onClick={() => set('visibility', v)}
                   className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-medium ${form.visibility === v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground'}`}>
                   <Icon className="w-4 h-4" /> {label}
@@ -218,16 +230,17 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           {people.length > 0 && (
             <div>
               <Label>For</Label>
-              {/* Tap as many people and pets as it's for; Nobody in particular clears them. */}
+              {/* Tap as many people and pets as it's for; Whole family (it was "Nobody in particular", the
+                  to-do form's word for the same thing) clears them. */}
               <div className="flex flex-wrap gap-2 mt-1.5">
-                {[{ id: NOBODY, name: 'Nobody in particular' }, ...people].map((m) => {
+                {[{ id: NOBODY, name: 'Whole family' }, ...people].map((m) => {
                   const ids = form.family_member_ids || [];
                   const on = m.id === NOBODY ? !ids.length : ids.includes(m.id);
                   const tap = () => set('family_member_ids', m.id === NOBODY ? [] : on ? ids.filter((x) => x !== m.id) : [...ids, m.id]);
                   return (
                   <button key={m.id} type="button" onClick={tap} aria-pressed={on}
                     className={`rounded-full border px-3 py-1 text-sm ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'}`}>
-                    {m.id === NOBODY ? m.name : String(m.name || '').split(' ')[0]}
+                    {m.id === NOBODY ? m.name : forNames.get(m.id) || String(m.name || '').split(' ')[0]}
                   </button>
                 ); })}
               </div>
@@ -250,8 +263,9 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             {editing && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>}
             <div className="flex-1" />
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={save} disabled={!form.medication_name.trim() || (form.how === 'days' && !form.days_of_week.length) || (oneTime && !times.length) || needsEnd || saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
+            <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
           </div>
+          <MissingNote text={missing ? whyMissing : ''} className="-mt-2" />
         </div>
       </DialogContent>
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>

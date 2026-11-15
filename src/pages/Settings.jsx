@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
+import { TEXT_SIZES, savedTextSize, setTextSize } from '@/lib/textSize';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon, LogOut, MessageCircleHeart } from 'lucide-react';
@@ -13,6 +14,7 @@ import { signOut } from '@/lib/widgets';
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
+  const [textSize, setTextSizeState] = useState(savedTextSize());
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -134,6 +136,19 @@ export default function Settings() {
               <Moon className="w-5 h-5 text-indigo-500" />
               <span className="font-medium text-sm">Dark</span>
             </button>
+          </div>
+          {/* Text size, kept on this phone (lib/textSize). */}
+          <h3 className="text-sm font-medium mt-5 mb-1">Text size</h3>
+          <p className="text-xs text-muted-foreground mb-2.5">Makes the words and buttons bigger on this phone.</p>
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Text size">
+            {TEXT_SIZES.map((t, i) => (
+              <button key={t.value} type="button" role="radio" aria-checked={textSize === t.value}
+                onClick={() => { setTextSize(t.value); setTextSizeState(t.value); }}
+                className={`flex flex-col items-center justify-end gap-1 px-2 py-3 rounded-xl border-2 transition-all ${textSize === t.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
+                <span className="font-heading font-semibold leading-none" style={{ fontSize: `${1 + i * 0.3}rem` }} aria-hidden="true">Aa</span>
+                <span className="font-medium text-sm">{t.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
