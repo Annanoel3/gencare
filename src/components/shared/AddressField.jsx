@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, Navigation, X, Search, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { MapPin, Navigation, X, Search, Loader2, Bookmark } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import AddressLink from '@/components/shared/AddressLink';
 import { track } from '@/lib/activity';
 import { homeArea, saveHomeZip, onHomeZip } from '@/lib/homeArea';
+import { SAVED_PLACES_KEY, listSavedPlaces, savedMatching } from '@/lib/savedPlaces';
 
 // Answers already fetched this session, so going back over a word is instant.
 // A suggestion is taken on touch-down (and the box keeps the keyboard), so
@@ -21,6 +23,8 @@ const ask = (body) => base44.functions.invoke('placesAutocomplete', body).then((
  * with no ZIP in the family yet, it asks right here (the welcome chat asks
  * first; lib/homeArea). Once there's an
  * address, the button beside it opens it in maps.
+ * The family's saved places come first (lib/savedPlaces.js): typing
+ * "Dripping" offers the address picked for "7115- Dripping Springs".
  */
 export default function AddressField({ value, onChange, className = '' }) {
   const [focused, setFocused] = useState(false);
@@ -33,6 +37,8 @@ export default function AddressField({ value, onChange, className = '' }) {
   const [savingZip, setSavingZip] = useState(false);
   const box = useRef(null);
   const q = String(value || '').trim();
+  const { data: saved = [] } = useQuery({ queryKey: SAVED_PLACES_KEY, queryFn: listSavedPlaces, enabled: focused, staleTime: 5 * 60_000 });
+  const ours = typing && q.length >= 2 ? savedMatching(q, saved).filter((p) => p.address !== q) : [];
 
   // Tapping the box starts the search function and checks for a home ZIP,
   // so the first suggestions come back without the start-up wait.
@@ -85,7 +91,7 @@ export default function AddressField({ value, onChange, className = '' }) {
     finally { setSavingZip(false); }
   };
 
-  const showList = typing && q.length >= 2 && (busy || items.length > 0);
+  const showList = typing && q.length >= 2 && (busy || items.length > 0 || ours.length > 0);
   const needZip = focused && home && (!home.zip || askZip) && !showList;
 
   return (
@@ -117,8 +123,16 @@ export default function AddressField({ value, onChange, className = '' }) {
 
       {showList && (
         <ul className="absolute z-50 left-0 right-0 mt-1 rounded-xl border border-border bg-popover shadow-lg overflow-hidden">
+          {ours.map((p) => (
+            <li key={p.id || p.address}>
+              <button type="button" onPointerDown={(e) => { e.preventDefault(); pick(p.address); }} onClick={() => pick(p.address)} className="w-full text-left px-3 py-2.5 text-sm flex items-start gap-2 hover:bg-muted">
+                <Bookmark className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
+                <span className="min-w-0"><span className="block">{p.address}</span><span className="block text-xs text-muted-foreground">Saved for {p.label}</span></span>
+              </button>
+            </li>
+          ))}
           {busy && items.length === 0 && <li className="px-3 py-2.5 text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Searching…</li>}
-          {items.map((s) => (
+          {items.filter((s) => !ours.some((p) => p.address === s)).map((s) => (
             <li key={s}>
               <button type="button" onPointerDown={(e) => { e.preventDefault(); pick(s); }} onClick={() => pick(s)} className="w-full text-left px-3 py-2.5 text-sm flex items-start gap-2 hover:bg-muted">
                 <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" /><span>{s}</span>

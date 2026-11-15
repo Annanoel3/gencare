@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, isValid } from 'date-fns';
 import { Camera, ImagePlus, Loader2, Repeat, AlertCircle, ChevronDown } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -19,6 +19,7 @@ import { track } from '@/lib/activity';
 import { expandAppointments } from '@/lib/occurrences';
 import { matchCalendar, notOnSchedule } from '@/lib/photoDupes';
 import { newImportId, takeOff, putBack } from '@/lib/photoBatch';
+import { SAVED_PLACES_KEY, listSavedPlaces, samePlace, placeKey, savedFor, pastFor, pastLike, rememberPlaces } from '@/lib/savedPlaces';
 
 // Add to the calendar from a photo (Anna, Nov 9 2026): an appointment card, a
 // school calendar, a flyer, a screenshot. GenCare reads the dates
@@ -30,6 +31,11 @@ import { newImportId, takeOff, putBack } from '@/lib/photoBatch';
 // doesn't have, to take off in the same step (lib/photoDupes notOnSchedule).
 // Events from one photo share an import_id, so they can all come off later
 // too (PhotoBatchRow), and Undo right after puts everything back.
+// A photo with more than one place on it (Anna, Nov 14 2026: Dripping Springs
+// and Central Austin on one schedule) gets an address box for each place
+// instead of one Where for all. Places the family saved before, or that an
+// earlier event clearly names, are filled in, and what's picked is saved for
+// next time (lib/savedPlaces.js).
 
 const KEEP = '__keep__';
 const NOBODY = '__nobody__';
@@ -93,6 +99,12 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
   const [found, setFound] = useState([]);
   const [note, setNote] = useState('');
   const [place, setPlace] = useState('');
+  // Each place on the photo: its address (group id -> address), and where a
+  // filled-in one came from ('saved' or 'past').
+  const [placeFor, setPlaceFor] = useState({});
+  const [filledFrom, setFilledFrom] = useState({});
+  const [pastAddrs, setPastAddrs] = useState([]);
+  const { data: saved = [] } = useQuery({ queryKey: SAVED_PLACES_KEY, queryFn: listSavedPlaces, enabled: !!open });
   const [who, setWho] = useState(KEEP);
   // What's already on the calendar on the photo's days (lib/photoDupes), and
   // whether the ones already there are shown.
@@ -105,7 +117,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
 
   useEffect(() => {
     if (!open) return;
-    setStep('pick'); setFound([]); setNote(''); setPlace(''); setWho(KEEP); setHint(''); setCalendar([]); setShowDups(false); setOffPick({});
+    setStep('pick'); setFound([]); setNote(''); setPlace(''); setPlaceFor({}); setFilledFrom({}); setWho(KEEP); setHint(''); setCalendar([]); setShowDups(false); setOffPick({});
     base44.entities.FamilyMember.list().then((rows) => setFamilyMembers((rows || []).filter((m) => m.is_active !== false))).catch(() => {});
   }, [open]);
 
@@ -139,6 +151,12 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
         existing = expandAppointments((await listEvents(from, to).catch(() => [])) || [], from, to);
       }
       setCalendar(existing);
+      // Addresses the family used before, to fill in places on the photo.
+      if (events.some((e) => e.location)) {
+        const past = await base44.entities.Appointment.list('-updated_date', 500).catch(() => []);
+        setPastAddrs([...new Set((past || []).map((a) => String(a.location || '').trim()).filter((x) => x.includes(',')))]);
+      }
+      setPlaceFor({}); setFilledFrom({});
       setShowDups(false);
       setOffPick({});
       // on: left unset means "whatever the check says" (already there: off).
@@ -160,23 +178,52 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
   };
 
   const update = (key, patch) => setFound((list) => list.map((e) => (e.key === key ? { ...e, ...patch } : e)));
+  // The places on the photo, as written: one group for each ("7115- Dripping
+  // Springs" and "Spero Rehab 7115- Dripping Springs" are one).
+  const groups = useMemo(() => {
+    const out = [];
+    for (const e of found) {
+      const t = String(e.location || '').trim();
+      if (!t) continue;
+      const g = out.find((x) => samePlace(x.label, t));
+      if (g) { g.count += 1; if (t.length < g.label.length) g.label = t; } else out.push({ id: placeKey(t) || t, label: t, count: 1 });
+    }
+    return out;
+  }, [found]);
+  const groupOf = (e) => groups.find((g) => samePlace(g.label, e.location || '')) || null;
+  // An event's address: its place's box, or (no places on the photo) the one Where.
+  const addressFor = (e) => { const g = groupOf(e); const a = g ? String(placeFor[g.id] || '').trim() : ''; return a || (groups.length ? e.location || '' : place.trim() || e.location || ''); };
+  // Fill in what's known: a saved place, or one an earlier event clearly names.
+  useEffect(() => {
+    if (!groups.length) return;
+    const add = {};
+    const from = {};
+    for (const g of groups) {
+      if (placeFor[g.id] !== undefined) continue;
+      const s = savedFor(g.label, saved);
+      const p = s ? s.address : pastFor(g.label, pastAddrs);
+      if (p) { add[g.id] = p; from[g.id] = s ? 'saved' : 'past'; }
+    }
+    if (Object.keys(add).length) { setPlaceFor((x) => ({ ...add, ...x })); setFilledFrom((x) => ({ ...x, ...from })); }
+  }, [groups, saved, pastAddrs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const located = useMemo(() => found.map((e) => ({ ...e, location: addressFor(e) })), [found, groups, placeFor, place]); // eslint-disable-line react-hooks/exhaustive-deps
   // Checked again whenever a row or "Who it's for" changes: the same visit for
   // someone else isn't already there.
   const personOf = (e) => (who === KEEP ? e.member_id || '' : who === NOBODY ? '' : who);
   const rows = useMemo(() => {
-    const m = matchCalendar(found, calendar, personOf);
-    return found.map((e, i) => ({ ...e, dup: m[i].dup, moved: m[i].moved, on: e.on ?? !m[i].dup }));
-  }, [found, calendar, who]); // eslint-disable-line react-hooks/exhaustive-deps
+    const m = matchCalendar(located, calendar, personOf);
+    return located.map((e, i) => ({ ...e, dup: m[i].dup, moved: m[i].moved, on: e.on ?? !m[i].dup }));
+  }, [located, calendar, who]); // eslint-disable-line react-hooks/exhaustive-deps
   const fresh = rows.filter((e) => !e.dup);
   const dups = rows.filter((e) => e.dup);
   const chosen = rows.filter((e) => e.on);
   // On the calendar at the same place in the photo's dates but not on it. The
   // ones from an earlier photo start ticked; ones added by hand don't.
-  const gone = useMemo(() => notOnSchedule(rows, calendar, { place: place.trim(), personOf, today: format(new Date(), 'yyyy-MM-dd') })
+  const gone = useMemo(() => notOnSchedule(rows, calendar, { place: '', personOf, today: format(new Date(), 'yyyy-MM-dd') })
     .map((a) => ({ ...a, off: offPick[a.id] ?? !!a.import_id })), [rows, calendar, place, offPick]); // eslint-disable-line react-hooks/exhaustive-deps
   const toRemove = gone.filter((a) => a.off);
   const goneIds = new Set(toRemove.map((a) => a.id));
-  const placeLabel = String(place.trim() || rows.find((e) => e.location)?.location || '').split(',')[0];
+  const placeLabel = groups.length > 1 ? 'these places' : String(rows.find((e) => e.location)?.location || '').split(',')[0];
 
   // After they're on the calendar: GenCare fills in what was left (category,
   // care, and with "GenCare decides", sharing), once for each kind of event
@@ -271,7 +318,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
           category: 'Appointment',
           family_member_id: memberId || '',
           family_member_name: memberId ? nameOf(memberId) : '',
-          location: place.trim() || e.location || '',
+          location: e.location || '',
           doctor_name: e.with || '',
           // Who it's with goes in the notes too: the event screens show notes,
           // not the "with" field (Anna, Nov 9 2026: "did it save ... the
@@ -297,6 +344,8 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
         const failed = saved.find((s) => s?.err);
         if (failed) throw failed.err;
       }
+      // The places picked for this photo, for next time.
+      if (groups.length) rememberPlaces(groups.map((g) => ({ label: g.label, address: placeFor[g.id] })), saved, me).then(() => qc.invalidateQueries({ queryKey: SAVED_PLACES_KEY }));
       // On the calendar right away (Anna, Nov 9 2026: "it showed up late.
       // Just make sure it shows up instantly"); the sorting and the family's
       // push follow in the background.
@@ -345,7 +394,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
               <Input type="time" value={e.all_day ? '' : e.time} onChange={(ev) => update(e.key, { time: ev.target.value, all_day: !ev.target.value })} className="h-9 min-w-0 w-full px-2" aria-label="Time" />
             </div>
             <p className="text-xs text-muted-foreground">
-              {[dayLabel(e.date), e.all_day ? 'All day' : fmtTime(e.time), e.with, (place || e.location) || '', (who === KEEP ? nameOf(e.member_id) : who === NOBODY ? '' : nameOf(who))].filter(Boolean).join(' · ')}
+              {[dayLabel(e.date), e.all_day ? 'All day' : fmtTime(e.time), e.with, e.location || '', (who === KEEP ? nameOf(e.member_id) : who === NOBODY ? '' : nameOf(who))].filter(Boolean).join(' · ')}
               {e.recurrence && <span className="inline-flex items-center gap-0.5 ml-1"><Repeat className="w-3 h-3" /> repeats</span>}
             </p>
             {e.notes && <p className="text-xs text-muted-foreground line-clamp-2">{e.notes}</p>}
@@ -398,13 +447,45 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
             </div>
           ) : (
             <div className="space-y-4">
+              {groups.length > 0 && (
+                <div className="rounded-xl border border-border p-3 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">{groups.length === 1 ? 'The place on this photo' : `The ${groups.length} places on this photo`}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Pick each one's address. GenCare remembers them for next time. Leave one empty to keep it as written.</p>
+                  </div>
+                  {groups.map((g) => {
+                    const val = placeFor[g.id] ?? '';
+                    const like = !val.trim() ? pastLike(g.label, pastAddrs) : [];
+                    return (
+                      <div key={g.id}>
+                        <Label className="flex items-baseline justify-between gap-2">
+                          <span className="min-w-0 break-words">{g.label}</span>
+                          <span className="text-xs font-normal text-muted-foreground flex-shrink-0">{g.count === 1 ? '1 event' : `${g.count} events`}</span>
+                        </Label>
+                        <AddressField value={val} onChange={(v) => { setPlaceFor((x) => ({ ...x, [g.id]: v })); setFilledFrom((x) => ({ ...x, [g.id]: '' })); }} className="mt-1" />
+                        {filledFrom[g.id] === 'saved' && val && <p className="text-xs text-muted-foreground mt-1">Saved from before.</p>}
+                        {filledFrom[g.id] === 'past' && val && <p className="text-xs text-muted-foreground mt-1">From an earlier event. Check it's the right one.</p>}
+                        {like.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {like.map((a) => (
+                              <button key={a} type="button" onClick={() => setPlaceFor((x) => ({ ...x, [g.id]: a }))}
+                                className="rounded-full border border-border bg-card px-2.5 py-1 text-xs text-left">Use {a.split(',')[0]}</button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div className="rounded-xl border border-border p-3 space-y-3">
                 <p className="text-sm font-medium">For all of these (optional)</p>
-                <div>
-                  <Label>Where</Label>
-                  <AddressField value={place} onChange={setPlace} className="mt-1" />
-                  <p className="text-xs text-muted-foreground mt-1">Leave it empty to keep the place each one shows.</p>
-                </div>
+                {groups.length === 0 && (
+                  <div>
+                    <Label>Where</Label>
+                    <AddressField value={place} onChange={setPlace} className="mt-1" />
+                  </div>
+                )}
                 <div>
                   <Label>Who it's for</Label>
                   <Select value={who} onValueChange={setWho}>

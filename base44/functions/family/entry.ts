@@ -29,7 +29,7 @@ const SCOPED = [
   'FamilyMember', 'Appointment', 'CareTask', 'Medication', 'FamilyMessage',
   'CareJournal', 'Checklist', 'ChecklistItem', 'QuickNote', 'BabyCareLog',
   'ToddlerCareLog', 'SchoolAgeLog', 'PreteenLog', 'TeenLog', 'SeniorLog', 'Invite',
-  'CareLog', 'MilkStash',
+  'CareLog', 'MilkStash', 'SavedPlace',
 ];
 
 const TRIAL_DAYS = 7;
