@@ -101,10 +101,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const list = (ts) => (ts.length < 3 ? ts.map(fmtClock).join(' and ') : `${ts.slice(0, -1).map(fmtClock).join(', ')} and ${fmtClock(ts[ts.length - 1])}`);
   const dayText = (d) => (d === todayStr() ? 'today' : d === format(addDays(new Date(), 1), 'yyyy-MM-dd') ? 'tomorrow' : format(parseISO(d), 'EEE, MMM d'));
   const untilText = form.end_date ? `, through ${dayText(form.end_date)}` : '';
-  const summary = !form.remind ? "No pushes; it shows in To do on its days."
+  const summary = !form.remind ? "No pushes; it shows in Reminders on its days."
     : oneTime ? `${who} one push at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date || todayStr())}, and that's all.`
     : once ? `${who} a push at ${list(nags)} every day${startsLater ? ', starting tomorrow,' : ''} until ${justMe ? 'you mark' : 'someone marks'} it done.`
-    : !times.length ? 'No pushes; it shows in To do on its days.'
+    : !times.length ? 'No pushes; it shows in Reminders on its days.'
     : form.how === 'days' && form.days_of_week.length ? `${who} a push at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}${untilText}.`
     : `${who} a push at ${at} every day${untilText}.`;
 

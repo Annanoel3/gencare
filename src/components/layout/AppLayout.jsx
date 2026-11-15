@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CalendarDays,
-  ClipboardList, MessageCircle, Menu, X,
+  BellRing, MessageCircle, Menu, X,
   Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, LifeBuoy, HeartHandshake,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,8 @@ function buildNavStructure(members, canRecord, unread = 0) {
       { path: '/family', icon: Users, label: 'Family Members' },
     ]},
     { type: 'group', label: 'Tools', icon: Wrench, children: [
-      { path: '/tasks', icon: ClipboardList, label: 'To-do' },
+      // To-do and reminders are one page, called Reminders (Anna, Nov 14 2026).
+      { path: '/tasks', icon: BellRing, label: 'Reminders' },
       // Back Nov 10 2026, for the people the family takes care of.
       { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
       { path: '/notes', icon: Mic, label: canRecord ? 'Record Notes' : 'Notes' },
@@ -48,7 +49,8 @@ function buildNavStructure(members, canRecord, unread = 0) {
 
 const mobileBottomNav = [
   { path: '/', icon: LayoutDashboard, label: 'Home' },
-  { path: '/tasks', icon: ClipboardList, label: 'To-do' },
+  // To-do and reminders are one page, called Reminders (Anna, Nov 14 2026).
+      { path: '/tasks', icon: BellRing, label: 'Reminders' },
   { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { path: '/messages', icon: MessageCircle, label: 'Feed', unread: true },
   // Family at the end (Anna, Nov 10 2026).

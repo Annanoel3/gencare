@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { ClipboardList, Plus, ListChecks, Check, BellRing } from 'lucide-react';
+import { Plus, ListChecks, Check, BellRing } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -57,7 +57,7 @@ function orderDay(entries) {
  * To-do: the family's days in one list. Each day section holds that day's
  * events (tap to open on the calendar), today's set-time reminders (Done /
  * Skip), checklists and tasks, in time order; anyone in the family can tick
- * anything. The Reminders tab is where repeating reminders are added and
+ * anything. "Every reminder" at the bottom is where repeating reminders are seen and
  * changed; the bell button adds one, and a push about one opens it here
  * (?reminder=<id>, or ?reminder=new).
  */
@@ -65,7 +65,10 @@ export default function Tasks() {
   const [params, setParams] = useSearchParams();
   const [sheet, setSheet] = useState({ open: false, task: null, kind: 'task' });
   const [quick, setQuick] = useState('');
-  const [tab, setTab] = useState(() => (params.get('tab') === 'reminders' ? 'reminders' : 'open'));
+  // To-do and reminders are one list, called Reminders (Anna, Nov 14 2026: "To
+  // do and reminders should be combined and just called reminders"): what's
+  // coming up, then every reminder (the old Reminders tab), and Done.
+  const [tab, setTab] = useState('open');
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['careTasks', 'all'],
@@ -98,7 +101,7 @@ export default function Tasks() {
     else {
       const m = reminders.find((x) => x.id === wanted);
       if (m) openReminder(m);
-      setTab('reminders');
+      setTab('open');
     }
     const next = new URLSearchParams(params); next.delete('reminder'); setParams(next, { replace: true });
   }, [wanted, isFetched]);
@@ -113,7 +116,7 @@ export default function Tasks() {
     const inToday = slots.some((sl) => sl.med.id === highlight);
     const reminder = reminders.find((m) => m.id === highlight);
     const task = rows.find((t) => t.id === highlight);
-    setTab(inToday ? 'open' : reminder ? 'reminders' : task?.status === 'completed' ? 'done' : 'open');
+    setTab(task?.status === 'completed' && !inToday && !reminder ? 'done' : 'open');
     setFocusId(highlight);
   }, [highlight, isFetched, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -168,8 +171,8 @@ export default function Tasks() {
       <div className="flex items-center justify-between gap-3 mb-5">
         <div className="min-w-0">
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3">
-            <ClipboardList className="w-7 h-7 text-primary" />
-            To-do
+            <BellRing className="w-7 h-7 text-primary" />
+            Reminders
           </h1>
           <p className="text-muted-foreground mt-1">Events, reminders and things to do. Anyone in the family can tick them off.</p>
         </div>
@@ -187,10 +190,9 @@ export default function Tasks() {
       </form>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-muted rounded-xl mb-5 w-full grid grid-cols-3 h-auto p-1">
-          <TabsTrigger value="open" className="rounded-lg py-1.5">To do ({open.length + slotsLeft})</TabsTrigger>
+        <TabsList className="bg-muted rounded-xl mb-5 w-full grid grid-cols-2 h-auto p-1">
+          <TabsTrigger value="open" className="rounded-lg py-1.5">Reminders ({open.length + slotsLeft})</TabsTrigger>
           <TabsTrigger value="done" className="rounded-lg py-1.5">Done ({completed.length})</TabsTrigger>
-          <TabsTrigger value="reminders" className="rounded-lg py-1.5">Reminders</TabsTrigger>
         </TabsList>
 
         <TabsContent value="open" className="space-y-6">
@@ -214,6 +216,27 @@ export default function Tasks() {
               </div>
             </section>
           ))}
+
+          {/* Every reminder, by who it's for (the old Reminders tab): where
+              repeating ones are seen and changed. */}
+          {(byPerson.length > 0 || paused.length > 0) && (
+            <section className="space-y-2 pt-2 border-t border-border/60">
+              <h2 className="font-heading text-base font-semibold pt-4">Every reminder</h2>
+              <p className="text-sm text-muted-foreground">Things at set times, like a walk every morning at 8, and one-off jobs that keep reminding until someone marks them done. Tap one to change it.</p>
+              {byPerson.map(([who, list]) => (
+                <div key={who} className="space-y-2 pt-1">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{who}</h3>
+                  {list.map((m) => <ReminderCard key={m.id} item={m} logs={logs} onOpen={() => openReminder(m)} focus={!!focusId && m.id === focusId} />)}
+                </div>
+              ))}
+              {paused.length > 0 && (
+                <>
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-2">Paused ({paused.length})</h3>
+                  {paused.map((m) => <ReminderCard key={m.id} item={m} logs={logs} onOpen={() => openReminder(m)} inactive focus={!!focusId && m.id === focusId} />)}
+                </>
+              )}
+            </section>
+          )}
         </TabsContent>
 
         <TabsContent value="done">
@@ -223,23 +246,6 @@ export default function Tasks() {
             <div className="space-y-2">
               {completed.map((t) => <TaskCard key={t.id} task={t} members={members} onOpen={openTask} stepsPreloaded={stepsByParent[t.id] || []} focus={!!focusId && t.id === focusId} />)}
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="reminders" className="space-y-3">
-          <p className="text-sm text-muted-foreground">Things that happen at set times, like a walk every morning at 8, or one-off jobs that keep reminding until someone marks them done. They show up in To do on their day. Each one goes to everyone or just you.</p>
-          <Button onClick={() => openReminder(null)} className="rounded-xl gap-2 w-full"><BellRing className="w-4 h-4" /> New reminder</Button>
-          {byPerson.map(([who, list]) => (
-            <section key={who} className="space-y-2 pt-1">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{who}</h2>
-              {list.map((m) => <ReminderCard key={m.id} item={m} logs={logs} onOpen={() => openReminder(m)} focus={!!focusId && m.id === focusId} />)}
-            </section>
-          ))}
-          {paused.length > 0 && (
-            <>
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-2">Paused ({paused.length})</h2>
-              {paused.map((m) => <ReminderCard key={m.id} item={m} logs={logs} onOpen={() => openReminder(m)} inactive focus={!!focusId && m.id === focusId} />)}
-            </>
           )}
         </TabsContent>
       </Tabs>

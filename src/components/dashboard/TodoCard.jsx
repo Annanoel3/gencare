@@ -43,8 +43,8 @@ export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
   return (
     <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-heading text-lg font-semibold">To do</h2>
-        <Link to="/tasks" className="text-sm text-primary hover:underline">All tasks ({open.length})</Link>
+        <h2 className="font-heading text-lg font-semibold">Reminders</h2>
+        <Link to="/tasks" className="text-sm text-primary hover:underline">All of them ({open.length})</Link>
       </div>
       <div className="space-y-1">
         {shown.map(t => {
