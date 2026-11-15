@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { track } from '@/lib/activity';
 import { useQueryClient } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
-import { BellRing, Lock } from 'lucide-react';
+import { BellRing, Lock, Check } from 'lucide-react';
 import DoneButton from '@/components/shared/DoneButton';
 import { useFamily } from '@/lib/family';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
-import { markSlot, fmtClock, REMINDERS_KEY } from '@/lib/reminders';
+import { markSlot, fmtClock, REMINDERS_KEY, stepsOf, stepSlot, ticksFor, tickStep, untickLast } from '@/lib/reminders';
 import ClaimButton from '@/components/shared/ClaimButton';
 import { plainError } from '@/lib/errors';
 
@@ -39,6 +39,50 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
     queryClient.invalidateQueries({ queryKey: ['reminderLogs'] });
     if (s.med.frequency === 'Once') queryClient.invalidateQueries({ queryKey: REMINDERS_KEY });
   };
+  // Steps, like a checklist (lib/reminders): ticks show right away, then save.
+  const steps = stepsOf(s.med);
+  const saved = ticksFor(s.med, stepSlot(s));
+  const [local, setLocal] = useState(null);
+  const pending = useRef(0);
+  // The saved ticks take over again once nothing is still saving.
+  useEffect(() => { if (!pending.current) setLocal(null); }, [s.med.steps_done]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ticked = local ?? saved;
+  const doneSteps = steps.filter((x) => ticked.includes(x)).length;
+  // One save at a time, so quick taps don't undo each other.
+  const queue = useRef(Promise.resolve());
+  const toggle = (step) => {
+    if (busy) return;
+    const on = !ticked.includes(step);
+    const next = on ? [...ticked, step] : ticked.filter((x) => x !== step);
+    setLocal(next);
+    pending.current += 1;
+    queue.current = queue.current.then(() => saveTick(step, on, next));
+  };
+  const saveTick = async (step, on, next) => {
+    try {
+      await tickStep(s, step, on);
+      track('action', on ? 'tick:step' : 'untick:step');
+      const all = steps.every((x) => next.includes(x));
+      // The last step marks it done; unticking one brings a done one back.
+      if (all && s.status !== 'taken') await mark('taken');
+      else if (!all && s.status === 'taken') await mark('due');
+    } catch (e) {
+      setLocal(null);
+      toast({ title: "Couldn't save that", description: plainError(e), variant: 'destructive' });
+    } finally {
+      pending.current -= 1;
+      if (!pending.current) queryClient.invalidateQueries({ queryKey: REMINDERS_KEY });
+    }
+  };
+  // Undo right after the last tick finished it: that tick comes off too.
+  const undo = async () => {
+    if (steps.length && steps.every((x) => ticked.includes(x))) {
+      setLocal(ticked.slice(0, -1));
+      try { await untickLast(s); } catch { /* Undo still goes through */ }
+    }
+    await mark('due');
+    queryClient.invalidateQueries({ queryKey: REMINDERS_KEY });
+  };
   // An "until it's done" reminder still waiting from an earlier day.
   const carried = s.med.frequency === 'Once' && s.med.once_date && s.med.once_date < s.day;
 
@@ -57,13 +101,32 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
               {s.status === 'taken' && s.log?.taken_by_name ? ` · done by ${s.log.taken_by_name.split(' ')[0]}` : ''}
               {s.status === 'skipped' ? ' · skipped' : ''}
               {s.status === 'missed' ? ' · not done yet' : ''}
+              {steps.length > 0 ? ` · ${doneSteps} of ${steps.length} steps` : ''}
               {s.med.visibility === 'private' && <span className="inline-flex items-center gap-0.5 ml-1"><Lock className="w-3 h-3" /> Only me</span>}
             </p>
           </button>
+          {steps.length > 0 && (
+            <ul className="mt-2 space-y-0.5" aria-label="Steps">
+              {steps.map((st) => {
+                const on = ticked.includes(st);
+                return (
+                  <li key={st}>
+                    <button type="button" role="checkbox" aria-checked={on} onClick={() => toggle(st)} disabled={busy}
+                      className="w-full flex items-center gap-2.5 py-1.5 text-left">
+                      <span className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${on ? 'bg-primary border-primary text-primary-foreground' : 'border-primary/50 bg-card'}`}>
+                        {on && <Check className="w-4 h-4" />}
+                      </span>
+                      <span className={`text-sm min-w-0 break-words ${on ? 'line-through text-muted-foreground' : ''}`}>{st}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           {/* Done, Skip (a word, not an x that looks like close) and I'll take it, in one row under the words. */}
           <div className="flex flex-wrap items-center gap-2 mt-2.5">
             {done ? (
-              <DoneButton done busy={busy} onUndo={() => mark('due')} label={s.med.medication_name} />
+              <DoneButton done busy={busy} onUndo={undo} label={s.med.medication_name} />
             ) : (
               <>
                 <DoneButton busy={busy} onDone={() => mark('taken')} label={s.med.medication_name} />

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, ListChecks, Check, BellRing } from 'lucide-react';
+import { Plus, Check, BellRing } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -151,7 +151,6 @@ export default function Tasks() {
   }).filter((s) => s.entries.length);
 
   const openTask = (task) => setSheet({ open: true, task, kind: task.kind || 'task' });
-  const newTask = (kind) => setSheet({ open: true, task: null, kind });
   // Paused, or repeating ones past their last day (Stop repeating).
   const paused = reminders.filter((m) => (m.is_active === false || isEnded(m)) && !isFinishedOnce(m));
   // Active reminders by who they're for; ones for nobody in particular last.
@@ -174,13 +173,10 @@ export default function Tasks() {
             <BellRing className="w-7 h-7 text-primary flex-shrink-0" />
             Reminders
           </h1>
-          {/* Words under the two buttons (they were just a bell and a list icon). */}
+          {/* Words under the button (it was just a bell). A checklist is a reminder with steps now (Anna, Nov 14 2026). */}
           <div className="flex gap-2 flex-shrink-0">
             <Button variant="outline" onClick={() => openReminder(null)} className="rounded-xl h-auto w-[4.75rem] flex-col gap-0.5 px-1 py-1.5">
               <BellRing className="w-5 h-5" /><span className="text-xs font-medium">Reminder</span>
-            </Button>
-            <Button variant="outline" onClick={() => newTask('checklist')} className="rounded-xl h-auto w-[4.75rem] flex-col gap-0.5 px-1 py-1.5">
-              <ListChecks className="w-5 h-5" /><span className="text-xs font-medium">Checklist</span>
             </Button>
           </div>
         </div>

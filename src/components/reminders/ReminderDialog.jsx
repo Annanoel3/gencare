@@ -13,7 +13,7 @@ import { useFamily, orderMembers } from '@/lib/family';
 import { shortNames } from '@/lib/names';
 import MissingNote from '@/components/shared/MissingNote';
 import { format, parseISO, addDays } from 'date-fns';
-import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME, forIds } from '@/lib/reminders';
+import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME, forIds, stepsOf } from '@/lib/reminders';
 
 const NOBODY = '__nobody__';
 // "Remind me at 12" (one push) or "until it's done" (keeps reminding by
@@ -22,7 +22,7 @@ const NOBODY = '__nobody__';
 const HOW = [['one', 'One time'], ['once', "Until it's done"], ['daily', 'Every day'], ['days', 'Certain days']];
 
 function blank() {
-  return { medication_name: '', dosage: '', how: 'once', priority: 'medium', anchor_time: '', family_member_ids: [], notes: '', refill_date: '', refill_reminder_days: 3, times: defaultTimes('Once'), days_of_week: [], remind: true, is_active: true, once_date: todayStr(), visibility: 'family' };
+  return { medication_name: '', dosage: '', steps: [], how: 'once', priority: 'medium', anchor_time: '', family_member_ids: [], notes: '', refill_date: '', refill_reminder_days: 3, times: defaultTimes('Once'), days_of_week: [], remind: true, is_active: true, once_date: todayStr(), visibility: 'family' };
 }
 const howOf = (m) => (m.frequency === ONE_TIME ? 'one' : m.frequency === 'Once' ? 'once' : Array.isArray(m.days_of_week) && m.days_of_week.length ? 'days' : 'daily');
 
@@ -47,6 +47,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const [noEnd, setNoEnd] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [missing, setMissing] = useState(false);
+  const [stepText, setStepText] = useState('');
   const editing = !!med?.id;
   const { me } = useFamily();
   const people = orderMembers(members, me?.id); // people first, then pets
@@ -56,12 +57,14 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
     setConfirmDelete(false);
     setStopped(false);
     setMissing(false);
+    setStepText('');
     setNoEnd(!!med?.id && !med.end_date && med.frequency !== 'Once' && med.frequency !== ONE_TIME);
     if (med) {
       setForm({
         ...blank(), ...med,
         how: howOf(med),
         family_member_ids: forIds(med),
+        steps: stepsOf(med),
         times: Array.isArray(med.times) ? med.times : [],
         days_of_week: Array.isArray(med.days_of_week) ? med.days_of_week : [],
         remind: med.remind !== false,
@@ -121,11 +124,15 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
     : needsEnd ? "Pick the last day it reminds, or tick Until I stop it."
     : '';
   const forNames = shortNames(people);
+  const steps = Array.isArray(form.steps) ? form.steps : [];
+  const addStep = () => { const t = stepText.trim(); if (!t) return; if (!steps.includes(t)) set('steps', [...steps, t]); setStepText(''); };
   const save = () => {
     if (whyMissing) { setMissing(true); return; }
     const sorted = [...new Set(times)].sort();
     onSave({
       ...form,
+      // A step typed but not added yet still counts.
+      steps: stepsOf({ steps: [...steps, stepText] }),
       times: once ? [anchor] : oneTime ? sorted.slice(0, 1) : sorted,
       anchor_time: once ? anchor : '',
       // Added in the evening: it starts at 8 the next morning.
@@ -148,6 +155,28 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
         </DialogHeader>
         <div className="space-y-4 mt-1">
           <div><Label>What *</Label><Input value={form.medication_name} onChange={(e) => set('medication_name', e.target.value)} placeholder="Water the plants" className="mt-1" /></div>
+
+          {/* Steps, like a checklist (Anna, Nov 14 2026): anyone can tick them, and the last one marks it done. */}
+          <div>
+            <Label>Steps <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            {steps.length > 0 && (
+              <ul className="mt-1.5 space-y-1">
+                {steps.map((st, i) => (
+                  <li key={`${st}-${i}`} className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-card pl-3 pr-1 py-1">
+                    <span className="w-5 h-5 rounded-md border-2 border-primary/40 flex-shrink-0" aria-hidden="true" />
+                    <span className="flex-1 min-w-0 text-sm break-words">{st}</span>
+                    <Button type="button" variant="ghost" size="sm" className="text-muted-foreground flex-shrink-0" onClick={() => set('steps', steps.filter((_, j) => j !== i))} aria-label={`Remove ${st}`}>Remove</Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex items-center gap-2 mt-1.5">
+              <Input value={stepText} onChange={(e) => setStepText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addStep(); } }}
+                placeholder="Add a step…" enterKeyHint="enter" aria-label="Add a step" />
+              <Button type="button" variant="outline" onClick={addStep} className="flex-shrink-0 gap-1"><Plus className="w-4 h-4" /> Add</Button>
+            </div>
+            {steps.length === 0 && <p className="text-xs text-muted-foreground mt-1">Like a checklist. Anyone can tick them off, and ticking the last one marks it done.</p>}
+          </div>
 
           <div>
             <Label>How often</Label>

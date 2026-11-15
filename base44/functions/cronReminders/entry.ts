@@ -228,6 +228,17 @@ const MISSED_AFTER_MS = 90 * 60_000;
           // "For Peach and Kaiju" for a reminder that's for more than one.
           const about = [m.family_member_name ? `For ${/, | and /.test(String(m.family_member_name)) ? m.family_member_name : String(m.family_member_name).split(' ')[0]}` : '', m.dosage || ''].filter(Boolean).join(' · ');
           const line = (...parts: string[]) => parts.filter(Boolean).join(' · ').slice(0, 180);
+          // Steps, like a checklist (Anna, Nov 14 2026): how far along it is
+          // ("2 of 5 steps done"), or how many there are before any are ticked.
+          // Ticks are "slot|step": slot "all" for until-it's-done, else "day@time".
+          const stepList: string[] = [...new Set((Array.isArray(m.steps) ? m.steps : []).map((x: any) => String(x || '').trim()).filter(Boolean))] as string[];
+          const stepsLine = (t: string) => {
+            if (!stepList.length) return '';
+            const key = m.frequency === 'Once' ? 'all' : `${today}@${t}`;
+            const ticked = (Array.isArray(m.steps_done) ? m.steps_done : []).map(String).filter((x: string) => x.startsWith(`${key}|`)).map((x: string) => x.slice(key.length + 1));
+            const n = stepList.filter((x) => ticked.includes(x)).length;
+            return n ? `${n} of ${stepList.length} steps done` : `${stepList.length} step${stepList.length === 1 ? '' : 's'}`;
+          };
           // Lands on the reminder in To-do (glowing), not its edit popup (Anna, Oct 31 2026).
           const screen = `/tasks?highlight=${m.id}`;
           // "Just me" reminders go only to the person who keeps them.
@@ -261,7 +272,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 logsToday.push(log);
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: what, message: line(stillWaiting ? 'Still to do' : `Due ${fmtClock(t)}`, about, m.notes ? String(m.notes).split('\n')[0].slice(0, 100) : ''), data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: what, message: line(stillWaiting ? 'Still to do' : `Due ${fmtClock(t)}`, stepsLine(t), about, m.notes ? String(m.notes).split('\n')[0].slice(0, 100) : ''), data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.reminder_pushes++;
                 }
                 continue;
@@ -273,7 +284,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 log.status = 'missed';
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: what, message: line(`Not done yet (due ${fmtClock(t)})`, about), data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: what, message: line(`Not done yet (due ${fmtClock(t)})`, stepsLine(t), about), data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.missed_pushes++;
                 }
               }

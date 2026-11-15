@@ -1,6 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 
 // Reminders: things the family does at set times (feed the dog, water the
 // plants, a daily call, a pill). A "slot" is a reminder × one of its times on
@@ -142,6 +142,53 @@ export async function markSlot(slot, status, me) {
   return saved;
 }
 
+// Steps, like a checklist inside a reminder (Anna, Nov 14 2026: "add a way to
+// have a checklist in a reminder? Kind of the same way adhdone has subtasks").
+// steps: the step names. steps_done: ticked ones as "slot|step", where slot is
+// "all" for an "until it's done" reminder (its ticks last until it's done) or
+// "YYYY-MM-DD@HH:MM" for one time it comes around (fresh each time). Anyone in
+// the family can tick; ticking the last step marks it done. Ticks are saved on
+// the reminder, not the day's log row, so the reminder job's "due" push still
+// goes out for a slot someone started early.
+export const stepsOf = (m) => [...new Set((Array.isArray(m?.steps) ? m.steps : []).map((x) => String(x || '').trim()).filter(Boolean))];
+export const stepSlot = (slot) => (slot?.med?.frequency === 'Once' ? 'all' : `${slot.day}@${slot.time}`);
+export const ticksFor = (m, key) => (Array.isArray(m?.steps_done) ? m.steps_done : []).map(String)
+  .filter((x) => x.startsWith(`${key}|`)).map((x) => x.slice(key.length + 1));
+/** { done, total } for one time it comes around. */
+export function stepCount(m, key) {
+  const steps = stepsOf(m);
+  const t = ticksFor(m, key);
+  return { total: steps.length, done: steps.filter((x) => t.includes(x)).length };
+}
+// Read fresh, so two people ticking at once don't undo each other; drop ticks over a week old.
+async function freshTicks(med) {
+  let current = med;
+  try { const rows = await base44.entities.Medication.filter({ id: med.id }); if (rows?.[0]) current = rows[0]; } catch { /* the copy on screen */ }
+  const weekAgo = format(addDays(new Date(), -7), 'yyyy-MM-dd');
+  const list = (Array.isArray(current.steps_done) ? current.steps_done : []).map(String)
+    .filter((x) => { const k = x.split('|')[0]; return k === 'all' || k.slice(0, 10) >= weekAgo; });
+  return list;
+}
+/** Tick (on) or untick a step for one time a reminder comes around. */
+export async function tickStep(slot, step, on) {
+  const key = stepSlot(slot);
+  const entry = `${key}|${step}`;
+  const list = (await freshTicks(slot.med)).filter((x) => x !== entry);
+  if (on) list.push(entry);
+  await base44.entities.Medication.update(slot.med.id, { steps_done: list });
+  return list;
+}
+/** Undo after the last tick finished it: untick the step ticked last. */
+export async function untickLast(slot) {
+  const key = stepSlot(slot);
+  const list = await freshTicks(slot.med);
+  const i = list.map((x) => x.startsWith(`${key}|`)).lastIndexOf(true);
+  if (i < 0) return list;
+  list.splice(i, 1);
+  await base44.entities.Medication.update(slot.med.id, { steps_done: list });
+  return list;
+}
+
 // More than one person or pet (Anna, Nov 14 2026: "Should be able to click
 // multiple people or pets on 'for'"): family_member_ids has them all;
 // family_member_id is the first (its color) and family_member_name reads
@@ -165,6 +212,8 @@ export function cleanMed(form, members, me) {
     family_member_ids: ids,
     family_member_name: chosen.length > 1 ? andList(chosen.map((m) => String(m.name || '').split(' ')[0])) : member?.name || (ids.length ? form.family_member_name || '' : ''),
     notes: (form.notes || '').trim(),
+    // Steps (optional), like a checklist; the ticks stay as they are.
+    steps: stepsOf(form),
     times: oneTime ? times.slice(0, 1) : times,
     days_of_week: !once && !oneTime && Array.isArray(form.days_of_week) ? form.days_of_week : [],
     once_date: once || oneTime ? (form.once_date || todayStr()) : null,
