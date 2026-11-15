@@ -42,7 +42,7 @@ function frequencyFor(how, times) {
 export default function ReminderDialog({ open, onOpenChange, med, members = [], onSave, onDelete, saving, adherence }) {
   const [form, setForm] = useState(blank());
   const [confirmDelete, setConfirmDelete] = useState(false);
-  // A repeating reminder asks for its last day, or "I don't know" (saved as
+  // A repeating reminder asks for its last day, or "Until I stop it" (it said "I don't know" until Nov 14 2026) (saved as
   // no end_date). Stop repeating ends it today.
   const [noEnd, setNoEnd] = useState(false);
   const [stopped, setStopped] = useState(false);
@@ -105,12 +105,12 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const list = (ts) => (ts.length < 3 ? ts.map(fmtClock).join(' and ') : `${ts.slice(0, -1).map(fmtClock).join(', ')} and ${fmtClock(ts[ts.length - 1])}`);
   const dayText = (d) => (d === todayStr() ? 'today' : d === format(addDays(new Date(), 1), 'yyyy-MM-dd') ? 'tomorrow' : format(parseISO(d), 'EEE, MMM d'));
   const untilText = form.end_date ? `, through ${dayText(form.end_date)}` : '';
-  const summary = !form.remind ? "No pushes; it shows in Reminders on its days."
-    : oneTime ? `${who} one push at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date || todayStr())}, and that's all.`
-    : once ? `${who} a push at ${list(nags)} every day${startsLater ? ', starting tomorrow,' : ''} until ${justMe ? 'you mark' : 'someone marks'} it done.`
-    : !times.length ? 'No pushes; it shows in Reminders on its days.'
-    : form.how === 'days' && form.days_of_week.length ? `${who} a push at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}${untilText}.`
-    : `${who} a push at ${at} every day${untilText}.`;
+  const summary = !form.remind ? "No notifications; it shows in Reminders on its days."
+    : oneTime ? `${who} one notification at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date || todayStr())}, and that's all.`
+    : once ? `${who} a notification at ${list(nags)} every day${startsLater ? ', starting tomorrow,' : ''} until ${justMe ? 'you mark' : 'someone marks'} it done.`
+    : !times.length ? 'No notifications; it shows in Reminders on its days.'
+    : form.how === 'days' && form.days_of_week.length ? `${who} a notification at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}${untilText}.`
+    : `${who} a notification at ${at} every day${untilText}.`;
 
   const stopRepeating = () => { set('end_date', todayStr()); setNoEnd(false); setStopped(true); };
   const ordered = (ids = []) => people.map((m) => m.id).filter((id) => ids.includes(id)).concat(ids.filter((id) => !people.some((m) => m.id === id)));
@@ -118,7 +118,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const whyMissing = !form.medication_name.trim() ? 'Write what it is first (under What).'
     : form.how === 'days' && !form.days_of_week.length ? 'Pick at least one day.'
     : oneTime && !times.length ? 'Pick a time.'
-    : needsEnd ? "Pick the last day it reminds, or tick I don't know."
+    : needsEnd ? "Pick the last day it reminds, or tick Until I stop it."
     : '';
   const forNames = shortNames(people);
   const save = () => {
@@ -202,10 +202,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
               <Input type="date" value={form.end_date || ''} min={editing ? undefined : todayStr()} disabled={noEnd}
                 onChange={(e) => { set('end_date', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-[9.5rem]" aria-label="Last day it reminds" />
               <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-                <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('end_date', ''); }} /> I don't know
+                <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('end_date', ''); }} /> Until I stop it
               </label>
             </div>
-            {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick I don't know. You can stop it any time.</p>}
+            {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick Until I stop it.</p>}
             {editing && !stopped && !(med?.end_date && med.end_date < todayStr()) && (
               <Button type="button" variant="outline" size="sm" onClick={stopRepeating} className="mt-2.5 gap-1.5"><CircleStop className="w-4 h-4" /> Stop repeating</Button>
             )}

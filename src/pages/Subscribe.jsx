@@ -10,6 +10,7 @@ import {
   billingAvailable, getPlans, buyPlan, restorePurchases, getPlanStatus,
   manageSubscriptionUrl, openInPlay, PRICE_MONTHLY_TEXT, PRICE_YEARLY_TEXT, PLAY_STORE_URL,
 } from '@/lib/premium';
+import { plainError } from '@/lib/errors';
 
 const PERKS = [
   'The whole family on one calendar, with everyone’s phone kept in step',
@@ -68,7 +69,7 @@ export default function Subscribe({ gate = false }) {
         toast({ title: 'Almost there', description: 'The purchase went through; the plan switches on in a moment.' });
       }
     } catch (e) {
-      toast({ title: 'Purchase did not go through', description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: 'Purchase did not go through', description: plainError(e), variant: 'destructive' });
     } finally { setBusy(''); }
   };
 
@@ -79,7 +80,7 @@ export default function Subscribe({ gate = false }) {
       if (r.active) { toast({ title: 'Subscription restored' }); await refresh(); }
       else toast({ title: 'Nothing to restore', description: `No active GenCare subscription on this ${isAndroidApp() ? 'Google' : 'Apple'} account.` });
     } catch (e) {
-      toast({ title: 'Could not restore', description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: 'Could not restore', description: plainError(e), variant: 'destructive' });
     } finally { setBusy(''); }
   };
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/activity';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trash2, RotateCcw, Check, Repeat, Loader2, CircleStop } from 'lucide-react';
+import { Trash2, RotateCcw, Check, Loader2, CircleStop } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { useFamily, orderMembers } from '@/lib/family';
@@ -14,18 +14,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import NotesField from '@/components/shared/NotesField';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import TaskSteps from './TaskSteps';
 import { Choices } from '@/components/shared/MoreOptions';
 import { format, addDays, parseISO } from 'date-fns';
 import { monthlyFromBlanks, sameBlanks } from '@/lib/occurrences';
 import MonthlyBlanks from '@/components/shared/MonthlyBlanks';
 import {
-  repeatOptionsFor, recurrenceLabel, taskBlanks, taskFromBlanks, monthDayOf, MONTHLY_KINDS, DAY_NAMES, createTask, updateTask, deleteTask, addStep,
+  recurrenceLabel, taskBlanks, taskFromBlanks, monthDayOf, MONTHLY_KINDS, DAY_NAMES, createTask, updateTask, deleteTask, addStep,
   completeTask, uncompleteTask, toggleStep, nextCopyText, clean,
 } from '@/lib/tasks';
+import { plainError } from '@/lib/errors';
 
 const NONE = '__none__';
+// How often, as buttons in this order (the common ones first). lib/tasks REPEAT_OPTIONS has the same values.
+const REPEAT_ORDER = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'weekdays', 'every_other_day', 'every_other_week'];
+const REPEAT_CHIP = { none: "Doesn't repeat", daily: 'Every day', weekly: 'Every week', monthly: 'Every month', yearly: 'Every year', weekdays: 'Weekdays', every_other_day: 'Every other day', every_other_week: 'Every other week' };
 const isMonthEnd = (day) => { const d = parseISO(day); return d.getDate() === new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); };
 const WHEN = [['none', 'No date'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['pick', 'Pick a day']];
 
@@ -34,7 +37,8 @@ const WHEN = [['none', 'No date'], ['today', 'Today'], ['tomorrow', 'Tomorrow'],
  * also shows its steps and how often). Then who does it, who it's for and
  * notes, nothing else (Anna, Oct 29 2026: folding extras under "More options"
  * isn't the fix; priority and category are gone, and a value an older task
- * already has is kept). Repeat is a small link. `task` null = new.
+ * already has is kept). How often is a row of buttons, like the reminder
+ * form's (Nov 14 2026; it was a small Repeat link). `task` null = new.
  * `kind` ('task' | 'checklist') applies to a new one.
  */
 export default function TaskSheet({ open, onOpenChange, task = null, kind = 'task', members = [], onChanged }) {
@@ -42,7 +46,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const queryClient = useQueryClient();
   const isNew = !task;
   const [form, setForm] = useState(blank(kind));
-  // A repeat asks for its last day, or "I don't know" (no repeat_until).
+  // A repeat asks for its last day, or "Until I stop it" (it said "I don't know" until Nov 14 2026) (no repeat_until).
   const [noEnd, setNoEnd] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -140,12 +144,11 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const needsEnd = form.recurrence !== 'none' && !form.repeat_until && !noEnd;
   // What Add/Save still needs, in words, once it's tapped (it used to just sit grey).
   const whyMissing = !form.title.trim() ? (isChecklist ? 'Give the checklist a name first.' : 'Write what needs doing first.')
-    : needsEnd ? "Pick the last day it repeats, or tick I don't know."
+    : needsEnd ? "Pick the last day it repeats, or tick Until I stop it."
     : '';
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const [picking, setPicking] = useState(false);
-  const [showRepeat, setShowRepeat] = useState(false);
-  useEffect(() => { if (open) { setPicking(false); setShowRepeat(false); setMovedTo(''); setAnchor(''); setChosen(null); setAskMonthly(false); } }, [open, task]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setPicking(false); setMovedTo(''); setAnchor(''); setChosen(null); setAskMonthly(false); } }, [open, task]); // eslint-disable-line react-hooks/exhaustive-deps
   const when = picking ? 'pick' : !form.due_date ? 'none' : form.due_date === today ? 'today' : form.due_date === tomorrow ? 'tomorrow' : 'pick';
   const setWhen = (v) => {
     setPicking(v === 'pick');
@@ -176,16 +179,18 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
     setForm((f) => ({ ...f, ...taskFromBlanks(m) }));
   };
   const repeatValue = MONTHLY_KINDS.includes(form.recurrence) ? 'monthly' : form.recurrence;
+  const pickRepeat = (v) => { if (v === repeatValue) return; if (form.recurrence === 'none') setNoEnd(false); setMovedTo(''); setAnchor(''); setChosen(null); setForm((f) => ({ ...f, recurrence: v, month_day: null })); setAskMonthly(v === 'monthly'); };
   const repeatField = (
     <div>
-      <Label className="flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeats</Label>
-      <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (form.recurrence === 'none') setNoEnd(false); setMovedTo(''); setAnchor(''); setChosen(null); setForm((f) => ({ ...f, recurrence: v, month_day: null })); setAskMonthly(v === 'monthly'); }}>
-        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {repeatOptionsFor(form.due_date).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-          {!repeatOptionsFor(form.due_date).some((o) => o.value === repeatValue) && <SelectItem value={form.recurrence}>{recurrenceLabel({ ...form, is_recurring: true }) || form.recurrence}</SelectItem>}
-        </SelectContent>
-      </Select>
+      {/* "How often" as buttons, like the reminder form (Anna, Nov 14 2026: it was a list
+          behind a Repeat link here and buttons there). */}
+      <Label>How often</Label>
+      <div className="flex flex-wrap gap-2 mt-1.5" role="radiogroup" aria-label="How often">
+        {[...REPEAT_ORDER.map((v) => ({ value: v, label: REPEAT_CHIP[v] })),
+          ...(!REPEAT_ORDER.includes(repeatValue) ? [{ value: form.recurrence, label: recurrenceLabel({ ...form, is_recurring: true }) || form.recurrence }] : [])].map((o) => (
+          <Pill key={o.value} on={repeatValue === o.value} onClick={() => pickRepeat(o.value)}>{o.label}</Pill>
+        ))}
+      </div>
       {blanks && (
         <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={pickBlanks} shortMonths="last" autoOpen={askMonthly} onOpened={() => setAskMonthly(false)}
           note={movedTo ? `It's now due ${format(parseISO(movedTo), 'EEE, MMM d')}, the first one.` : ''} />
@@ -204,10 +209,10 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             <Input type="date" value={form.repeat_until || ''} min={form.due_date || today} disabled={noEnd}
               onChange={(e) => { set('repeat_until', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-[9.5rem]" aria-label="Last day it repeats" />
             <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-              <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('repeat_until', ''); }} /> I don't know
+              <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('repeat_until', ''); }} /> Until I stop it
             </label>
           </div>
-          {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick I don't know. You can stop it any time.</p>}
+          {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick Until I stop it.</p>}
         </div>
       )}
       {!isNew && task?.recurrence && task.recurrence !== 'none' && !stopped && (
@@ -216,7 +221,8 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
         </Button>
       )}
       {stopped && <p className="text-xs text-primary mt-2">It won't come back after this one. Tap Save.</p>}
-      {form.recurrence !== 'none' && !form.due_date && <p className="text-xs text-muted-foreground mt-1">Starts today; finishing it brings the next one.</p>}
+      {/* Says why with "No date" picked (Anna, Nov 14 2026: it read "Starts today" under "No date"). */}
+      {form.recurrence !== 'none' && !form.due_date && <p className="text-xs text-muted-foreground mt-1">With no date picked, it starts today. Finishing it brings the next one.</p>}
       {!isNew && form.recurrence !== 'none' && <p className="text-xs text-muted-foreground mt-1">{nextCopyText({ ...task, ...form })}</p>}
     </div>
   );
@@ -244,8 +250,8 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
                 {form.due_date && (form.due_time || showTime) && <Input type="time" value={form.due_time} onChange={(e) => set('due_time', e.target.value)} aria-label="Time" className="flex-1" />}
               </div>
             )}
-            {form.due_date && !form.due_time && !showTime && <button type="button" onClick={() => { setShowTime(true); set('due_time', `${String((new Date().getHours() + 1) % 24).padStart(2, '0')}:00`); }} className="text-sm text-primary font-medium mt-2">+ Add a time (sends a push)</button>}
-            {form.due_date && form.due_time && <p className="text-xs text-muted-foreground mt-1">{form.assigned_user_id && form.assigned_user_id !== NONE ? 'The person doing it gets' : 'Everyone gets'} a push at that time.</p>}
+            {form.due_date && !form.due_time && !showTime && <button type="button" onClick={() => { setShowTime(true); set('due_time', `${String((new Date().getHours() + 1) % 24).padStart(2, '0')}:00`); }} className="text-sm text-primary font-medium mt-2">+ Add a time (sends a notification)</button>}
+            {form.due_date && form.due_time && <p className="text-xs text-muted-foreground mt-1">{form.assigned_user_id && form.assigned_user_id !== NONE ? 'The person doing it gets' : 'Everyone gets'} a notification at that time.</p>}
           </div>
 
           {(isChecklist || steps.length > 0) && (
@@ -260,8 +266,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             </div>
           )}
 
-          {isChecklist || form.recurrence !== 'none' || showRepeat ? repeatField
-            : <button type="button" onClick={() => setShowRepeat(true)} className="text-sm text-primary font-medium flex items-center gap-1 -mt-1"><Repeat className="w-3.5 h-3.5" /> Repeat</button>}
+          {repeatField}
 
           <div>
             <Label>Who does it</Label>
@@ -271,8 +276,8 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             </div>
             {forPeople.length > 0 && (
               <>
-                <p className="text-xs text-muted-foreground mt-2.5 mb-1.5">For</p>
-                <div className="flex flex-wrap gap-2">
+                <Label className="block mt-4">For</Label>
+                <div className="flex flex-wrap gap-2 mt-1.5">
                   <Pill on={!form.family_member_id || form.family_member_id === NONE} onClick={() => set('family_member_id', NONE)}>Whole family</Pill>
                   {/* People only (Anna, Oct 29 2026: pets don't belong here); you first. */}
                   {forPeople.map((m) => <Pill key={m.id} on={form.family_member_id === m.id} onClick={() => set('family_member_id', m.id)}>{peopleNames.get(m.id) || String(m.name || '').split(' ')[0]}</Pill>)}
@@ -301,7 +306,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
             <Button onClick={() => { if (whyMissing) { setMissing(true); return; } save.mutate(); }} disabled={save.isPending}>{save.isPending ? 'Saving…' : isNew ? 'Add' : 'Save'}</Button>
           </div>
           <MissingNote text={missing ? whyMissing : ''} className="-mt-2" />
-          {save.isError && <p className="text-xs text-destructive">Couldn't save: {save.error?.message || 'try again'}</p>}
+          {save.isError && <p className="text-xs text-destructive">Couldn't save. {plainError(save.error)}</p>}
         </div>
       </DialogContent>
 

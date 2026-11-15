@@ -6,6 +6,7 @@ import { toast } from '@/components/ui/use-toast';
 import { track } from '@/lib/activity';
 import { REMINDERS_KEY, todayStr } from '@/lib/reminders';
 import { canClaim, claimDayFor, claimOn, firstName, setClaim } from '@/lib/claims';
+import { plainError } from '@/lib/errors';
 
 /**
  * "I'll take it" on an event or a reminder (Anna, Oct 30 2026). Anyone who
@@ -45,7 +46,7 @@ export default function ClaimButton({ kind, item, date, className = '', over = f
         : { title: 'Let go', description: "It's open again, and whoever added it knows." });
     } catch (err) {
       setLocal(undefined);
-      toast({ title: take ? "Couldn't take it" : "Couldn't let go", description: err?.message || 'Try again', variant: 'destructive' });
+      toast({ title: take ? "Couldn't take it" : "Couldn't let go", description: plainError(err), variant: 'destructive' });
     } finally {
       setBusy(false);
       await qc.invalidateQueries({ queryKey: kind === 'event' ? ['appointments'] : REMINDERS_KEY });

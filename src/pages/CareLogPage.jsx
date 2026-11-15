@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch';
 import { caredFor, isMine, buttonKey, thingOf, useCarePrivacy } from '@/lib/carePrivacy';
 import { track } from '@/lib/activity';
 import { bandOf, ageMonths, cleanLog, createLog, updateLog, deleteLog, upcoming, summarize, isLocked, QUICK, matchesQuick, quickRow } from '@/lib/careLog';
+import { plainError } from '@/lib/errors';
 
 // Who has a Care Log (Anna, Nov 10 2026): the people the family takes care of
 // (their profile says so, or they're under 18 and it doesn't say otherwise)
@@ -141,7 +142,7 @@ export default function CareLogPage() {
       }
       setDialog({ open: false, entry: null, type: null, preset: null });
     },
-    onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }),
   });
   const remove = useMutation({ mutationFn: (entry) => deleteLog(entry.id), onSuccess: () => { refresh(); setDialog({ open: false, entry: null, type: null, preset: null }); } });
 
@@ -169,7 +170,7 @@ export default function CareLogPage() {
         ),
       });
     } catch (e) {
-      toast({ title: "Couldn't log it", description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: "Couldn't log it", description: plainError(e), variant: 'destructive' });
     } finally { setBusyKey(''); }
   };
 

@@ -19,6 +19,7 @@ import {
   vaultSupported, getVault, createVault, unlockVault, recoverVault, changePassword, eraseVault, lockVault, isOpen, subscribe,
   listItems, saveItem, deleteItem, moveOldEntries, countOldEntries, KINDS, kindOf,
 } from '@/lib/vault';
+import { plainError } from '@/lib/errors';
 
 const MIN_PASSWORD = 8;
 
@@ -128,7 +129,7 @@ export default function VaultSection({ person, people = [] }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={async () => {
-              try { await eraseVault(vault); track('action', 'vault:erased'); } catch (e) { toast({ title: "Couldn't erase it", description: e?.message, variant: 'destructive' }); }
+              try { await eraseVault(vault); track('action', 'vault:erased'); } catch (e) { toast({ title: "Couldn't erase it", description: plainError(e), variant: 'destructive' }); }
               qc.invalidateQueries({ queryKey: ['vault'] });
             }}>Erase</AlertDialogAction>
           </AlertDialogFooter>
@@ -196,7 +197,7 @@ function SetupDialog({ open, onOpenChange, me, onDone }) {
       setMade(res); setPw(''); setAgain('');
       track('action', 'vault:set up');
     } catch (e) {
-      toast({ title: "Couldn't set it up", description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: "Couldn't set it up", description: plainError(e), variant: 'destructive' });
     } finally { setBusy(false); }
   };
   const finish = () => { const v = made?.vault; onOpenChange(false); if (v) onDone(v); };
@@ -338,13 +339,13 @@ function ItemDialog({ open, onOpenChange, vault, item, people, onSaved }) {
       track('action', editing ? 'vault:entry changed' : 'vault:entry added');
       onSaved();
     } catch (e) {
-      toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' });
     } finally { setBusy(false); }
   };
   const remove = async () => {
     setBusy(true);
     try { await deleteItem(item.id); track('action', 'vault:entry deleted'); onSaved(); }
-    catch (e) { toast({ title: "Couldn't delete", description: e?.message, variant: 'destructive' }); }
+    catch (e) { toast({ title: "Couldn't delete", description: plainError(e), variant: 'destructive' }); }
     finally { setBusy(false); }
   };
 

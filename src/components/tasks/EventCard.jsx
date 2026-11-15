@@ -15,6 +15,7 @@ import { categoryOf, isRecordable } from '@/components/calendar/EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ClaimButton from '@/components/shared/ClaimButton';
 import { shownTitle } from '@/lib/eventTitle';
+import { plainError } from '@/lib/errors';
 
 function fmtTime(t) {
   if (!t) return '';
@@ -54,7 +55,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
       track('action', next ? 'done:event' : 'undo:event');
     } catch (err) {
       setLocal(undefined);
-      toast({ title: "Couldn't save", description: err?.message || 'Try again', variant: 'destructive' });
+      toast({ title: "Couldn't save", description: plainError(err), variant: 'destructive' });
     } finally {
       setBusy(false);
       await qc.invalidateQueries({ queryKey: ['appointments'] });

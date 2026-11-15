@@ -7,6 +7,7 @@ import { withFamily, useFamily } from '@/lib/family';
 import { toast } from '@/components/ui/use-toast';
 import ReminderDialog from '@/components/reminders/ReminderDialog';
 import { REMINDERS_KEY, listReminders, cleanMed, adherence } from '@/lib/reminders';
+import { plainError } from '@/lib/errors';
 
 /**
  * Repeating reminders, for the To-do page: the list, the last 14 days of
@@ -31,7 +32,7 @@ export default function useReminderEditor(members = []) {
       return base44.entities.Medication.create(withFamily(data));
     },
     onSuccess: (_r, form) => { track('action', dialog.med?.id ? 'edit:reminder' : 'add:reminder', `${form.how || form.frequency || ''} ${form.visibility === 'private' ? 'just me' : 'everyone'}`); refresh(); close(); },
-    onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }),
   });
   const remove = useMutation({
     mutationFn: async (med) => {

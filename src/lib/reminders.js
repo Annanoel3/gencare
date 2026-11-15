@@ -185,7 +185,7 @@ export function cleanMed(form, members, me) {
     data.times = nagTimes(start.anchor, data.priority);
   }
   if (form.refill_date && !once && !oneTime) data.refill_date = form.refill_date; else data.refill_date = null;
-  // A repeating one's last day (empty = "I don't know").
+  // A repeating one's last day (empty = "Until I stop it").
   data.end_date = !once && !oneTime && /^\d{4}-\d{2}-\d{2}$/.test(form.end_date || '') ? form.end_date : null;
   if (form.start_date) data.start_date = form.start_date; else data.start_date = null;
   return data;

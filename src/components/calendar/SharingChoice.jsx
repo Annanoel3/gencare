@@ -3,6 +3,7 @@ import { Sparkles, Users, Lock, Loader2, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from '@/components/ui/use-toast';
 import { saveSharingDefault } from '@/lib/calendarSync';
+import { plainError } from '@/lib/errors';
 
 // "Who sees the events you add?" — asked once, the first time someone opens
 // the Calendar, and changeable in Settings → My Family. Counts for events
@@ -53,7 +54,7 @@ export function useSharingChoice(onSaved) {
       await saveSharingDefault(value);
       onSaved?.(value);
     } catch (e) {
-      toast({ title: 'Could not save that', description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: 'Could not save that', description: plainError(e), variant: 'destructive' });
     } finally { setBusy(''); }
   };
   return { busy, pick };

@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useFamily, orderMembers } from '@/lib/family';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,9 +65,9 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   const [form, setForm] = useState(blank(defaultDate, sharingDefault));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
-  // A repeat asks for its last day, or "I don't know" (Anna, Oct 29 2026:
+  // A repeat asks for its last day, or "Until I stop it" (it said "I don't know" until Nov 14 2026) (Anna, Oct 29 2026:
   // repeats used to go on forever). Not saved on its own: a repeat with no
-  // last day is the "I don't know" one.
+  // last day is the "Until I stop it" one.
   const [noEnd, setNoEnd] = useState(false);
   const [stopped, setStopped] = useState('');
   // Which of sharing / who it's for / category the person picked themselves.
@@ -187,7 +188,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   // What Add still needs, said in words (shown after Add is tapped, gone once it's filled in).
   const whyMissing = !form.title.trim() ? 'Add a title first (under What).'
     : !form.date ? 'Pick a day first.'
-    : needsEnd ? "Pick the last day it repeats, or tick I don't know."
+    : needsEnd ? "Pick the last day it repeats, or tick Until I stop it."
     : '';
   // "Stop repeating": the days up to today stay; nothing after. One that
   // hasn't started yet just becomes a one-time event on its first day.
@@ -327,10 +328,10 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                   <Input type="date" value={form.until || ''} min={form.date || undefined} disabled={noEnd}
                     onChange={(e) => { set('until', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-[9.5rem]" aria-label="Last day it repeats" />
                   <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-                    <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('until', ''); }} /> I don't know
+                    <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('until', ''); }} /> Until I stop it
                   </label>
                 </div>
-                {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick I don't know. You can stop it any time.</p>}
+                {needsEnd && <p className="text-xs text-muted-foreground mt-1.5">Pick its last day, or tick Until I stop it.</p>}
                 {editing && !!appt?.recurrence && !stopped && (
                   <Button type="button" variant="outline" size="sm" onClick={stopRepeating} className="mt-2.5 gap-1.5">
                     <CircleStop className="w-4 h-4" /> Stop repeating
@@ -430,11 +431,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
 
           <div className="flex items-center justify-between gap-3 pt-2">
             {editing ? (
-              confirmDelete ? (
-                <Button variant="destructive" size="sm" onClick={() => { clearTimeout(timer.current); onDelete(appt); }} disabled={saving}>Yes, delete it</Button>
-              ) : (
-                <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>
-              )
+              <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)} disabled={saving}><Trash2 className="w-4 h-4" /> Delete</Button>
             ) : <span />}
             {editing ? (
               <div className="flex items-center gap-3">
@@ -461,6 +458,24 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
           </div>
         </div>
       </DialogContent>
+      {/* The same Delete / Keep it box as reminders and posts (Anna, Nov 14 2026: Delete used to turn
+          into "Yes, delete it" in the same spot, so a double tap deleted it). */}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {appt?.title ? `"${appt.title}"` : 'this event'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {appt?.recurrence ? 'Every time it repeats goes too. To keep the days already past, tap Stop repeating instead. ' : ''}
+              {appt?.visibility === 'private' ? '' : "It comes off the family's calendar too. "}
+              This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { clearTimeout(timer.current); onDelete(appt); }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -16,6 +16,7 @@ import { toast } from '@/components/ui/use-toast';
 import WellnessHistory from '@/components/wellness/WellnessHistory';
 import DaySheet from '@/components/wellness/DaySheet';
 import { MOODS, STRESS, SELF_CARE, isHard } from '@/lib/wellness';
+import { plainError } from '@/lib/errors';
 
 // Caregiver wellness: a private daily check-in (mood, stress, sleep, what you
 // did for yourself, notes), a month you can page back through where tapping a
@@ -68,7 +69,7 @@ export default function Wellness() {
       return base44.entities.WellnessCheckin.create({ ...row, user_id: me.id, family_id: me.family_id || family?.id || null, day: today });
     },
     onSuccess: () => { track('action', 'save:wellness check-in'); queryClient.invalidateQueries({ queryKey: ['wellnessCheckins'] }); toast({ title: 'Saved', description: 'Just for you. The family never sees this.' }); },
-    onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }),
   });
   const remove = useMutation({
     mutationFn: (c) => base44.entities.WellnessCheckin.delete(c.id),
@@ -83,7 +84,7 @@ export default function Wellness() {
       await base44.auth.updateMe({ wellness_reminder_hour: hour });
       if (family) apply({ family, me: { ...me, wellness_reminder_hour: hour } });
       toast({ title: hour < 0 ? 'Reminder off' : `Reminder set for ${fmtHour(hour)}` });
-    } catch (e) { toast({ title: "Couldn't save", description: e?.message, variant: 'destructive' }); }
+    } catch (e) { toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }); }
   };
 
   // Last 14 days, oldest first, for the strip; and the burnout read.
@@ -191,7 +192,7 @@ export default function Wellness() {
         <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1">
             <p className="font-medium flex items-center gap-2"><Bell className="w-4 h-4 text-primary" /> Daily reminder</p>
-            <p className="text-sm text-muted-foreground">A quiet push once a day asking how you're holding up. Skipped on days you've already checked in.</p>
+            <p className="text-sm text-muted-foreground">A quiet notification once a day asking how you're holding up. Skipped on days you've already checked in.</p>
           </div>
           <Select value={reminderOn(me?.wellness_reminder_hour) ? String(me.wellness_reminder_hour) : 'off'} onValueChange={setReminder}>
             <SelectTrigger className="w-[150px] rounded-xl"><SelectValue /></SelectTrigger>

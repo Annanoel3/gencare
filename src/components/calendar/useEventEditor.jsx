@@ -10,6 +10,7 @@ import { withFamily } from '@/lib/family';
 import { track } from '@/lib/activity';
 import { toast } from '@/components/ui/use-toast';
 import EventDialog from '@/components/calendar/EventDialog';
+import { plainError } from '@/lib/errors';
 
 /**
  * Open an event right where you are (Anna, Oct 29 2026: tapping an event on
@@ -80,7 +81,7 @@ export default function useEventEditor(members = []) {
       toast({ title: 'Copied', description: 'The new event is on the calendar.' });
       sortNewEvent(made, left, sharingDefaultOf(me)).then((r) => { if (r) afterChange(); }).catch(() => {});
     },
-    onError: (e) => toast({ title: 'Could not save the event', description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: 'Could not save the event', description: plainError(e), variant: 'destructive' }),
   });
 
   const remove = useMutation({
@@ -89,7 +90,7 @@ export default function useEventEditor(members = []) {
       return base44.entities.Appointment.delete(appt.id);
     },
     onSuccess: () => { track('action', 'delete:event'); session.current = null; setOpen(false); afterChange(); },
-    onError: (e) => toast({ title: 'Could not delete', description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: 'Could not delete', description: plainError(e), variant: 'destructive' }),
   });
 
   const editor = (

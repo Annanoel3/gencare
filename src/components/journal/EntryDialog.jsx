@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/use-toast';
 import { CATEGORIES, MOODS, todayStr, uploadPhoto } from '@/lib/journal';
 import PrivateImage from './PrivateImage';
+import { plainError } from '@/lib/errors';
 
 const NOBODY = '__family__';
 
@@ -55,7 +56,7 @@ export default function EntryDialog({ open, onOpenChange, entry, members = [], d
       }
       set('photos', [...form.photos, ...uris]);
     } catch (err) {
-      toast({ title: "Couldn't add the photo", description: err?.message, variant: 'destructive' });
+      toast({ title: "Couldn't add the photo", description: plainError(err), variant: 'destructive' });
     } finally {
       setUploading(false);
     }

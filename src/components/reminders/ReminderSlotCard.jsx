@@ -10,6 +10,7 @@ import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import { markSlot, fmtClock, REMINDERS_KEY } from '@/lib/reminders';
 import ClaimButton from '@/components/shared/ClaimButton';
+import { plainError } from '@/lib/errors';
 
 /**
  * One of today's reminders on the Reminders page, between the day's events
@@ -33,7 +34,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
 
   const mark = async (status) => {
     setBusy(true);
-    try { await markSlot(s, status, me); track('action', status === 'taken' ? 'done:reminder' : status === 'skipped' ? 'skip:reminder' : 'undo:reminder', s.med.frequency === 'Once' ? 'until done' : ''); } catch (e) { toast({ title: "Couldn't save", description: e?.message, variant: 'destructive' }); }
+    try { await markSlot(s, status, me); track('action', status === 'taken' ? 'done:reminder' : status === 'skipped' ? 'skip:reminder' : 'undo:reminder', s.med.frequency === 'Once' ? 'until done' : ''); } catch (e) { toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }); }
     finally { setBusy(false); }
     queryClient.invalidateQueries({ queryKey: ['reminderLogs'] });
     if (s.med.frequency === 'Once') queryClient.invalidateQueries({ queryKey: REMINDERS_KEY });

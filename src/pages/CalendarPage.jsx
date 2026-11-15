@@ -30,6 +30,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { getMemberColorClass, getUserColorClass, PRIVATE_COLOR, PET_COLOR, isPet, whoseEvent } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { toast } from '@/components/ui/use-toast';
+import { plainError } from '@/lib/errors';
 
 // A name to tap above the calendar: just their events, or (on again) everyone's.
 function PersonChip({ on, dot, onClick, children }) {
@@ -208,7 +209,7 @@ export default function CalendarPage() {
         if (line) toast({ title: 'Added', description: line });
       }).catch(() => {});
     },
-    onError: (e) => toast({ title: 'Could not save the event', description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: 'Could not save the event', description: plainError(e), variant: 'destructive' }),
   });
 
   // Editing saves as you go; the family is told once, when the event closes.
@@ -251,7 +252,7 @@ export default function CalendarPage() {
       return base44.entities.Appointment.delete(appt.id);
     },
     onSuccess: () => { track('action', 'delete:event'); editSession.current = null; afterChange(); setDialogOpen(false); setEditing(null); },
-    onError: (e) => toast({ title: 'Could not delete', description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: 'Could not delete', description: plainError(e), variant: 'destructive' }),
   });
 
   const saving = createMutation.isPending || deleteMutation.isPending;
@@ -274,7 +275,7 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       exportSoon();
     } catch (e) {
-      toast({ title: 'Could not sort', description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: 'Could not sort', description: plainError(e), variant: 'destructive' });
     } finally { setResorting(false); }
   };
   const askSharing = !!me?.id && !sharingDefault && !askClosed && !dialogOpen && !phoneOpen && !photoOpen && !params.get('open') && !params.get('photo');

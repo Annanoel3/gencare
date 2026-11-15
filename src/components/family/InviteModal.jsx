@@ -4,13 +4,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Copy, Check, RefreshCw } from 'lucide-react';
 import { createInvite } from '@/lib/family';
+import { plainError } from '@/lib/errors';
 
 // `member` (optional): the profile this invite is for. Whoever joins with it
 // becomes that profile, so the family's notes about them stay with them.
 export default function InviteModal({ open, onClose, member }) {
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(''); // 'code' | 'link'
 
   const [error, setError] = useState('');
 
@@ -21,7 +22,7 @@ export default function InviteModal({ open, onClose, member }) {
     try {
       setInvite(await createInvite(member?.id));
     } catch (e) {
-      setError(e?.message || 'Could not make an invite code');
+      setError(plainError(e, "Couldn't make an invite code. Check your connection and try again."));
     }
     setLoading(false);
   };
@@ -34,14 +35,14 @@ export default function InviteModal({ open, onClose, member }) {
 
   const copyCode = () => {
     navigator.clipboard.writeText(invite.code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied('code');
+    setTimeout(() => setCopied(''), 2000);
   };
 
   const copyLink = () => {
     navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied('link');
+    setTimeout(() => setCopied(''), 2000);
   };
 
   return (
@@ -73,22 +74,21 @@ export default function InviteModal({ open, onClose, member }) {
 
             <div className="w-full bg-muted rounded-xl p-4 flex flex-col items-center gap-2">
               <p className="text-xs text-muted-foreground">Or type this code at {window.location.origin}/join</p>
-              <div className="flex items-center gap-3">
-                <span className="text-3xl font-mono font-bold tracking-widest text-foreground">
-                  {invite.code}
-                </span>
-                <Button size="icon" variant="ghost" onClick={copyCode}>
-                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
+              <span className="text-3xl font-mono font-bold tracking-widest text-foreground">
+                {invite.code}
+              </span>
             </div>
 
-            <div className="flex gap-2 w-full">
-              <Button variant="outline" className="flex-1" onClick={copyLink}>
-                Copy Link
+            {/* Buttons with words (the copy and new-code buttons were icons only; Anna, Nov 14 2026). */}
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <Button variant="outline" className="gap-1.5" onClick={copyCode}>
+                {copied === 'code' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />} {copied === 'code' ? 'Copied' : 'Copy code'}
               </Button>
-              <Button variant="outline" size="icon" onClick={makeInvite}>
-                <RefreshCw className="w-4 h-4" />
+              <Button variant="outline" className="gap-1.5" onClick={copyLink}>
+                {copied === 'link' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />} {copied === 'link' ? 'Copied' : 'Copy link'}
+              </Button>
+              <Button variant="outline" className="gap-1.5 col-span-2" onClick={makeInvite}>
+                <RefreshCw className="w-4 h-4" /> Make a new code
               </Button>
             </div>
           </div>

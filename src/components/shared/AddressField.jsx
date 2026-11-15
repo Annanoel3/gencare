@@ -37,6 +37,19 @@ export default function AddressField({ value, onChange, className = '' }) {
   const [savingZip, setSavingZip] = useState(false);
   const box = useRef(null);
   const q = String(value || '').trim();
+  // An address too long for the box shows in full under it, so it can be
+  // checked (Anna, Nov 14 2026: "H&R Block on Burne…" was all you could see).
+  const input = useRef(null);
+  const [cut, setCut] = useState(false);
+  useEffect(() => {
+    const el = input.current;
+    if (!el) return undefined;
+    const check = () => setCut(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [q]);
   const { data: saved = [] } = useQuery({ queryKey: SAVED_PLACES_KEY, queryFn: listSavedPlaces, enabled: focused, staleTime: 5 * 60_000 });
   const ours = typing && q.length >= 2 ? savedMatching(q, saved).filter((p) => p.address !== q) : [];
 
@@ -99,7 +112,7 @@ export default function AddressField({ value, onChange, className = '' }) {
       <div className="flex items-center gap-2">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <Input value={value || ''} onChange={(e) => { onChange(e.target.value); setTyping(true); }} onFocus={onFocus}
+          <Input ref={input} value={value || ''} onChange={(e) => { onChange(e.target.value); setTyping(true); }} onFocus={onFocus}
             placeholder="Search a place or an address" autoComplete="off" className="pl-9 pr-8" />
           {q && <button type="button" onClick={() => pick('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground" aria-label="Clear the place"><X className="w-3.5 h-3.5" /></button>}
         </div>
@@ -110,6 +123,7 @@ export default function AddressField({ value, onChange, className = '' }) {
         )}
       </div>
       {focused && !q && !needZip && <p className="text-xs text-muted-foreground mt-1.5">Start typing a name or address and pick it from the list.</p>}
+      {q && cut && !showList && <p className="text-sm mt-1.5 flex items-start gap-1.5 break-words"><MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" /><span className="min-w-0">{q}</span></p>}
 
       {needZip && (
         <div className="mt-2 rounded-xl border border-border bg-muted/50 p-3">

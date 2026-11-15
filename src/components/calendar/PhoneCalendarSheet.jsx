@@ -15,6 +15,7 @@ import {
   saveCalendarSettings, runImport, runExport, calendarStatus, peekCalendars, pruneImports,
 } from '@/lib/calendarSync';
 import { format } from 'date-fns';
+import { plainError } from '@/lib/errors';
 
 // "Thu, Oct 29, 9:00 AM" (all-day events sit at UTC midnight of their day).
 function peekWhen(next) {
@@ -84,7 +85,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
       refresh();
       return next;
     } catch (e) {
-      toast({ title: 'Could not save', description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: 'Could not save', description: plainError(e), variant: 'destructive' });
       return null;
     } finally { setBusy(''); }
   };

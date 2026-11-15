@@ -5,6 +5,7 @@ import { withFamily, useFamily, relationshipLabel, orderMembers, RELATIONSHIPS }
 import { Link, useSearchParams } from 'react-router-dom';
 import { Users, Plus, School, QrCode, StickyNote, PawPrint } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
+import MissingNote from '@/components/shared/MissingNote';
 import CaredForSwitch, { caredForShown } from '@/components/family/CaredForSwitch';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -22,6 +23,7 @@ const EMPTY = { name: '', relationship: '', birthdate: '', care_notes: '' };
 
 export default function Family() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [triedAdd, setTriedAdd] = useState(false);
   const [petMode, setPetMode] = useState(false);
   // ?invite=1 (the welcome chat's "Invite my family") opens the invite right away.
   const [params] = useSearchParams();
@@ -29,8 +31,10 @@ export default function Family() {
   const [inviteFor, setInviteFor] = useState(null);
   const [inviteAfterAdd, setInviteAfterAdd] = useState(false);
   const [form, setForm] = useState(EMPTY);
+  const addMissing = !String(form.name || '').trim() ? (petMode ? "Write the pet's name first." : 'Write their name first.')
+    : !form.relationship ? 'Pick how they are related first.' : '';
   // One form for people and pets; a pet is a profile with relationship "Pet".
-  const openAdd = (pet) => { setPetMode(pet); setForm({ ...EMPTY, relationship: pet ? 'Pet' : '' }); setDialogOpen(true); };
+  const openAdd = (pet) => { setPetMode(pet); setForm({ ...EMPTY, relationship: pet ? 'Pet' : '' }); setTriedAdd(false); setDialogOpen(true); };
   const queryClient = useQueryClient();
 
   const { data: members = [], isLoading } = useQuery({
@@ -193,19 +197,21 @@ export default function Family() {
                 <Button
                   variant="outline"
                   className="gap-2"
-                  onClick={() => { setInviteAfterAdd(true); createMutation.mutate(form); }}
-                  disabled={!form.name || !form.relationship || createMutation.isPending}
+                  onClick={() => { if (addMissing) { setTriedAdd(true); return; } setInviteAfterAdd(true); createMutation.mutate(form); }}
+                  disabled={createMutation.isPending}
                 >
                   <QrCode className="w-4 h-4" /> Add &amp; Invite
                 </Button>
               )}
               <Button
-                onClick={() => { setInviteAfterAdd(false); createMutation.mutate(form); }}
-                disabled={!form.name || !form.relationship || createMutation.isPending}
+                onClick={() => { if (addMissing) { setTriedAdd(true); return; } setInviteAfterAdd(false); createMutation.mutate(form); }}
+                disabled={createMutation.isPending}
               >
                 {createMutation.isPending ? 'Adding...' : petMode ? 'Add Pet' : 'Add Member'}
               </Button>
             </div>
+            {/* Says what's missing when tapped (the buttons used to sit pale; Anna, Nov 14 2026). */}
+            <MissingNote text={triedAdd ? addMissing : ''} className="-mt-2" />
           </div>
         </DialogContent>
       </Dialog>

@@ -12,6 +12,7 @@ import { getMemberColorClass } from '@/utils/memberColors';
 import EntryDialog from '@/components/journal/EntryDialog';
 import EntryCard from '@/components/journal/EntryCard';
 import { CATEGORIES, createEntry, updateEntry, deleteEntry, groupByDay, dayLabel } from '@/lib/journal';
+import { plainError } from '@/lib/errors';
 
 /**
  * The journal: what you noticed about the people you look after, day by day.
@@ -43,7 +44,7 @@ export default function Journal() {
   const save = useMutation({
     mutationFn: (form) => (dialog.entry?.id ? updateEntry(dialog.entry.id, form, members, me) : createEntry(form, members, me)),
     onSuccess: () => { refresh(); queryClient.invalidateQueries({ queryKey: ['memberJournal'] }); setDialog({ open: false, entry: null }); },
-    onError: (e) => toast({ title: "Couldn't save", description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }),
   });
   const remove = useMutation({
     mutationFn: (entry) => deleteEntry(entry.id),

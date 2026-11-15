@@ -9,6 +9,7 @@ import { useFamily, claimProfile, makeMyProfile } from '@/lib/family';
 import { isNativeApp } from '@/lib/phone';
 import { wasAsked, onPermissionAnswered } from '@/lib/notifyPermission';
 import { waitForWelcome } from '@/lib/welcome';
+import { plainError } from '@/lib/errors';
 
 const declinedKey = (userId) => `gencare_profile_declined_${userId}`;
 function readDeclined(userId) {
@@ -62,7 +63,7 @@ export default function ClaimProfilePrompt() {
       refresh?.();
       setClosed(true);
     } catch (e) {
-      toast({ title: 'Could not do that', description: e?.message || 'Try again', variant: 'destructive' });
+      toast({ title: 'Could not do that', description: plainError(e), variant: 'destructive' });
     } finally { setBusy(''); }
   };
 

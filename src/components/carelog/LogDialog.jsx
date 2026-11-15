@@ -12,6 +12,8 @@ import { toast } from '@/components/ui/use-toast';
 import { MOODS, nowLocal, pretty, typeDef, CATALOG, bandOf } from '@/lib/careLog';
 import { uploadPhoto } from '@/lib/journal';
 import PrivateImage from '@/components/journal/PrivateImage';
+import MissingNote from '@/components/shared/MissingNote';
+import { plainError } from '@/lib/errors';
 
 function toLocal(iso) {
   if (!iso) return nowLocal();
@@ -33,6 +35,7 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
   const [form, setForm] = useState({});
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [missing, setMissing] = useState(false);
   const fileRef = useRef(null);
   const editing = !!entry?.id;
   const def = typeDef(band, entryType);
@@ -40,6 +43,7 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
   useEffect(() => {
     if (!open) return;
     setConfirmDelete(false);
+    setMissing(false);
     const t = entry?.entry_type || type || types[0]?.type;
     setEntryType(t);
     const d = typeDef(band, t);
@@ -80,12 +84,15 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
       for (const f of files.slice(0, 6)) { const u = await uploadPhoto(f); if (u) uris.push(u); }
       set('photos', [...(form.photos || []), ...uris]);
     } catch (err) {
-      toast({ title: "Couldn't add the photo", description: err?.message, variant: 'destructive' });
+      toast({ title: "Couldn't add the photo", description: plainError(err), variant: 'destructive' });
     } finally { setUploading(false); }
   };
 
   const required = def.fields.filter((f) => f.required && (!f.when || f.when(form)));
   const valid = member && required.every((f) => String(form[f.key] || '').trim());
+  // Said in words when Log it is tapped (it used to sit pale; Anna, Nov 14 2026).
+  const emptyField = required.find((f) => !String(form[f.key] || '').trim());
+  const whyMissing = !member ? 'Pick who it is for first.' : emptyField ? `Fill in ${String(emptyField.label || 'the box marked *').replace(/\s*\*$/, '')} first.` : '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,8 +137,9 @@ export default function LogDialog({ open, onOpenChange, member, entry, type, pre
             {editing && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>}
             <div className="flex-1" />
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={() => onSave(form, def)} disabled={!valid || saving || uploading}>{saving ? 'Saving…' : editing ? 'Save' : 'Log it'}</Button>
+            <Button onClick={() => { if (!valid) { setMissing(true); return; } onSave(form, def); }} disabled={saving || uploading}>{saving ? 'Saving…' : editing ? 'Save' : 'Log it'}</Button>
           </div>
+          <MissingNote text={missing ? whyMissing : ''} className="-mt-2" />
         </div>
       </DialogContent>
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>

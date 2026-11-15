@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { TEXT_SIZES, savedTextSize, setTextSize } from '@/lib/textSize';
+import MissingNote from '@/components/shared/MissingNote';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon, LogOut, MessageCircleHeart } from 'lucide-react';
@@ -15,6 +16,7 @@ import { signOut } from '@/lib/widgets';
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [textSize, setTextSizeState] = useState(savedTextSize());
+  const [emailMissing, setEmailMissing] = useState(false);
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -40,6 +42,7 @@ export default function Settings() {
 
   const closeEmailDialog = () => {
     setEmailDialogOpen(false);
+    setEmailMissing(false);
     setNewEmail('');
     setSubmitted(false);
   };
@@ -233,12 +236,13 @@ export default function Settings() {
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="outline" onClick={closeEmailDialog}>Cancel</Button>
                 <Button
-                  onClick={handleSubmitEmailChange}
-                  disabled={!newEmail.includes('@') || submitting}
+                  onClick={() => { if (!newEmail.includes('@')) { setEmailMissing(true); return; } handleSubmitEmailChange(); }}
+                  disabled={submitting}
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Request'}
                 </Button>
               </div>
+              <MissingNote text={emailMissing && !newEmail.includes('@') ? (newEmail.trim() ? 'That email address needs an @.' : 'Type the new email address first.') : ''} className="-mt-2" />
             </div>
           )}
         </DialogContent>

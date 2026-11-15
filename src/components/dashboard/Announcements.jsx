@@ -13,6 +13,7 @@ import { useFamily } from '@/lib/family';
 import { track } from '@/lib/activity';
 import { serverDate } from '@/lib/serverTime';
 import { useNow } from '@/lib/eventTiming';
+import MissingNote from '@/components/shared/MissingNote';
 import {
   MESSAGES_KEY, listMessages, postMessage, activeAnnouncements, markAnnouncementDone, takeDownAnnouncement, ANNOUNCE_DAYS,
   postedAt, scheduledAnnouncements, sendAnnouncementNow, deleteMessage,
@@ -182,11 +183,12 @@ export function AnnounceDialog({ open, onClose, initialText = '', onPosted }) {
   const [later, setLater] = useState(false);
   const [day, setDay] = useState(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'));
   const [time, setTime] = useState('09:00');
+  const [missing, setMissing] = useState(false);
   // Opened again (from the Feed with what was typed there): start from that.
   const [lastOpen, setLastOpen] = useState(false);
   if (open !== lastOpen) {
     setLastOpen(open);
-    if (open) { setText(initialText || ''); setDays(3); setLater(false); setDay(format(addDays(new Date(), 1), 'yyyy-MM-dd')); setTime('09:00'); }
+    if (open) { setText(initialText || ''); setDays(3); setLater(false); setDay(format(addDays(new Date(), 1), 'yyyy-MM-dd')); setTime('09:00'); setMissing(false); }
   }
 
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -256,9 +258,11 @@ export function AnnounceDialog({ open, onClose, initialText = '', onPosted }) {
             ))}
           </div>
         </div>
-        <Button className="w-full h-11 rounded-xl" disabled={!text.trim() || !atOk || post.isPending} onClick={() => post.mutate()}>
+        <Button className="w-full h-11 rounded-xl" disabled={post.isPending} onClick={() => { if (!text.trim() || !atOk) { setMissing(true); return; } post.mutate(); }}>
           {post.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {later ? 'Saving…' : 'Sending…'}</> : later ? (goesOut ? `Send it ${goesOut}` : 'Pick a time') : 'Announce to everyone'}
         </Button>
+        {/* Says what's missing when tapped (it used to sit pale; Anna, Nov 14 2026). */}
+        <MissingNote text={missing ? (!text.trim() ? 'Write what everyone needs to know first.' : !atOk ? "Pick a time that hasn't passed yet." : '') : ''} className="text-center" />
       </DialogContent>
     </Dialog>
   );

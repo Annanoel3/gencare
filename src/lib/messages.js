@@ -17,6 +17,10 @@ export const CATEGORIES = [
   { value: 'General', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-300' },
 ];
 export const categoryColor = (c) => CATEGORIES.find((x) => x.value === c)?.color || CATEGORIES.at(-1).color;
+// What a new post can be (Anna, Nov 14 2026: fewer choices; Announcement has its own button on
+// Home and in the + menu). Older posts keep theirs; "Task" shows as "Reminder", the page's name now.
+export const POST_TOPICS = ['General', 'Update', 'Question', 'Photo'];
+export const categoryLabel = (c) => (c === 'Task' ? 'Reminder' : c);
 
 export const MESSAGES_KEY = ['familyMessages'];
 

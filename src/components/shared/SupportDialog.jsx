@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import MissingNote from '@/components/shared/MissingNote';
 import { Loader2, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/ui/use-toast';
 import { base44 } from '@/api/base44Client';
+import { plainError } from '@/lib/errors';
 
 // "Ask for help" / "Report a bug" / "Suggest a resource": one box, sent to
 // the app owner's inbox (functions/sendSupportRequest) with the build and page.
@@ -16,10 +18,15 @@ const COPY = {
 export default function SupportDialog({ open, onClose, kind = 'support' }) {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  // Send says what's missing when tapped empty (it used to sit pale; Anna, Nov 14 2026).
+  const [missing, setMissing] = useState(false);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) { setWasOpen(open); if (open) setMissing(false); }
   const c = COPY[kind] || COPY.support;
 
   const send = async () => {
-    if (!message.trim() || busy) return;
+    if (busy) return;
+    if (!message.trim()) { setMissing(true); return; }
     setBusy(true);
     try {
       const res = await base44.functions.invoke('sendSupportRequest', { kind, message: message.trim(), page: window.location.pathname });
@@ -28,7 +35,7 @@ export default function SupportDialog({ open, onClose, kind = 'support' }) {
       setMessage('');
       onClose();
     } catch (e) {
-      toast({ title: "Couldn't send that", description: e?.message || 'Check your connection and try again.', variant: 'destructive' });
+      toast({ title: "Couldn't send that", description: plainError(e), variant: 'destructive' });
     } finally { setBusy(false); }
   };
 
@@ -42,8 +49,9 @@ export default function SupportDialog({ open, onClose, kind = 'support' }) {
         <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder={c.placeholder} className="min-h-[120px]" />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={send} disabled={!message.trim() || busy} className="gap-2">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send</Button>
+          <Button onClick={send} disabled={busy} className="gap-2">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send</Button>
         </div>
+        <MissingNote text={missing && !message.trim() ? 'Write your question or problem first.' : ''} className="-mt-2" />
       </DialogContent>
     </Dialog>
   );

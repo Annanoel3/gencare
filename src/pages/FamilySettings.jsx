@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, QrCode, Bell, CreditCard, LogOut, Pencil, Check, Loader2, Smartphone, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/use-toast';
@@ -13,6 +14,7 @@ import { SharingOptions, useSharingChoice } from '@/components/calendar/SharingC
 import { sharingDefaultOf } from '@/lib/events';
 import { useQuery } from '@tanstack/react-query';
 import { isNativeApp } from '@/lib/phone';
+import { plainError } from '@/lib/errors';
 
 // Your family (the household): its name, who's in it, invites, the plan, and
 // this person's own notification choices.
@@ -44,14 +46,14 @@ export default function FamilySettings() {
       const fam = await renameFamily(name.trim());
       apply({ family: fam });
       setEditingName(false);
-    } catch (e) { toast({ title: 'Could not rename', description: e?.message, variant: 'destructive' }); }
+    } catch (e) { toast({ title: 'Could not rename', description: plainError(e), variant: 'destructive' }); }
     setBusy('');
   };
 
   const setPref = async (key, value) => {
     const next = { ...prefs, [key]: value };
     setPrefs(next);
-    try { await base44.auth.updateMe({ [key]: value }); } catch (e) { toast({ title: 'Could not save', description: e?.message, variant: 'destructive' }); }
+    try { await base44.auth.updateMe({ [key]: value }); } catch (e) { toast({ title: 'Could not save', description: plainError(e), variant: 'destructive' }); }
   };
 
   const testPush = async () => {
@@ -61,21 +63,22 @@ export default function FamilySettings() {
       const d = r?.data || r;
       if (d?.ok && d.recipients > 0) toast({ title: 'Sent', description: 'A test notification is on its way to this phone.' });
       else toast({ title: 'No phone got it', description: d?.error || 'This account has no phone with notifications on yet. Open GenCare on your phone and allow notifications.', variant: 'destructive' });
-    } catch (e) { toast({ title: 'Could not send', description: e?.message, variant: 'destructive' }); }
+    } catch (e) { toast({ title: 'Could not send', description: plainError(e), variant: 'destructive' }); }
     setBusy('');
   };
 
+  // The app's own box for these, with buttons that say what they do (Anna, Nov 14 2026:
+  // the phone's plain OK / Cancel box was used before).
+  const [asking, setAsking] = useState(null); // { kind: 'remove', user } | { kind: 'leave' }
   const remove = async (u) => {
-    if (!window.confirm(`Remove ${u.full_name} from ${family?.name}? They'll get an empty family of their own.`)) return;
     setBusy(u.id);
-    try { await removeMember(u.id); await refresh(); } catch (e) { toast({ title: 'Could not remove', description: e?.message, variant: 'destructive' }); }
+    try { await removeMember(u.id); await refresh(); } catch (e) { toast({ title: 'Could not remove', description: plainError(e), variant: 'destructive' }); }
     setBusy('');
   };
 
   const leave = async () => {
-    if (!window.confirm(`Leave ${family?.name}? You'll start a new, empty family. Everything shared stays with the family.`)) return;
     setBusy('leave');
-    try { const d = await leaveFamily(); apply(d); } catch (e) { toast({ title: 'Could not leave', description: e?.message, variant: 'destructive' }); }
+    try { const d = await leaveFamily(); apply(d); } catch (e) { toast({ title: 'Could not leave', description: plainError(e), variant: 'destructive' }); }
     setBusy('');
   };
 
@@ -118,13 +121,13 @@ export default function FamilySettings() {
                   <p className="text-xs text-muted-foreground truncate">{u.family_role === 'owner' ? 'Owner' : 'Member'} · {u.email}</p>
                 </div>
                 {isOwner && u.id !== me?.id && (
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => remove(u)} disabled={busy === u.id}>Remove</Button>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setAsking({ kind: 'remove', user: u })} disabled={busy === u.id}>Remove</Button>
                 )}
               </div>
             ))}
           </div>
           {!isOwner && (
-            <Button variant="ghost" size="sm" className="mt-3 text-destructive gap-2" onClick={leave} disabled={busy === 'leave'}><LogOut className="w-4 h-4" /> Leave this family</Button>
+            <Button variant="ghost" size="sm" className="mt-3 text-destructive gap-2" onClick={() => setAsking({ kind: 'leave' })} disabled={busy === 'leave'}><LogOut className="w-4 h-4" /> Leave this family</Button>
           )}
         </div>
 
@@ -187,6 +190,25 @@ export default function FamilySettings() {
       </div>
 
       <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
+      <AlertDialog open={!!asking} onOpenChange={(o) => { if (!o) setAsking(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{asking?.kind === 'leave' ? `Leave ${family?.name || 'this family'}?` : `Remove ${asking?.user?.full_name || 'them'}?`}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {asking?.kind === 'leave'
+                ? "You'll start a new, empty family. Everything shared stays with the family."
+                : `They'll leave ${family?.name || 'the family'} and get an empty family of their own.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{asking?.kind === 'leave' ? 'Stay' : 'Keep them'}</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { const a = asking; setAsking(null); if (a?.kind === 'leave') leave(); else if (a?.user) remove(a.user); }}>
+              {asking?.kind === 'leave' ? 'Leave family' : 'Remove'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <PhoneCalendarSheet open={phoneOpen} onClose={() => setPhoneOpen(false)} members={people} />
     </div>
   );

@@ -8,6 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { serverDate } from '@/lib/serverTime';
 import { useFamily } from '@/lib/family';
 import { shortNames } from '@/lib/names';
+import MissingNote from '@/components/shared/MissingNote';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,9 +20,9 @@ import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import PrivateImage from '@/components/journal/PrivateImage';
 import { uploadPhoto } from '@/lib/journal';
-import { CATEGORIES, categoryColor, MESSAGES_KEY, listMessages, postMessage, editMessage, deleteMessage, togglePin, markMessagesSeen, shownMessages, postedAt, isScheduled } from '@/lib/messages';
-import { AnnounceDialog } from '@/components/dashboard/Announcements';
+import { POST_TOPICS, categoryLabel, categoryColor, MESSAGES_KEY, listMessages, postMessage, editMessage, deleteMessage, togglePin, markMessagesSeen, shownMessages, postedAt, isScheduled } from '@/lib/messages';
 import { serverMs } from '@/lib/serverTime';
+import { plainError } from '@/lib/errors';
 
 const NOBODY = '__nobody__';
 
@@ -38,7 +39,6 @@ export default function Messages() {
   const [uploading, setUploading] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [viewing, setViewing] = useState(null);
-  const [announcing, setAnnouncing] = useState(false);
   const fileRef = useRef(null);
   const queryClient = useQueryClient();
   const { me, family, apply } = useFamily();
@@ -74,7 +74,7 @@ export default function Messages() {
   const post = useMutation({
     mutationFn: () => postMessage({ content, category, member: members.find((m) => m.id === aboutId), photos, parentId: replyTo?.id }, me),
     onSuccess: () => { track('action', replyTo ? 'reply:message' : 'post:message', photos.length ? 'with photos' : ''); refresh(); setContent(''); setCategory('General'); setAboutId(''); setPhotos([]); setReplyTo(null); },
-    onError: (e) => toast({ title: "Couldn't post", description: e?.message || 'Try again', variant: 'destructive' }),
+    onError: (e) => toast({ title: "Couldn't post", description: plainError(e), variant: 'destructive' }),
   });
   const pin = useMutation({ mutationFn: togglePin, onSuccess: refresh });
   const remove = useMutation({ mutationFn: (msg) => deleteMessage(msg, all), onSuccess: refresh });
@@ -90,7 +90,7 @@ export default function Messages() {
       for (const f of files.slice(0, 6)) { const u = await uploadPhoto(f); if (u) uris.push(u); }
       setPhotos((p) => [...p, ...uris]);
       if (category === 'General') setCategory('Photo');
-    } catch (err) { toast({ title: "Couldn't add the photo", description: err?.message, variant: 'destructive' }); }
+    } catch (err) { toast({ title: "Couldn't add the photo", description: plainError(err), variant: 'destructive' }); }
     finally { setUploading(false); }
   };
 
@@ -103,7 +103,9 @@ export default function Messages() {
     return { pinned: top.filter((m) => m.is_pinned), posts: top.filter((m) => !m.is_pinned), repliesOf: (id) => map[id] || [] };
   }, [all, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canPost = content.trim().length > 0 && !post.isPending && !uploading;
+  // Post says what's missing when tapped empty (it used to sit pale; Anna, Nov 14 2026).
+  const [missing, setMissing] = useState(false);
+  useEffect(() => { if (content.trim()) setMissing(false); }, [content]);
 
   return (
     <div className="pb-24 lg:pb-8">
@@ -147,7 +149,7 @@ export default function Messages() {
                 <span className="block text-xs font-medium text-muted-foreground mb-1">Topic</span>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger className="w-[150px] h-10 rounded-lg text-sm" aria-label="Topic"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.value}</SelectItem>)}</SelectContent>
+                  <SelectContent>{POST_TOPICS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </label>
               <label className="block">
@@ -167,16 +169,9 @@ export default function Messages() {
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}<span>Photo</span>
           </Button>
           <div className="flex-1" />
-          <Button onClick={() => post.mutate()} disabled={!canPost} className="rounded-xl gap-2 h-10"><Send className="w-4 h-4" /> {replyTo ? 'Reply' : 'Post'}</Button>
+          <Button onClick={() => { if (!content.trim()) { setMissing(true); return; } post.mutate(); }} disabled={post.isPending || uploading} className="rounded-xl gap-2 h-10"><Send className="w-4 h-4" /> {replyTo ? 'Reply' : 'Post'}</Button>
         </div>
-        {!replyTo && category === 'Announcement' && (
-          // Same as Home's Announce (lib/messages): 3 days on Home, everyone
-          // notified. Home's Announce box also picks a later time or how long.
-          <p className="text-xs text-muted-foreground mt-2">
-            Everyone gets a notification right away, and it stays at the top of their Home for 3 days.{' '}
-            <button type="button" className="text-primary font-medium" onClick={() => setAnnouncing(true)}>Send it later or change how long</button>
-          </p>
-        )}
+        <MissingNote text={missing ? (replyTo ? 'Write your reply first.' : 'Write something first.') : ''} className="mt-2" />
       </div>
 
       {pinned.length > 0 && (
@@ -199,9 +194,6 @@ export default function Messages() {
           <p className="text-muted-foreground">Post the first update for your family.</p>
         </div>
       )}
-
-      <AnnounceDialog open={announcing} onClose={() => setAnnouncing(false)} initialText={content}
-        onPosted={() => { setContent(''); setCategory('General'); setAboutId(''); setPhotos([]); }} />
 
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-3xl p-2 bg-black/90 border-0">
@@ -231,7 +223,7 @@ function Post({ msg, replies, me, members, onPin, onReply, onDelete, onEdit, onV
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span className="font-semibold text-sm">{msg.author_name || 'Someone'}</span>
-            <Badge variant="secondary" className={`text-xs ${categoryColor(msg.category)}`}>{msg.category}</Badge>
+            <Badge variant="secondary" className={`text-xs ${categoryColor(msg.category)}`}>{categoryLabel(msg.category)}</Badge>
             {msg.family_member_name && <Badge variant="outline" className="text-xs gap-1">{dot && <span className={`w-2 h-2 rounded-full ${dot}`} />}{msg.family_member_name}</Badge>}
             {msg.task_id && <Link to="/tasks" className="text-xs text-primary inline-flex items-center gap-1"><ClipboardList className="w-3 h-3" /> reminder</Link>}
           </div>

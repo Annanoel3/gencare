@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { base44 } from '@/api/base44Client';
 import { lookupInvite, joinFamily, PENDING_INVITE_KEY } from '@/lib/family';
+import { plainError } from '@/lib/errors';
 
 export default function JoinPage() {
   const [code, setCode] = useState('');
@@ -60,7 +61,7 @@ export default function JoinPage() {
         return;
       } catch (e) {
         setConfirmed(false);
-        setError(e?.message || 'Could not join that family');
+        setError(plainError(e, "Couldn't join that family. Check the code and try again."));
         return;
       }
     }
