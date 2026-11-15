@@ -1,0 +1,46 @@
+{
+  "name": "SavedPlace",
+  "description": "A place as a schedule writes it (\"7115- Dripping Springs\") and the address the family picked for it (Nov 14 2026). The photo import fills these in and saves them; the Where box offers them. src/lib/savedPlaces.js",
+  "type": "object",
+  "properties": {
+    "added_by_name": {
+      "type": "string"
+    },
+    "added_by_user_id": {
+      "type": "string"
+    },
+    "address": {
+      "description": "The address picked for it",
+      "type": "string"
+    },
+    "family_id": {
+      "type": "string"
+    },
+    "key": {
+      "description": "The place as written, in plain lowercase words (placeKey)",
+      "type": "string"
+    },
+    "label": {
+      "description": "The place as written",
+      "type": "string"
+    }
+  },
+  "required": [
+    "label",
+    "address"
+  ],
+  "rls": {
+    "create": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "delete": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "read": {
+      "data.family_id": "{{user.data.family_id}}"
+    },
+    "update": {
+      "data.family_id": "{{user.data.family_id}}"
+    }
+  }
+}
