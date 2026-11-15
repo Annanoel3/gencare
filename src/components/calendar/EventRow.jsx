@@ -112,6 +112,8 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
         )}
         {check
           ? <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">Done · checked off by {check.user_id === me?.id ? 'you' : firstName(check.name) || 'someone'}</p>
+          // A one-time reminder on the calendar: "I'll take it" is the reminder's.
+          : appt.reminder ? <ClaimButton kind="reminder" item={appt.reminder} date={appt.date} className="mt-2" over={timing === 'past'} />
           : <ClaimButton kind="event" item={appt} date={appt.date} className="mt-2" over={timing === 'past'} />}
       </div>
     </div>

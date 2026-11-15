@@ -205,3 +205,33 @@ export function adherence(med, logs, days = 14) {
   const missed = mine.filter((l) => l.status === 'missed').length;
   return { taken, missed, skipped: mine.length - taken - missed, total: mine.length };
 }
+
+/**
+ * One-time reminders as calendar items (Anna, Nov 14 2026: "Adding a one time
+ * reminder from here doesnt end up on the calendar. It should."), on their day
+ * and time in the range (from/to: 'YYYY-MM-DD'). They carry the reminder
+ * itself (reminder), so the calendar opens the reminder, not an event.
+ */
+export function reminderEvents(reminders = [], from, to) {
+  return (reminders || [])
+    .filter((m) => m.frequency === ONE_TIME && m.once_date && m.once_date >= from && m.once_date <= to)
+    .map((m) => {
+      const time = (Array.isArray(m.times) ? m.times : [])[0] || '';
+      return {
+        id: `reminder-${m.id}`,
+        reminder: m,
+        title: `\u{1F514} ${m.medication_name || 'Reminder'}`,
+        date: m.once_date,
+        time,
+        end_time: '',
+        all_day: !time,
+        family_member_id: m.family_member_id || '',
+        family_member_ids: forIds(m),
+        family_member_name: m.family_member_name || '',
+        visibility: m.visibility === 'private' ? 'private' : 'family',
+        category: 'Other',
+        notes: m.notes || '',
+        created_by_user_id: m.owner_user_id || m.created_by_id || '',
+      };
+    });
+}

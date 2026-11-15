@@ -16,6 +16,8 @@ import MonthView from '@/components/calendar/MonthView';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
 import EventRow from '@/components/calendar/EventRow';
+import useReminderEditor from '@/components/reminders/useReminderEditor';
+import { reminderEvents } from '@/lib/reminders';
 import EventDialog from '@/components/calendar/EventDialog';
 import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
 import PhotoImportSheet from '@/components/calendar/PhotoImportSheet';
@@ -276,7 +278,10 @@ export default function CalendarPage() {
 
   // Repeating and multi-day events, one entry per day, for the days in view
   // (just the picked person's, when one is picked).
-  const allOccurrences = useMemo(() => expandAppointments(appointments, range.from, range.to), [appointments, range]);
+  // One-time reminders show on their day too (lib/reminders reminderEvents);
+  // tapping one opens the reminder.
+  const { reminders, editor: reminderEditor, openReminder } = useReminderEditor(members);
+  const allOccurrences = useMemo(() => [...expandAppointments(appointments, range.from, range.to), ...reminderEvents(reminders, fromKey, toKey)], [appointments, range, reminders, fromKey, toKey]);
   const occurrences = useMemo(() => (shown ? allOccurrences.filter(showsFor) : allOccurrences), [allOccurrences, shown, members]); // eslint-disable-line react-hooks/exhaustive-deps
   // A push or widget tap about an event the picked person's view hides: show everyone.
   useEffect(() => {
@@ -291,7 +296,7 @@ export default function CalendarPage() {
   const openNew = () => { setPrefill(null); setEditing(null); setDialogOpen(true); };
   const duplicate = (data) => { closeDialog(); setTimeout(() => { setPrefill(data); setEditing(null); setDialogOpen(true); }, 200); };
   // An occurrence of a series opens the series itself.
-  const openEdit = (occ) => { setEditing(realEvent(appointments.find((a) => a.id === rowIdOf(occ)) || occ)); setDialogOpen(true); };
+  const openEdit = (occ) => { if (occ?.reminder) { openReminder(occ.reminder); return; } setEditing(realEvent(appointments.find((a) => a.id === rowIdOf(occ)) || occ)); setDialogOpen(true); };
 
   const onSave = (data, left) => { if (!editing?.id) createMutation.mutate({ data, left }); };
 
@@ -435,6 +440,7 @@ export default function CalendarPage() {
         saving={saving}
         sharingDefault={sharingDefault}
       />
+      {reminderEditor}
       <PhoneCalendarSheet open={phoneOpen} onClose={() => setPhoneOpen(false)} members={members} />
       <PhotoImportSheet open={photoOpen} onClose={() => setPhotoOpen(false)} sharingDefault={sharingDefault}
         onAdded={(d, rows) => { revealAdded(rows); const p = d ? parseISO(d) : null; if (p && isValid(p)) { setSelectedDate(p); setCurrentMonth(p); } }} />
