@@ -225,7 +225,8 @@ const MISSED_AFTER_MS = 90 * 60_000;
           // "Not done yet?" and "The 1:00 PM reminder isn't marked done yet").
           // The line under it says where it stands, then who it's for.
           const what = String(m.medication_name || 'Reminder').slice(0, 90);
-          const about = [m.family_member_name ? `For ${String(m.family_member_name).split(' ')[0]}` : '', m.dosage || ''].filter(Boolean).join(' · ');
+          // "For Peach and Kaiju" for a reminder that's for more than one.
+          const about = [m.family_member_name ? `For ${/, | and /.test(String(m.family_member_name)) ? m.family_member_name : String(m.family_member_name).split(' ')[0]}` : '', m.dosage || ''].filter(Boolean).join(' · ');
           const line = (...parts: string[]) => parts.filter(Boolean).join(' · ').slice(0, 180);
           // Lands on the reminder in To-do (glowing), not its edit popup (Anna, Oct 31 2026).
           const screen = `/tasks?highlight=${m.id}`;

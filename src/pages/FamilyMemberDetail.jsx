@@ -16,7 +16,7 @@ import VaultSection from '@/components/carelog/VaultSection';
 import PhoneActions from '@/components/shared/PhoneActions';
 import MemberColorPicker from '@/components/family/MemberColorPicker';
 import { getMemberColorClass, isPet, takenColors } from '@/utils/memberColors';
-import { frequencyLabel, fmtClock } from '@/lib/reminders';
+import { frequencyLabel, fmtClock, forIds } from '@/lib/reminders';
 import CaredForSwitch, { caredForShown } from '@/components/family/CaredForSwitch';
 import { toast } from '@/components/ui/use-toast';
 import { track } from '@/lib/activity';
@@ -44,7 +44,8 @@ export default function FamilyMemberDetail() {
 
   const { data: reminders = [] } = useQuery({
     queryKey: ['memberReminders', id],
-    queryFn: () => base44.entities.Medication.filter({ family_member_id: id }),
+    // Reminders for them, also ones for them and others (family_member_ids).
+    queryFn: async () => ((await base44.entities.Medication.list('-created_date', 500)) || []).filter((m) => forIds(m).includes(id)),
   });
 
 

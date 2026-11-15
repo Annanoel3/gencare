@@ -11,7 +11,7 @@ import { Choices } from '@/components/shared/MoreOptions';
 import NotesField from '@/components/shared/NotesField';
 import { useFamily, orderMembers } from '@/lib/family';
 import { format, parseISO, addDays } from 'date-fns';
-import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME } from '@/lib/reminders';
+import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME, forIds } from '@/lib/reminders';
 
 const NOBODY = '__nobody__';
 // "Remind me at 12" (one push) or "until it's done" (keeps reminding by
@@ -20,7 +20,7 @@ const NOBODY = '__nobody__';
 const HOW = [['one', 'One time'], ['once', "Until it's done"], ['daily', 'Every day'], ['days', 'Certain days']];
 
 function blank() {
-  return { medication_name: '', dosage: '', how: 'once', priority: 'medium', anchor_time: '', family_member_id: NOBODY, notes: '', refill_date: '', refill_reminder_days: 3, times: defaultTimes('Once'), days_of_week: [], remind: true, is_active: true, once_date: todayStr(), visibility: 'family' };
+  return { medication_name: '', dosage: '', how: 'once', priority: 'medium', anchor_time: '', family_member_ids: [], notes: '', refill_date: '', refill_reminder_days: 3, times: defaultTimes('Once'), days_of_week: [], remind: true, is_active: true, once_date: todayStr(), visibility: 'family' };
 }
 const howOf = (m) => (m.frequency === ONE_TIME ? 'one' : m.frequency === 'Once' ? 'once' : Array.isArray(m.days_of_week) && m.days_of_week.length ? 'days' : 'daily');
 
@@ -57,7 +57,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
       setForm({
         ...blank(), ...med,
         how: howOf(med),
-        family_member_id: med.family_member_id || NOBODY,
+        family_member_ids: forIds(med),
         times: Array.isArray(med.times) ? med.times : [],
         days_of_week: Array.isArray(med.days_of_week) ? med.days_of_week : [],
         remind: med.remind !== false,
@@ -109,6 +109,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
     : `${who} a push at ${at} every day${untilText}.`;
 
   const stopRepeating = () => { set('end_date', todayStr()); setNoEnd(false); setStopped(true); };
+  const ordered = (ids = []) => people.map((m) => m.id).filter((id) => ids.includes(id)).concat(ids.filter((id) => !people.some((m) => m.id === id)));
   const save = () => {
     const sorted = [...new Set(times)].sort();
     onSave({
@@ -119,8 +120,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
       ...(once && startsLater ? { once_date: start.day } : {}),
       frequency: frequencyFor(form.how, sorted),
       days_of_week: form.how === 'days' ? form.days_of_week : [],
-      family_member_id: form.family_member_id === NOBODY ? '' : form.family_member_id,
-      family_member_name: form.family_member_id === NOBODY ? '' : undefined,
+      // In the family's order (people, then pets), not the order they were tapped.
+      family_member_ids: ordered(form.family_member_ids),
+      family_member_id: ordered(form.family_member_ids)[0] || '',
+      family_member_name: undefined,
     });
   };
 
@@ -215,13 +218,18 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           {people.length > 0 && (
             <div>
               <Label>For</Label>
+              {/* Tap as many people and pets as it's for; Nobody in particular clears them. */}
               <div className="flex flex-wrap gap-2 mt-1.5">
-                {[{ id: NOBODY, name: 'Nobody in particular' }, ...people].map((m) => (
-                  <button key={m.id} type="button" onClick={() => set('family_member_id', m.id)}
-                    className={`rounded-full border px-3 py-1 text-sm ${form.family_member_id === m.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'}`}>
+                {[{ id: NOBODY, name: 'Nobody in particular' }, ...people].map((m) => {
+                  const ids = form.family_member_ids || [];
+                  const on = m.id === NOBODY ? !ids.length : ids.includes(m.id);
+                  const tap = () => set('family_member_ids', m.id === NOBODY ? [] : on ? ids.filter((x) => x !== m.id) : [...ids, m.id]);
+                  return (
+                  <button key={m.id} type="button" onClick={tap} aria-pressed={on}
+                    className={`rounded-full border px-3 py-1 text-sm ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground'}`}>
                     {m.id === NOBODY ? m.name : String(m.name || '').split(' ')[0]}
                   </button>
-                ))}
+                ); })}
               </div>
             </div>
           )}

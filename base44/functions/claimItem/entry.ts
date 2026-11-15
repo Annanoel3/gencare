@@ -21,7 +21,8 @@ import { claimDayFor, claimOn, claimsOf, pruneClaims } from '../../shared/claims
 // From then on its reminders go only to whoever took it (cronReminders).
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const first = (s: unknown) => String(s || '').trim().split(' ')[0];
+// A first name; "Peach and Kaiju" (a reminder for more than one) stays whole.
+const first = (s: unknown) => { const t = String(s || '').trim(); return /, | and /.test(t) ? t : t.split(' ')[0]; };
 
 Deno.serve(async (req) => {
   try {

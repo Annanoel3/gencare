@@ -142,8 +142,18 @@ export async function markSlot(slot, status, me) {
   return saved;
 }
 
+// More than one person or pet (Anna, Nov 14 2026: "Should be able to click
+// multiple people or pets on 'for'"): family_member_ids has them all;
+// family_member_id is the first (its color) and family_member_name reads
+// "Peach and Kaiju" (one person keeps their full name, like before).
+const andList = (list) => (list.length <= 1 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`);
+/** Who a reminder's for, as ids: family_member_ids, or the one family_member_id of an older one. */
+export const forIds = (m) => (Array.isArray(m?.family_member_ids) && m.family_member_ids.length ? m.family_member_ids : m?.family_member_id ? [m.family_member_id] : []);
+
 export function cleanMed(form, members, me) {
-  const member = members.find((m) => m.id === form.family_member_id);
+  const ids = [...new Set((Array.isArray(form.family_member_ids) ? form.family_member_ids : form.family_member_id ? [form.family_member_id] : []).filter(Boolean))];
+  const chosen = ids.map((id) => members.find((m) => m.id === id)).filter(Boolean);
+  const member = chosen[0];
   const times = (form.times || []).filter((t) => /^\d{2}:\d{2}$/.test(t)).sort();
   const once = form.frequency === 'Once';
   const oneTime = form.frequency === ONE_TIME;
@@ -151,8 +161,9 @@ export function cleanMed(form, members, me) {
     medication_name: form.medication_name.trim(),
     dosage: form.dosage || '',
     frequency: form.frequency,
-    family_member_id: form.family_member_id,
-    family_member_name: member?.name || form.family_member_name || '',
+    family_member_id: ids[0] || '',
+    family_member_ids: ids,
+    family_member_name: chosen.length > 1 ? andList(chosen.map((m) => String(m.name || '').split(' ')[0])) : member?.name || (ids.length ? form.family_member_name || '' : ''),
     notes: (form.notes || '').trim(),
     times: oneTime ? times.slice(0, 1) : times,
     days_of_week: !once && !oneTime && Array.isArray(form.days_of_week) ? form.days_of_week : [],

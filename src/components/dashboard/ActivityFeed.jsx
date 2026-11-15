@@ -29,7 +29,8 @@ import { claimsOf } from '@/lib/claims';
 // Feed on it, a task, reminder or notes open on themselves, someone joining
 // opens their profile.
 
-const first = (s) => String(s || '').trim().split(' ')[0];
+// A first name; "Peach and Kaiju" (a reminder for more than one) stays whole.
+const first = (s) => { const t = String(s || '').trim(); return /, | and /.test(t) ? t : t.split(' ')[0]; };
 const DAYS = 3;
 // Base44's own timestamps are UTC without a Z (see serverTime.js).
 const when = (iso) => {
