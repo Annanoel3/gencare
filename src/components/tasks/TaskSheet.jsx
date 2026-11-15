@@ -134,7 +134,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const [picking, setPicking] = useState(false);
   const [showRepeat, setShowRepeat] = useState(false);
-  useEffect(() => { if (open) { setPicking(false); setShowRepeat(false); setMovedTo(''); setAnchor(''); setChosen(null); } }, [open, task]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) { setPicking(false); setShowRepeat(false); setMovedTo(''); setAnchor(''); setChosen(null); setAskMonthly(false); } }, [open, task]); // eslint-disable-line react-hooks/exhaustive-deps
   const when = picking ? 'pick' : !form.due_date ? 'none' : form.due_date === today ? 'today' : form.due_date === tomorrow ? 'tomorrow' : 'pick';
   const setWhen = (v) => {
     setPicking(v === 'pick');
@@ -154,6 +154,8 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const blanks = saved && chosen?.second === 'day' && chosen.first.startsWith('n') && sameBlanks(chosen, saved) ? chosen : saved;
   const [movedTo, setMovedTo] = useState('');
   const [anchor, setAnchor] = useState('');
+  // Picking "Every month" pops the blanks up right away.
+  const [askMonthly, setAskMonthly] = useState(false);
   const pickBlanks = (first, second) => {
     const from = anchor || form.due_date || format(new Date(), 'yyyy-MM-dd');
     if (!anchor) setAnchor(from);
@@ -166,7 +168,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
   const repeatField = (
     <div>
       <Label className="flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeats</Label>
-      <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (form.recurrence === 'none') setNoEnd(false); setMovedTo(''); setAnchor(''); setChosen(null); setForm((f) => ({ ...f, recurrence: v, month_day: null })); }}>
+      <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (form.recurrence === 'none') setNoEnd(false); setMovedTo(''); setAnchor(''); setChosen(null); setForm((f) => ({ ...f, recurrence: v, month_day: null })); setAskMonthly(v === 'monthly'); }}>
         <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
         <SelectContent>
           {repeatOptionsFor(form.due_date).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -174,7 +176,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
         </SelectContent>
       </Select>
       {blanks && (
-        <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={pickBlanks} shortMonths="last"
+        <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={pickBlanks} shortMonths="last" autoOpen={askMonthly} onOpened={() => setAskMonthly(false)}
           note={movedTo ? `It's now due ${format(parseISO(movedTo), 'EEE, MMM d')}, the first one.` : ''} />
       )}
       {form.recurrence === 'weekly' && (

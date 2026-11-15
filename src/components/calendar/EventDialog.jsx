@@ -83,7 +83,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     if (!open) return;
     setConfirmDelete(false);
     setShowRepeat(false);
-    setMoved(''); setAnchor(''); setChosen(null);
+    setMoved(''); setAnchor(''); setChosen(null); setAskMonthly(false);
     setNoEnd(!!appt?.recurrence && !untilOf(appt.recurrence));
     setStopped('');
     touched.current = new Set();
@@ -137,6 +137,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   // Picks look for the first day from the day it had before any of them, so
   // trying a few doesn't walk the day months ahead.
   const [anchor, setAnchor] = useState('');
+  // Picking "Every month" pops the blanks up right away.
+  const [askMonthly, setAskMonthly] = useState(false);
   // A new day keeps the monthly pick matching it: the second Tuesday stays
   // "the nth weekday" of the new day; the last day stays it only on a last day.
   const changeDate = (v) => {
@@ -280,7 +282,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               {repeating || showRepeat ? (
                   <div className="flex items-center gap-1 min-w-0 max-w-full">
                     <Repeat className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                    <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (!repeating) { setNoEnd(false); set('until', ''); } setMoved(''); setAnchor(''); setChosen(null); set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); }}>
+                    <Select value={repeatValue} onValueChange={(v) => { if (v === repeatValue) return; if (!repeating) { setNoEnd(false); set('until', ''); } setMoved(''); setAnchor(''); setChosen(null); set('recurrence', v === '__none__' ? '' : v); if (v === '__none__') setShowRepeat(false); setAskMonthly(v === 'RRULE:FREQ=MONTHLY'); }}>
                       <SelectTrigger className="h-8 text-xs w-auto max-w-full gap-1 border-none shadow-none px-1 text-left"><SelectValue placeholder="Doesn't repeat" /></SelectTrigger>
                       <SelectContent>
                         {repeatChoices.map((r) => <SelectItem key={r.value || 'none'} value={r.value || '__none__'}>{r.label}</SelectItem>)}
@@ -292,7 +294,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                 ) : <button type="button" onClick={() => setShowRepeat(true)} className="text-xs text-primary flex items-center gap-1"><Repeat className="w-3.5 h-3.5" /> Repeat</button>}
             </div>
             {blanks && (
-              <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={changeBlanks}
+              <MonthlyBlanks first={blanks.first} second={blanks.second} onChange={changeBlanks} autoOpen={askMonthly} onOpened={() => setAskMonthly(false)}
                 note={moved ? `The day is now ${format(parseISO(moved), 'EEE, MMM d')}, the first one.` : ''} />
             )}
             {repeating && (

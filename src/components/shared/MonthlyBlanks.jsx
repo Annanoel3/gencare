@@ -1,42 +1,93 @@
-import React from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MONTHLY_FIRST, MONTHLY_SECOND } from '@/lib/occurrences';
+import React, { useEffect, useRef, useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { MONTHLY_FIRST, MONTHLY_SECOND, normalizeBlanks } from '@/lib/occurrences';
 
-// "The [14th] [day] of every month" / "The [second] [Tuesday] of every month"
-// (Anna, Nov 14 2026): shows when something repeats every month, in the
-// event form and the to-do form. The first blank is First to Fourth, Last,
-// or a day number; the second is "day" or a day of the week. The form works
-// out the rule and moves the date (lib/occurrences.js monthlyFromBlanks).
+// "The ___ ___ of every month" (Anna, Nov 14 2026), in the event form and
+// the to-do form. Picking "Every month" pops this up right away (Anna: "if a
+// user clicks every month, that should already be popping up"): two
+// scrolling lists side by side, the first First to Fourth, Last, or a day
+// number, the second "day" or a day of the week, with the sentence they make
+// above them. After that the form shows the sentence with Change to open it
+// again. The form works out the rule and moves the date
+// (lib/occurrences.js monthlyFromBlanks).
 //
+//   autoOpen     true to pop it up (the form sets it when Every month is picked);
+//                onOpened clears it
 //   shortMonths  'skip' (events: a month without that day is skipped) or
 //                'last' (to-dos: due on that month's last day instead)
 //   note         a line under it, like where the date moved to
 
-export default function MonthlyBlanks({ first, second, onChange, shortMonths = 'skip', note = '' }) {
+const labelOf = (list, v) => list.find((o) => o.value === v)?.label || '';
+/** "the second Tuesday", "the 14th day", "the last day" */
+export function blanksWords(first, second) {
+  const b = normalizeBlanks(first, second);
+  const one = labelOf(MONTHLY_FIRST, b.first);
+  return `the ${/^\d/.test(one) ? one : one.toLowerCase()} ${labelOf(MONTHLY_SECOND, b.second)}`;
+}
+
+function Column({ items, value, onPick, label }) {
+  const box = useRef(null);
+  useEffect(() => {
+    // Open on the picked one.
+    const el = box.current?.querySelector('[data-on="1"]');
+    if (el && box.current) box.current.scrollTop = el.offsetTop - box.current.clientHeight / 2 + el.clientHeight / 2;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div ref={box} role="listbox" aria-label={label} className="relative h-64 overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-1">
+      {items.map((o) => {
+        const on = o.value === value;
+        return (
+          <button key={o.value} type="button" role="option" aria-selected={on} data-on={on ? '1' : '0'} onClick={() => onPick(o.value)}
+            className={`w-full rounded-lg px-3 py-2.5 text-left text-base ${on ? 'bg-primary text-primary-foreground font-medium' : 'hover:bg-muted'}`}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function MonthlyBlanks({ first, second, onChange, shortMonths = 'skip', note = '', autoOpen = false, onOpened }) {
+  const [open, setOpen] = useState(false);
+  const [pick, setPick] = useState({ first, second });
+  const show = () => { setPick({ first, second }); setOpen(true); };
+  useEffect(() => { if (autoOpen) { show(); onOpened?.(); } }, [autoOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const n = /^d\d+$/.test(first) ? parseInt(first.slice(1), 10) : 0;
   const late = second === 'day' && n >= 29;
+  const words = blanksWords(first, second);
   return (
     <div className="mt-2 rounded-xl border border-border/60 bg-muted/40 p-3">
-      <div className="flex items-center gap-2 text-sm">
-        <span>The</span>
-        <Select value={first} onValueChange={(v) => onChange(v, second)}>
-          <SelectTrigger className="h-9 flex-1 min-w-0 bg-card" aria-label="Which one"><SelectValue /></SelectTrigger>
-          <SelectContent className="max-h-72">{MONTHLY_FIRST.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={second} onValueChange={(v) => onChange(first, v)}>
-          <SelectTrigger className="h-9 flex-1 min-w-0 bg-card" aria-label="Day or day of the week"><SelectValue /></SelectTrigger>
-          <SelectContent className="max-h-72">{MONTHLY_SECOND.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-        </Select>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium min-w-0">{words[0].toUpperCase() + words.slice(1)} of every month</p>
+        <Button type="button" variant="outline" size="sm" onClick={show} className="flex-shrink-0">Change</Button>
       </div>
-      <p className="text-sm mt-1.5">of every month</p>
       {late && (
         <p className="text-xs text-muted-foreground mt-1.5">
           {shortMonths === 'last'
-            ? `In a month without a ${MONTHLY_FIRST.find((o) => o.value === first)?.label}, it's due on that month's last day.`
-            : `A month without a ${MONTHLY_FIRST.find((o) => o.value === first)?.label} is skipped. To land on the end of every month, pick Last.`}
+            ? `In a month without a ${labelOf(MONTHLY_FIRST, first)}, it's due on that month's last day.`
+            : `A month without a ${labelOf(MONTHLY_FIRST, first)} is skipped. To land on the end of every month, pick Last.`}
         </p>
       )}
       {note && <p className="text-xs text-primary mt-1.5">{note}</p>}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Every month on</DialogTitle>
+            <DialogDescription className="text-base text-foreground">
+              {(() => { const w = blanksWords(pick.first, pick.second); return `${w[0].toUpperCase() + w.slice(1)} of every month`; })()}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2">
+            {/* A day number goes with "day"; a day of the week turns a day number into its week (the 14th -> second). */}
+            <Column label="Which one" items={MONTHLY_FIRST} value={pick.first} onPick={(v) => setPick((p) => ({ first: v, second: v.startsWith('d') ? 'day' : p.second }))} />
+            <Column label="Day or day of the week" items={MONTHLY_SECOND} value={pick.second} onPick={(v) => setPick((p) => (v !== 'day' && p.first.startsWith('d') ? normalizeBlanks(p.first, v) : { first: p.first, second: v }))} />
+          </div>
+          <Button type="button" className="w-full mt-1" onClick={() => { setOpen(false); if (pick.first !== first || pick.second !== second) onChange(pick.first, pick.second); }}>Done</Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
