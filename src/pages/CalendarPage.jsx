@@ -11,7 +11,7 @@ import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/ev
 import { realEvent } from '@/lib/sameEvent';
 import { snapshotEvent, notifyEvent } from '@/lib/eventChanges';
 import SharingChoiceDialog from '@/components/calendar/SharingChoice';
-import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw, Camera, MoreHorizontal } from 'lucide-react';
+import { CalendarDays, Plus, Smartphone, Sparkles, Loader2, RefreshCw, Camera, MoreHorizontal, ArrowUp } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { shortNames } from '@/lib/names';
 import MonthView from '@/components/calendar/MonthView';
@@ -316,6 +316,17 @@ export default function CalendarPage() {
   );
 
   const openNew = () => { setPrefill(null); setEditing(null); setDialogOpen(true); };
+  // Tapping a day in the month scrolls down to that day's list (Anna, Nov 17
+  // 2026); "Back to calendar" goes back up. On a phone always; on a bigger
+  // screen only when the day's list isn't all showing already.
+  const showBelow = (id) => setTimeout(() => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (id === 'calendar-day' && window.innerWidth >= 768 && r.top >= 64 && r.bottom <= window.innerHeight) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 60);
+  const pickDay = (day) => { setSelectedDate(day); showBelow('calendar-day'); };
   const duplicate = (data) => { closeDialog(); setTimeout(() => { setPrefill(data); setEditing(null); setDialogOpen(true); }, 200); };
   // An occurrence of a series opens the series itself.
   const openEdit = (occ) => { if (occ?.reminder) { openReminder(occ.reminder); return; } setEditing(realEvent(appointments.find((a) => a.id === rowIdOf(occ)) || occ)); setDialogOpen(true); };
@@ -406,16 +417,23 @@ export default function CalendarPage() {
         </TabsList>
 
         <TabsContent value="month">
-          <MonthView
-            currentMonth={currentMonth}
-            setCurrentMonth={setCurrentMonth}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            appointments={occurrences}
-            members={members}
-          />
+          <div id="calendar-month" className="scroll-mt-20">
+            <MonthView
+              currentMonth={currentMonth}
+              setCurrentMonth={setCurrentMonth}
+              selectedDate={selectedDate}
+              setSelectedDate={pickDay}
+              appointments={occurrences}
+              members={members}
+            />
+          </div>
           {colorNote}
+          {/* Room below so a short day can still scroll up to the top of the screen. */}
+          <div className="min-h-[calc(100dvh-5rem)]">
           <div id="calendar-day" className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6 scroll-mt-20">
+            <button type="button" onClick={() => showBelow('calendar-month')} className="inline-flex items-center gap-1.5 -ml-1 mb-2 px-1 py-1 text-sm font-medium text-primary">
+              <ArrowUp className="w-4 h-4" /> Back to calendar
+            </button>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading text-lg font-semibold">{format(selectedDate, 'EEEE, MMMM d')}</h3>
               <Button variant="outline" size="sm" onClick={openNew} className="rounded-lg gap-1"><Plus className="w-3 h-3" /> Add</Button>
@@ -436,6 +454,7 @@ export default function CalendarPage() {
               </div>
             )}
             {stillSection}
+          </div>
           </div>
         </TabsContent>
 

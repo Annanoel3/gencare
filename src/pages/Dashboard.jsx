@@ -63,9 +63,6 @@ export default function Dashboard() {
         reminders={remindersToday}
       />
 
-      {/* Doctor-type visits coming up, with a Record button (on phones that can record). */}
-      <RecordVisitsCard appointments={appointments} members={members} />
-
       <TodoCard tasks={tasks} members={members} />
 
       <div className="mb-6">
@@ -82,6 +79,10 @@ export default function Dashboard() {
         <CareLogToday members={members} />
         <AnnounceDialog open={announcing} onClose={() => setAnnouncing(false)} />
       </div>
+
+      {/* Doctor-type visits coming up, with a Record button (on phones that can
+          record), under what's going on today (Anna, Nov 17 2026). */}
+      <RecordVisitsCard appointments={appointments} members={members} />
 
       {/* Family members live on the Family page (Anna: "there's already a whole page for that"). */}
       <ActivityFeed members={members} />
