@@ -10,7 +10,6 @@ import { listReminders, REMINDERS_KEY, fmtClock, ONE_TIME } from '@/lib/reminder
 import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
 import { MESSAGES_KEY, listMessages, isScheduled, postedAt } from '@/lib/messages';
-import useEventEditor from '@/components/calendar/useEventEditor';
 import { plugin } from '@/lib/phone';
 import { claimsOf } from '@/lib/claims';
 
@@ -46,7 +45,15 @@ export default function ActivityFeed({ members = [] }) {
   const [more, setMore] = useState(false);
   // "Your phone calendar brought in 3 events": which ones.
   const [imported, setImported] = useState(null);
-  const { openEvent, editor } = useEventEditor(members);
+  // An event opens on the Calendar, on its day, highlighted (Anna, Nov 17 2026:
+  // "i want it to go to the calendar item instead"), the way a notification does.
+  const toCalendar = (a, day) => {
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(String(day || '')) ? day : String(a?.date || '');
+    const q = new URLSearchParams();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) q.set('date', d);
+    if (a?.id) q.set('event', a.id);
+    navigate(`/calendar?${q}`);
+  };
   const since = subDays(new Date(), DAYS).toISOString();
   const live = { refetchOnMount: 'always', refetchOnWindowFocus: 'always' };
   // The app coming back to the front doesn't always count as "focus" inside
@@ -108,7 +115,7 @@ export default function ActivityFeed({ members = [] }) {
       if (a.cover_of || a.away_of) continue; // GenCare's own stand-ins ("Anna traveling")
       const day = a.date ? parseISO(a.date) : null;
       out.push({ key: `a${a.id}`, at: a.created_date, icon: <CalendarPlus className="w-4 h-4 text-violet-600" />,
-        text: <><b>{who(a.created_by_name, a.created_by_user_id)}</b> added {a.title}{day && isValid(day) ? ` · ${format(day, 'EEE, MMM d')}` : ''}</>, go: () => openEvent(a) });
+        text: <><b>{who(a.created_by_name, a.created_by_user_id)}</b> added {a.title}{day && isValid(day) ? ` · ${format(day, 'EEE, MMM d')}` : ''}</>, go: () => toCalendar(a) });
     }
     // Events brought in from a phone calendar: one line per person ("Pamela's
     // phone calendar brought in 18 events · 1 shared with the family"). The
@@ -146,14 +153,14 @@ export default function ActivityFeed({ members = [] }) {
       for (const c of claimsOf(a)) {
         if (serverMs(c.at) < serverMs(since)) continue;
         out.push({ key: `c${a.id}${c.day}`, at: c.at, icon: <Hand className="w-4 h-4 text-emerald-600" />,
-          text: <><b>{who(c.name, c.user_id)}</b> took on {a.title}{dayText(c.day || a.date)}</>, go: () => openEvent(a) });
+          text: <><b>{who(c.name, c.user_id)}</b> took on {a.title}{dayText(c.day || a.date)}</>, go: () => toCalendar(a, c.day) });
       }
     }
     for (const a of checkedEvents.data || []) {
       for (const c of (Array.isArray(a.checks) ? a.checks : [])) {
         if (!c?.user_id || serverMs(c.at) < serverMs(since)) continue;
         out.push({ key: `x${a.id}${c.day}`, at: c.at, icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,
-          text: <><b>{who(c.name, c.user_id)}</b> checked off {a.title}{dayText(c.day || a.date)}</>, go: () => openEvent(a) });
+          text: <><b>{who(c.name, c.user_id)}</b> checked off {a.title}{dayText(c.day || a.date)}</>, go: () => toCalendar(a, c.day) });
       }
     }
     for (const r of claimedReminders.data || []) {
@@ -193,7 +200,11 @@ export default function ActivityFeed({ members = [] }) {
   }, [done.data, rems.data, events.data, claimedEvents.data, claimedReminders.data, checkedEvents.data, sharedNotes.data, imports.data, importTotals.data, msgs.data, meds.data, users, members, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = [done, rems, events].some((q) => q.isLoading);
-  const shown = more ? items.slice(0, 40) : items.slice(0, 8);
+  // Open: everything from the last 2 days (at least the 4 the closed view
+  // shows), then "Show older" for the rest (Anna, Nov 17 2026).
+  const recent = items.filter((x) => Date.now() - serverMs(x.at) <= 2 * 24 * 60 * 60 * 1000).length;
+  const base = Math.max(recent, 4);
+  const shown = more ? items.slice(0, Math.max(40, base)) : items.slice(0, base);
   // One thing someone did; tap it to see it.
   const line = (it) => (
     <li key={it.key}>
@@ -212,8 +223,9 @@ export default function ActivityFeed({ members = [] }) {
     <HomeSection
       title="Who did what"
       icon={<Activity className="w-5 h-5 text-primary flex-shrink-0" />}
-      preview={items[0] ? <ul>{line(items[0])}</ul> : null}
-      previewNext={items[1] ? <ul className="border-t border-border/40">{line(items[1])}</ul> : null}
+      // Closed: the newest 3, the 4th fading out, then "See more".
+      preview={items[0] ? <ul className="divide-y divide-border/40">{items.slice(0, 3).map(line)}</ul> : null}
+      previewNext={items[3] ? <ul className="border-t border-border/40">{line(items[3])}</ul> : null}
     >
       {loading && !items.length ? <p className="text-sm text-muted-foreground py-4">Loading…</p>
         : !items.length ? <p className="text-sm text-muted-foreground py-3">Nothing in the last {DAYS} days yet. When someone checks off a task, does a reminder or adds an event, it shows up here.</p>
@@ -223,7 +235,7 @@ export default function ActivityFeed({ members = [] }) {
           </ul>
         )}
       {/* "Show older", so it isn't mixed up with Home's "See more" and "Show less". */}
-      {!more && items.length > 8 && <button type="button" onClick={() => setMore(true)} className="w-full text-sm text-primary font-medium pt-2">Show older</button>}
+      {!more && items.length > base && <button type="button" onClick={() => setMore(true)} className="w-full text-sm text-primary font-medium pt-2">Show older</button>}
     </HomeSection>
       <Dialog open={!!imported} onOpenChange={(o) => { if (!o) setImported(null); }}>
         <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
@@ -237,7 +249,7 @@ export default function ActivityFeed({ members = [] }) {
               const at = [d && isValid(d) ? format(d, 'EEE, MMM d') : '', a.all_day || !a.time ? 'All day' : fmtClock(String(a.time).slice(0, 5))].filter(Boolean).join(' · ');
               return (
                 <li key={a.id}>
-                  <button type="button" className="w-full text-left flex items-center gap-3 py-2.5" onClick={() => { setImported(null); setTimeout(() => openEvent(a), 150); }}>
+                  <button type="button" className="w-full text-left flex items-center gap-3 py-2.5" onClick={() => { setImported(null); toCalendar(a); }}>
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium truncate">{a.title || 'Event'}</span>
                       <span className="block text-xs text-muted-foreground">{at}{a.visibility === 'private' ? ' · only you see it' : a.visibility === 'some' ? ' · shared with some of the family' : ''}</span>
@@ -253,7 +265,6 @@ export default function ActivityFeed({ members = [] }) {
           )}
         </DialogContent>
       </Dialog>
-      {editor}
     </>
   );
 }
