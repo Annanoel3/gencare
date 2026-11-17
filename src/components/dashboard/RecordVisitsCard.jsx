@@ -81,44 +81,46 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
 
   if (!visits.length) return null;
   const shown = visits.slice(0, MAX_SHOWN);
-  // Close to the visit: Record starts right away, and the section opens by itself.
+  // Close to the visit, Record starts right away.
   const isReady = ({ a, start, end, allDay }) => (allDay ? isToday(parseISO(a.date)) : now.getTime() >= start - HOUR && now.getTime() < end);
+
+  // One visit's line: what, who, when, and the Record button.
+  const row = (v) => {
+    const { a, allDay } = v;
+    const color = a.family_member_id ? getMemberColorByMemberId(a.family_member_id, members) : null;
+    const ready = isReady(v);
+    return (
+      // With big text the button moves under the words instead of squeezing them.
+      <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2.5">
+        <div className="flex-1 min-w-[10rem]">
+          <p className="text-sm font-medium title-fit">{shownTitle(a, members, !!a.family_member_name)}</p>
+          <p className="text-xs text-muted-foreground">
+            {a.family_member_name && <span className="inline-flex items-center gap-1 mr-2">{color && <span className={`w-2 h-2 rounded-full ${color}`} />}{a.family_member_name.split(' ')[0]}</span>}
+            <span className="whitespace-nowrap">{dayWord(parseISO(a.date))}{allDay ? '' : ` ${time12(a.time)}`}</span>
+          </p>
+        </div>
+        <Link
+          to={notesLink(a, { record: ready })}
+          aria-label={`Record ${a.title}`}
+          className="ml-auto inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-red-600 hover:bg-red-700 text-white text-sm font-semibold flex-shrink-0"
+        >
+          <Mic className="w-4 h-4" /> Record
+        </Link>
+      </div>
+    );
+  };
 
   return (
     <HomeSection
-      id="record"
       title="Record a visit"
       icon={<Mic className="w-5 h-5 text-red-600 flex-shrink-0" />}
       count={visits.length}
-      openNow={visits.some(isReady)}
-      note="GenCare can record the visit and write up notes for the family."
+      preview={row(visits[0])}
+      previewNext={visits[1] ? <div className="border-t border-border/60">{row(visits[1])}</div> : null}
     >
       <p className="text-sm text-muted-foreground mb-2">GenCare can record the visit and write up notes for the family.</p>
       <div className="divide-y divide-border/60">
-        {shown.map((v) => {
-          const { a, allDay } = v;
-          const color = a.family_member_id ? getMemberColorByMemberId(a.family_member_id, members) : null;
-          const ready = isReady(v);
-          return (
-            // With big text the button moves under the words instead of squeezing them.
-            <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2.5">
-              <div className="flex-1 min-w-[10rem]">
-                <p className="text-sm font-medium title-fit">{shownTitle(a, members, !!a.family_member_name)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {a.family_member_name && <span className="inline-flex items-center gap-1 mr-2">{color && <span className={`w-2 h-2 rounded-full ${color}`} />}{a.family_member_name.split(' ')[0]}</span>}
-                  <span className="whitespace-nowrap">{dayWord(parseISO(a.date))}{allDay ? '' : ` ${time12(a.time)}`}</span>
-                </p>
-              </div>
-              <Link
-                to={notesLink(a, { record: ready })}
-                aria-label={`Record ${a.title}`}
-                className="ml-auto inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-red-600 hover:bg-red-700 text-white text-sm font-semibold flex-shrink-0"
-              >
-                <Mic className="w-4 h-4" /> Record
-              </Link>
-            </div>
-          );
-        })}
+        {shown.map(row)}
       </div>
       {visits.length > MAX_SHOWN && <div className="text-right pt-1"><Link to="/notes" className="text-sm text-primary hover:underline">All of them ({visits.length})</Link></div>}
       <div className="mt-2"><ConsentNote /></div>

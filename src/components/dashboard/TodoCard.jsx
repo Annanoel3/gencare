@@ -42,7 +42,7 @@ export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
   const shown = open.slice(0, limit);
 
   return (
-    <HomeSection id="reminders" title="Reminders" count={open.length}>
+    <HomeSection title="Reminders" count={open.length}>
       <div className="space-y-1">
         {shown.map(t => {
           const overdue = t.due && !isToday(t.due) && isPast(startOfDay(t.due));

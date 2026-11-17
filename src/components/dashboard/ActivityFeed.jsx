@@ -194,25 +194,32 @@ export default function ActivityFeed({ members = [] }) {
 
   const loading = [done, rems, events].some((q) => q.isLoading);
   const shown = more ? items.slice(0, 40) : items.slice(0, 8);
+  // One thing someone did; tap it to see it.
+  const line = (it) => (
+    <li key={it.key}>
+      <button type="button" onClick={it.go} className="w-full text-left flex items-start gap-3 py-2.5">
+        <span className="w-7 h-7 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">{it.icon}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm line-clamp-2">{it.text}</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">{when(it.at)}</span>
+        </span>
+      </button>
+    </li>
+  );
 
   return (
     <>
-    <HomeSection id="who" title="Who did what" icon={<Activity className="w-5 h-5 text-primary flex-shrink-0" />}>
+    <HomeSection
+      title="Who did what"
+      icon={<Activity className="w-5 h-5 text-primary flex-shrink-0" />}
+      preview={items[0] ? <ul>{line(items[0])}</ul> : null}
+      previewNext={items[1] ? <ul className="border-t border-border/40">{line(items[1])}</ul> : null}
+    >
       {loading && !items.length ? <p className="text-sm text-muted-foreground py-4">Loading…</p>
         : !items.length ? <p className="text-sm text-muted-foreground py-3">Nothing in the last {DAYS} days yet. When someone checks off a task, does a reminder or adds an event, it shows up here.</p>
         : (
           <ul className="divide-y divide-border/40">
-            {shown.map((it) => (
-              <li key={it.key}>
-                <button type="button" onClick={it.go} className="w-full text-left flex items-start gap-3 py-2.5">
-                  <span className="w-7 h-7 rounded-full bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">{it.icon}</span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm line-clamp-2">{it.text}</span>
-                    <span className="block text-xs text-muted-foreground mt-0.5">{when(it.at)}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
+            {shown.map(line)}
           </ul>
         )}
       {!more && items.length > 8 && <button type="button" onClick={() => setMore(true)} className="w-full text-sm text-primary font-medium pt-2">Show more</button>}
