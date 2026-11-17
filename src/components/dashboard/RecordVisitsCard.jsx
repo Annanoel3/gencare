@@ -32,7 +32,6 @@ import { getMemberColorByMemberId, isCareEvent } from '@/utils/memberColors';
 
 const HOUR = 60 * 60 * 1000;
 const DAYS_AHEAD = 2;
-const MAX_SHOWN = 3;
 
 // When a visit starts (all day: the start of its day).
 function startOf(a) {
@@ -79,7 +78,6 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
   }, [canRecord, appointments, members, records, now]);
 
   if (!visits.length) return null;
-  const shown = visits.slice(0, MAX_SHOWN);
   // Close to the visit, Record starts right away.
   const isReady = ({ a, start, allDay }) => (allDay ? isToday(parseISO(a.date)) : now.getTime() >= start - HOUR);
 
@@ -119,9 +117,8 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
     >
       <p className="text-sm text-muted-foreground mb-2">GenCare can record the visit and write up notes for the family.</p>
       <div className="divide-y divide-border/60">
-        {shown.map(row)}
+        {visits.map(row)}
       </div>
-      {visits.length > MAX_SHOWN && <div className="text-right pt-1"><Link to="/notes" className="text-sm text-primary hover:underline">All of them ({visits.length})</Link></div>}
       <div className="mt-2"><ConsentNote /></div>
     </HomeSection>
   );

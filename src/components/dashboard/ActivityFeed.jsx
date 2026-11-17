@@ -31,7 +31,8 @@ import { claimsOf } from '@/lib/claims';
 
 // A first name; "Peach and Kaiju" (a reminder for more than one) stays whole.
 const first = (s) => { const t = String(s || '').trim(); return /, | and /.test(t) ? t : t.split(' ')[0]; };
-const DAYS = 3;
+// The last 2 days (Anna, Nov 17 2026: "show everything from the last 2 days").
+const DAYS = 2;
 // Base44's own timestamps are UTC without a Z (see serverTime.js).
 const when = (iso) => {
   const d = serverDate(iso);
@@ -42,7 +43,6 @@ const when = (iso) => {
 export default function ActivityFeed({ members = [] }) {
   const navigate = useNavigate();
   const { me, members: users = [] } = useFamily();
-  const [more, setMore] = useState(false);
   // "Your phone calendar brought in 3 events": which ones.
   const [imported, setImported] = useState(null);
   // An event opens on the Calendar, on its day, highlighted (Anna, Nov 17 2026:
@@ -200,11 +200,8 @@ export default function ActivityFeed({ members = [] }) {
   }, [done.data, rems.data, events.data, claimedEvents.data, claimedReminders.data, checkedEvents.data, sharedNotes.data, imports.data, importTotals.data, msgs.data, meds.data, users, members, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = [done, rems, events].some((q) => q.isLoading);
-  // Open: everything from the last 2 days (at least the 4 the closed view
-  // shows), then "Show older" for the rest (Anna, Nov 17 2026).
-  const recent = items.filter((x) => Date.now() - serverMs(x.at) <= 2 * 24 * 60 * 60 * 1000).length;
-  const base = Math.max(recent, 4);
-  const shown = more ? items.slice(0, Math.max(40, base)) : items.slice(0, base);
+  // Open: all of it ("Show more should just show the rest of the items").
+  const shown = items.slice(0, 100);
   // One thing someone did; tap it to see it.
   const line = (it) => (
     <li key={it.key}>
@@ -234,8 +231,6 @@ export default function ActivityFeed({ members = [] }) {
             {shown.map(line)}
           </ul>
         )}
-      {/* "Show older", so it isn't mixed up with Home's "See more" and "Show less". */}
-      {!more && items.length > base && <button type="button" onClick={() => setMore(true)} className="w-full text-sm text-primary font-medium pt-2">Show older</button>}
     </HomeSection>
       <Dialog open={!!imported} onOpenChange={(o) => { if (!o) setImported(null); }}>
         <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
