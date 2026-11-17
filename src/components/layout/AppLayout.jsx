@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { useSectionMagnet } from '@/lib/sectionMagnet';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CalendarDays,
@@ -161,6 +162,7 @@ function AppShell() {
   // list opened their Care Log partway down). Back keeps where you were. Only
   // a new page: a page changing its own ?date= and such stays put.
   const navigationType = useNavigationType();
+  useSectionMagnet();
   useEffect(() => {
     if (navigationType !== 'POP') window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps

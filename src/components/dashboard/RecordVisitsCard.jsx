@@ -82,7 +82,7 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
   const shown = visits.slice(0, MAX_SHOWN);
 
   return (
-    <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mb-6">
+    <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mb-6" data-section>
       <div className="flex items-center justify-between gap-2 mb-1">
         <h2 className="font-heading text-lg font-semibold flex items-center gap-2"><Mic className="w-5 h-5 text-red-600" /> Record a visit</h2>
         {visits.length > MAX_SHOWN && <Link to="/notes" className="text-sm text-primary hover:underline">All of them ({visits.length})</Link>}

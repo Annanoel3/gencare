@@ -192,10 +192,12 @@ export default function ActivityFeed({ members = [] }) {
   }, [done.data, rems.data, events.data, claimedEvents.data, claimedReminders.data, checkedEvents.data, sharedNotes.data, imports.data, importTotals.data, msgs.data, meds.data, users, members, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = [done, rems, events].some((q) => q.isLoading);
-  const shown = more ? items.slice(0, 40) : items.slice(0, 8);
+  // The first few, then "See all" (Anna, Nov 17 2026: a shorter Home).
+  const FEW = 3;
+  const shown = more ? items.slice(0, 40) : items.slice(0, FEW);
 
   return (
-    <section className="rounded-2xl border border-border/50 bg-card p-4 shadow-sm">
+    <section className="rounded-2xl border border-border/50 bg-card p-4 shadow-sm" data-section>
       <h2 className="font-heading text-lg font-semibold flex items-center gap-2 mb-2"><Activity className="w-5 h-5 text-primary" /> Who did what</h2>
       {loading && !items.length ? <p className="text-sm text-muted-foreground py-4">Loading…</p>
         : !items.length ? <p className="text-sm text-muted-foreground py-3">Nothing in the last {DAYS} days yet. When someone checks off a task, does a reminder or adds an event, it shows up here.</p>
@@ -214,7 +216,11 @@ export default function ActivityFeed({ members = [] }) {
             ))}
           </ul>
         )}
-      {!more && items.length > 8 && <button type="button" onClick={() => setMore(true)} className="w-full text-sm text-primary font-medium pt-2">Show more</button>}
+      {items.length > FEW && (
+        <button type="button" onClick={() => setMore((m) => !m)} className="w-full text-sm text-primary font-medium pt-2">
+          {more ? 'Show fewer' : `See all (${Math.min(items.length, 40)})`}
+        </button>
+      )}
       <Dialog open={!!imported} onOpenChange={(o) => { if (!o) setImported(null); }}>
         <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
           <DialogHeader>

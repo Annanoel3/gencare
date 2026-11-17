@@ -423,7 +423,7 @@ export default function CalendarPage() {
         </TabsList>
 
         <TabsContent value="month">
-          <div id="calendar-month" className="scroll-mt-20">
+          <div id="calendar-month" className="scroll-mt-20" data-section>
             <MonthView
               currentMonth={currentMonth}
               setCurrentMonth={setCurrentMonth}
@@ -436,7 +436,7 @@ export default function CalendarPage() {
           {colorNote}
           {/* Room below so a short day can still scroll up to the top of the screen. */}
           <div className="min-h-[calc(100dvh-5rem)]">
-          <div id="calendar-day" className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6 scroll-mt-20">
+          <div id="calendar-day" className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6 scroll-mt-20" data-section>
             <button type="button" onClick={() => showBelow('calendar-month')} className="inline-flex items-center gap-1.5 -ml-1 mb-2 px-1 py-1 text-sm font-medium text-primary">
               <ArrowUp className="w-4 h-4" /> Back to calendar
             </button>

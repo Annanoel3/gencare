@@ -65,7 +65,7 @@ export default function Dashboard() {
 
       <TodoCard tasks={tasks} members={members} />
 
-      <div className="mb-6">
+      <div className="mb-6" data-section>
         <div className="flex items-center justify-between gap-2 mb-3">
           <h2 className="font-heading text-lg font-semibold">Today Across the Family</h2>
           <button type="button" onClick={() => setAnnouncing(true)}

@@ -243,7 +243,7 @@ export default function CareLogPage() {
               {band === 'baby' && <BabyTimers person={person} logs={logs} me={me} onChanged={refresh} />}
               <PersonToday person={person} members={members} />
 
-              <section>
+              <section data-section>
                 <h2 className="text-sm font-semibold text-muted-foreground mb-2">Tap when it happens</h2>
                 <div className="grid grid-cols-3 gap-2">
                   {quick.map((q) => {
@@ -270,7 +270,7 @@ export default function CareLogPage() {
               {/* Right under the buttons (Anna, Nov 13 2026: "put the track something higher up"). */}
               <Trackers person={person} logs={logs} me={me} onChanged={refresh} privacy={mine ? privacy : null} />
 
-              <section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
+              <section data-section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
                 <h2 className="font-heading text-base font-semibold px-2 pt-1">Today {todays.length > 0 && <span className="text-muted-foreground font-normal text-sm">({todays.length})</span>}</h2>
                 {isLoading ? <p className="text-sm text-muted-foreground px-2 py-4">Loading…</p>
                   : todays.length === 0 ? <p className="text-sm text-muted-foreground px-2 py-3">Nothing logged for {first} today. When someone taps {quick[0]?.label} or {quick[3]?.label || quick[1]?.label}, it shows up here with who did it.</p>
@@ -280,7 +280,7 @@ export default function CareLogPage() {
               {band === 'baby' && <MilkStash person={person} logs={logs} me={me} offer={quick.some((q) => q.key === 'pumping')} onLogged={refresh} />}
 
               {lastTimes.length > 0 && (
-                <section className="rounded-2xl border border-border/50 bg-card p-4">
+                <section data-section className="rounded-2xl border border-border/50 bg-card p-4">
                   <h2 className="font-heading text-base font-semibold mb-2 flex items-center gap-2"><History className="w-4 h-4 text-primary" /> Last time</h2>
                   <ul className="space-y-2">
                     {lastTimes.map(([q, e]) => (
@@ -300,7 +300,7 @@ export default function CareLogPage() {
 
 
               {soon.length > 0 && (
-                <section className="rounded-2xl border border-border/50 bg-card p-4">
+                <section data-section className="rounded-2xl border border-border/50 bg-card p-4">
                   <h2 className="font-heading text-base font-semibold mb-2 flex items-center gap-2"><CalendarClock className="w-4 h-4 text-primary" /> Coming up</h2>
                   <div className="divide-y divide-border/40">
                     {soon.map((l) => {
@@ -318,7 +318,7 @@ export default function CareLogPage() {
               )}
 
               {earlier.length > 0 && (
-                <section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
+                <section data-section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
                   <h2 className="font-heading text-base font-semibold mb-1 px-2 pt-1">Earlier</h2>
                   {grouped.map(([day, list]) => (
                     <div key={day} className="mb-2">
