@@ -207,7 +207,7 @@ export default function Tasks() {
           )}
 
           {bySection.map((s) => (
-            <section key={s.key} data-section>
+            <section key={s.key}>
               <h2 className="font-heading text-base font-semibold mb-2">{s.label} <span className="text-muted-foreground font-normal text-sm">({s.entries.length})</span></h2>
               <div className="space-y-2">
                 {s.entries.map((e) => (
@@ -222,7 +222,7 @@ export default function Tasks() {
           {/* Every reminder, by who it's for (the old Reminders tab): where
               repeating ones are seen and changed. */}
           {(byPerson.length > 0 || paused.length > 0) && (
-            <section className="space-y-2 pt-2 border-t border-border/60" data-section>
+            <section className="space-y-2 pt-2 border-t border-border/60">
               <h2 className="font-heading text-base font-semibold pt-4">Every reminder</h2>
               <p className="text-sm text-muted-foreground">Things at set times, like a walk every morning at 8, and one-off jobs that keep reminding until someone marks them done. Tap one to change it.</p>
               {byPerson.map(([who, list]) => (

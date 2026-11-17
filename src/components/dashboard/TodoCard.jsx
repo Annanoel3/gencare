@@ -6,6 +6,7 @@ import { useFamily } from '@/lib/family';
 import { getMemberColorByMemberId } from '@/utils/memberColors';
 import { completeTask, time12, PRIORITY_WORD } from '@/lib/tasks';
 import DoneButton from '@/components/shared/DoneButton';
+import HomeSection from '@/components/dashboard/HomeSection';
 
 /**
  * The family's open tasks on the home page, newest-due first, tick to complete.
@@ -13,7 +14,7 @@ import DoneButton from '@/components/shared/DoneButton';
  * care feed only shows things pinned to a day, so without this card they were
  * invisible until you opened the Tasks page.
  */
-export default function TodoCard({ tasks = [], members = [], limit = 3 }) {
+export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
   const queryClient = useQueryClient();
   const { me } = useFamily();
   const complete = useMutation({
@@ -41,11 +42,7 @@ export default function TodoCard({ tasks = [], members = [], limit = 3 }) {
   const shown = open.slice(0, limit);
 
   return (
-    <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mb-6" data-section>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-heading text-lg font-semibold">Reminders</h2>
-        <Link to="/tasks" className="text-sm text-primary hover:underline">All of them ({open.length})</Link>
-      </div>
+    <HomeSection id="reminders" title="Reminders" count={open.length}>
       <div className="space-y-1">
         {shown.map(t => {
           const overdue = t.due && !isToday(t.due) && isPast(startOfDay(t.due));
@@ -73,6 +70,7 @@ export default function TodoCard({ tasks = [], members = [], limit = 3 }) {
           );
         })}
       </div>
-    </div>
+      <div className="text-right pt-1"><Link to="/tasks" className="text-sm text-primary hover:underline">All of them ({open.length})</Link></div>
+    </HomeSection>
   );
 }

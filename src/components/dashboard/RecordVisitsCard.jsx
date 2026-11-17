@@ -14,6 +14,7 @@ import { notesLink, isNotesOf } from '@/lib/visits';
 import { categoryOf } from '@/components/calendar/EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ConsentNote from '@/components/notes/ConsentNote';
+import HomeSection from '@/components/dashboard/HomeSection';
 import { getMemberColorByMemberId, isCareEvent } from '@/utils/memberColors';
 
 // Upcoming visits to record (Anna, Nov 16 2026: "Make a thing for upcoming
@@ -80,18 +81,24 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
 
   if (!visits.length) return null;
   const shown = visits.slice(0, MAX_SHOWN);
+  // Close to the visit: Record starts right away, and the section opens by itself.
+  const isReady = ({ a, start, end, allDay }) => (allDay ? isToday(parseISO(a.date)) : now.getTime() >= start - HOUR && now.getTime() < end);
 
   return (
-    <div className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mb-6" data-section>
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <h2 className="font-heading text-lg font-semibold flex items-center gap-2"><Mic className="w-5 h-5 text-red-600" /> Record a visit</h2>
-        {visits.length > MAX_SHOWN && <Link to="/notes" className="text-sm text-primary hover:underline">All of them ({visits.length})</Link>}
-      </div>
+    <HomeSection
+      id="record"
+      title="Record a visit"
+      icon={<Mic className="w-5 h-5 text-red-600 flex-shrink-0" />}
+      count={visits.length}
+      openNow={visits.some(isReady)}
+      note="GenCare can record the visit and write up notes for the family."
+    >
       <p className="text-sm text-muted-foreground mb-2">GenCare can record the visit and write up notes for the family.</p>
       <div className="divide-y divide-border/60">
-        {shown.map(({ a, start, end, allDay }) => {
+        {shown.map((v) => {
+          const { a, allDay } = v;
           const color = a.family_member_id ? getMemberColorByMemberId(a.family_member_id, members) : null;
-          const ready = allDay ? isToday(parseISO(a.date)) : now.getTime() >= start - HOUR && now.getTime() < end;
+          const ready = isReady(v);
           return (
             // With big text the button moves under the words instead of squeezing them.
             <div key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2.5">
@@ -113,7 +120,8 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
           );
         })}
       </div>
+      {visits.length > MAX_SHOWN && <div className="text-right pt-1"><Link to="/notes" className="text-sm text-primary hover:underline">All of them ({visits.length})</Link></div>}
       <div className="mt-2"><ConsentNote /></div>
-    </div>
+    </HomeSection>
   );
 }
