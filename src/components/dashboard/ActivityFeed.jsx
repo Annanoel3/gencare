@@ -222,7 +222,8 @@ export default function ActivityFeed({ members = [] }) {
             {shown.map(line)}
           </ul>
         )}
-      {!more && items.length > 8 && <button type="button" onClick={() => setMore(true)} className="w-full text-sm text-primary font-medium pt-2">Show more</button>}
+      {/* "Show older", so it isn't mixed up with Home's "See more" and "Show less". */}
+      {!more && items.length > 8 && <button type="button" onClick={() => setMore(true)} className="w-full text-sm text-primary font-medium pt-2">Show older</button>}
     </HomeSection>
       <Dialog open={!!imported} onOpenChange={(o) => { if (!o) setImported(null); }}>
         <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
