@@ -3,11 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Megaphone } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { expandAppointments } from '@/lib/occurrences';
 import { aroundKey, listEventsAround } from '@/lib/events';
-import { REMINDERS_KEY, listReminders, slotsForDay, todayStr } from '@/lib/reminders';
 import WelcomeHeader from '@/components/dashboard/WelcomeHeader';
-import StatCards from '@/components/dashboard/StatCards';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import CareFeed from '@/components/dashboard/CareFeed';
 import TodoCard from '@/components/dashboard/TodoCard';
@@ -43,26 +40,16 @@ export default function Dashboard() {
     queryFn: listEventsAround,
   });
 
-  const { data: reminders = [] } = useQuery({ queryKey: REMINDERS_KEY, queryFn: listReminders });
-
   const { data: tasks = [] } = useQuery({
     queryKey: ['careTasks'],
     queryFn: () => base44.entities.CareTask.list('-created_date', 200),
   });
 
-
-
-  const todayAppts = expandAppointments(appointments, new Date(), new Date());
-  const remindersToday = slotsForDay(reminders, [], todayStr()).length;
-
   return (
     <div className="pb-24 lg:pb-8">
       <WelcomeHeader userName={user?.full_name?.split(' ')[0]} />
-      <StatCards
-        appointments={todayAppts.length}
-        reminders={remindersToday}
-      />
-
+      {/* No count cards ("3 events today, 1 reminder") since Nov 17 2026: Today
+          Across the Family below shows the same things. */}
       <TodoCard tasks={tasks} members={members} />
 
       <div className="mb-6">

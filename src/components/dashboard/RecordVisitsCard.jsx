@@ -6,7 +6,7 @@ import { Mic } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { expandAppointments } from '@/lib/occurrences';
 import { realEvent } from '@/lib/sameEvent';
-import { useNow } from '@/lib/eventTiming';
+import { eventTiming, useNow } from '@/lib/eventTiming';
 import { checkOn } from '@/lib/claims';
 import { time12 } from '@/lib/tasks';
 import { shownTitle } from '@/lib/eventTitle';
@@ -22,26 +22,24 @@ import { getMemberColorByMemberId, isCareEvent } from '@/utils/memberColors';
 // option exists and has an easy way to press record"). Doctor-type visits
 // (an Appointment that's care: doctor, dentist, therapy, vet...) from today
 // through the next two days, each with a Record button. Close to the visit
-// (an hour before until it's over) Record starts recording right away;
+// (from an hour before) Record starts recording right away;
 // earlier it opens the visit's Record Notes page, where the family can add
 // questions and press Start recording. Only on phones that can record.
 // Not here: someone else's private appointment (the family's "Mom: doctor"
-// stand-in), ones already checked off, and ones already recorded.
+// stand-in), ones already checked off or recorded, and ones that are over
+// (the same "Past" as Today Across the Family: their end time, or an hour
+// after they start).
 
 const HOUR = 60 * 60 * 1000;
 const DAYS_AHEAD = 2;
 const MAX_SHOWN = 3;
 
-// When a visit starts and when it's over: its end time, or three hours after
-// it starts (waiting rooms run late). All day: the whole day.
-function span(a) {
+// When a visit starts (all day: the start of its day).
+function startOf(a) {
   const day = parseISO(a.date);
   const t = /^(\d{1,2}):(\d{2})/.exec(String(a.time || ''));
-  if (a.all_day || !t) return { start: day.getTime(), end: addDays(day, 1).getTime(), allDay: true };
-  const start = new Date(`${a.date}T${t[1].padStart(2, '0')}:${t[2]}:00`).getTime();
-  const e = /^(\d{1,2}):(\d{2})/.exec(String(a.end_time || ''));
-  const end = e ? new Date(`${a.date}T${e[1].padStart(2, '0')}:${e[2]}:00`).getTime() : NaN;
-  return { start, end: end > start ? end : start + 3 * HOUR, allDay: false };
+  if (a.all_day || !t) return { start: day.getTime(), allDay: true };
+  return { start: new Date(`${a.date}T${t[1].padStart(2, '0')}:${t[2]}:00`).getTime(), allDay: false };
 }
 
 function dayWord(d) {
@@ -71,8 +69,9 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
       .filter((a) => categoryOf(a) === 'Appointment' && isCareEvent(a, members));
     return expandAppointments(rows, now, addDays(now, DAYS_AHEAD))
       .filter((a) => !a.span_index)
-      .map((a) => ({ a, ...span(a) }))
-      .filter(({ a, end }) => end > now.getTime()
+      .map((a) => ({ a, ...startOf(a) }))
+      // Over (the same "Past" as Today Across the Family): not a visit to record any more.
+      .filter(({ a }) => eventTiming(a, now) !== 'past'
         && !checkOn(a, a.date)
         && !(!a.recurrence && a.notes_record_id)
         && !records.some((r) => isNotesOf(r, a, a.date)))
@@ -82,7 +81,7 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
   if (!visits.length) return null;
   const shown = visits.slice(0, MAX_SHOWN);
   // Close to the visit, Record starts right away.
-  const isReady = ({ a, start, end, allDay }) => (allDay ? isToday(parseISO(a.date)) : now.getTime() >= start - HOUR && now.getTime() < end);
+  const isReady = ({ a, start, allDay }) => (allDay ? isToday(parseISO(a.date)) : now.getTime() >= start - HOUR);
 
   // One visit's line: what, who, when, and the Record button.
   const row = (v) => {
