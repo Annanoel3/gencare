@@ -31,6 +31,9 @@ import { getMemberColorByMemberId, isCareEvent } from '@/utils/memberColors';
 // after they start).
 
 const HOUR = 60 * 60 * 1000;
+// Opened, it shows the soonest 3; the rest are on Record Notes (Anna, Nov 17
+// 2026: a busy week of therapies could make it long).
+const MAX_SHOWN = 3;
 const DAYS_AHEAD = 2;
 
 // When a visit starts (all day: the start of its day).
@@ -117,8 +120,9 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
     >
       <p className="text-sm text-muted-foreground mb-2">GenCare can record the visit and write up notes for the family.</p>
       <div className="divide-y divide-border/60">
-        {visits.map(row)}
+        {visits.slice(0, MAX_SHOWN).map(row)}
       </div>
+      {visits.length > MAX_SHOWN && <div className="text-right pt-1"><Link to="/notes" className="text-sm text-primary hover:underline">All of them ({visits.length})</Link></div>}
       <div className="mt-2"><ConsentNote /></div>
     </HomeSection>
   );
