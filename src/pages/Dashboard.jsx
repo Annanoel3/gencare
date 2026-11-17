@@ -14,6 +14,7 @@ import TodoCard from '@/components/dashboard/TodoCard';
 import ClaimProfilePrompt from '@/components/family/ClaimProfilePrompt';
 import { AnnouncementList, AnnounceDialog } from '@/components/dashboard/Announcements';
 import CareLogToday from '@/components/dashboard/CareLogToday';
+import RecordVisitsCard from '@/components/dashboard/RecordVisitsCard';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -61,6 +62,9 @@ export default function Dashboard() {
         appointments={todayAppts.length}
         reminders={remindersToday}
       />
+
+      {/* Doctor-type visits coming up, with a Record button (on phones that can record). */}
+      <RecordVisitsCard appointments={appointments} members={members} />
 
       <TodoCard tasks={tasks} members={members} />
 

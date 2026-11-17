@@ -10,6 +10,7 @@ import ClaimButton from '@/components/shared/ClaimButton';
 import { checkOn, firstName } from '@/lib/claims';
 import { shownTitle } from '@/lib/eventTitle';
 import { eventTiming, useNow } from '@/lib/eventTiming';
+import { notesLink, showsNotes } from '@/lib/visits';
 
 // Event categories. 'Doctor' and 'Therapy' were categories before Oct 2026;
 // any row still carrying one reads as a plain Appointment.
@@ -93,11 +94,11 @@ export default function EventRow({ appt, members, onClick, focus = false }) {
           {appt.location && <AddressLink address={appt.location} className="inline-flex items-center gap-1 text-xs text-primary max-w-full min-w-0" />}
           {canRecord && isRecordable(appt) && (
             <Link
-              to={`/notes?appointment=${appt.occurrence_of || appt.id}`}
+              to={notesLink(appt)}
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700"
             >
-              <Mic className="w-3 h-3" /> {appt.notes_record_id ? 'Notes' : 'Record notes'}
+              <Mic className="w-3 h-3" /> {showsNotes(appt, format(now, 'yyyy-MM-dd')) ? 'Notes' : 'Record notes'}
             </Link>
           )}
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CalendarDays,
@@ -157,6 +157,13 @@ function AppShell() {
   // Record keeping: the session, then each screen opened (path only).
   useEffect(() => { if (me?.id) startActivity(me); }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { track('screen', location.pathname); }, [location.pathname]);
+  // A page opens at its top (Nov 16 2026: tapping someone low on the Family
+  // list opened their Care Log partway down). Back keeps where you were. Only
+  // a new page: a page changing its own ?date= and such stays put.
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType !== 'POP') window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Record Notes only exists on app builds with the recorder.
   useEffect(() => {

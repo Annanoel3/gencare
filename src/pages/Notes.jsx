@@ -3,15 +3,18 @@ import { track } from '@/lib/activity';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { listEvents } from "@/lib/events";
+import { expandAppointments } from "@/lib/occurrences";
+import { dayOf, isNotesOf } from "@/lib/visits";
 import { realEvent } from "@/lib/sameEvent";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import {
-  Mic, Pause, Play, Square, ChevronLeft, ChevronRight, Trash2, Plus, Check, Loader2, Info, RotateCcw, FileDown, Lock, Users,
+  Mic, Pause, Play, Square, ChevronLeft, ChevronRight, Trash2, Plus, Check, Loader2, RotateCcw, FileDown, Lock, Users,
 } from "lucide-react";
 import { downloadNotesPdf } from "@/components/notes/notesPdf";
 import PrepPointsList from "@/components/notes/PrepPointsList";
+import ConsentNote from "@/components/notes/ConsentNote";
 import ShareNotesDialog, { sharingLabel } from "@/components/notes/ShareNotesDialog";
 import { withFamily, useFamily } from "@/lib/family";
 import { plugin } from "@/lib/phone";
@@ -115,26 +118,6 @@ function hi(text) {
 }
 function unhi(text) {
   return String(text || "").replace(/==([^=]{1,80}?)==/g, "$1");
-}
-
-const CONSENT_STATES = "California, Delaware, Florida, Illinois, Maryland, Massachusetts, Montana, Nevada, New Hampshire, Oregon, Pennsylvania and Washington";
-
-function ConsentNote({ center = false }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`text-xs text-muted-foreground ${center ? "text-center" : ""}`}>
-      <p className={`flex gap-1.5 ${center ? "justify-center" : ""}`}>
-        <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-        <span>
-          In 12 states, everyone has to agree before you record them.{" "}
-          <button type="button" className="underline" onClick={() => setOpen((o) => !o)}>
-            {open ? "Hide the list" : "Which states?"}
-          </button>
-        </span>
-      </p>
-      {open && <p className="mt-1 pl-5">{CONSENT_STATES}.</p>}
-    </div>
-  );
 }
 
 function whenText(iso) {
@@ -270,9 +253,11 @@ export default function Notes() {
       const rows = ((await listEvents(new Date(now - 61 * DAY), new Date(now + 366 * DAY))) || []).map(realEvent);
       const withStart = rows.filter((a) => startOf(a) !== null && startOf(a) > now - 60 * DAY);
       setEvents(withStart);
-      const soon = withStart
-        .filter((a) => isRecordable(a))
-        .filter((a) => { const s = startOf(a); return s > now - 3 * HOUR && s < now + 31 * DAY; })
+      // Each visit of a repeating one gets its own card (the row's id, that day's date).
+      const soon = expandAppointments(rows.filter((a) => isRecordable(a)), new Date(now - 3 * HOUR), new Date(now + 31 * DAY))
+        .filter((a) => !a.span_index)
+        .filter((a) => { const s = startOf(a); return s !== null && s > now - 3 * HOUR && s < now + 31 * DAY; })
+        .map((a) => ({ ...a, id: a.occurrence_of || a.id, visit_key: a.id }))
         .sort((a, b) => startOf(a) - startOf(b));
       setUpcoming(soon);
     } catch (e) {
@@ -471,9 +456,12 @@ export default function Notes() {
       if (apptId && !cancelled) {
         window.history.replaceState(null, "", window.location.pathname);
         const found = await base44.entities.Appointment.filter({ id: apptId }).catch(() => []);
-        const appt = found?.[0];
-        if (appt && !cancelled) {
-          const existing = (rows || []).find((r) => r.appointment_id === appt.id && !r.parent_record_id);
+        const row = found?.[0];
+        if (row && !cancelled) {
+          // A repeating appointment's visit is one day of it (lib/visits): ?on=, or today.
+          const on = params.get("on") || dayOf(new Date().toISOString());
+          const appt = row.recurrence ? { ...row, date: on } : row;
+          const existing = (rows || []).find((r) => isNotesOf(r, appt, on));
           if (existing && !recordingNow) { setOpenId(existing.id); setTab("notes"); }
           else if (params.get("record") === "1" && !recordingNow) startRecording({ appt });
           else if (!recordingNow) setPrepAppt(appt);
@@ -1256,8 +1244,7 @@ export default function Notes() {
   }
 
   // ── Start screen: a card per appointment ──
-  const recordedApptIds = new Set(records.map((r) => r.appointment_id).filter(Boolean));
-  const upcomingCards = upcoming.filter((a) => !recordedApptIds.has(a.id));
+  const upcomingCards = upcoming.filter((a) => !records.some((r) => isNotesOf(r, a, a.date)));
   return (
     <div className={pagePad}>
       {capDialog}
@@ -1284,7 +1271,7 @@ export default function Notes() {
             {upcomingCards.map((a) => {
               const n = cleanQuestions(a.prep_questions).length;
               return (
-                <button key={a.id} type="button" onClick={() => setPrepAppt(a)} className="w-full min-w-0 text-left rounded-2xl border-2 border-dashed border-border bg-card/60 p-4 flex items-center gap-3">
+                <button key={a.visit_key || a.id} type="button" onClick={() => setPrepAppt(a)} className="w-full min-w-0 text-left rounded-2xl border-2 border-dashed border-border bg-card/60 p-4 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold truncate">{a.family_member_name ? `${a.family_member_name}: ` : ""}{a.title}</div>
                     <div className={`text-sm ${soft}`}>{whenText(new Date(startOf(a)).toISOString())} · Not recorded yet{n ? ` · ${n} thing${n === 1 ? "" : "s"} to bring up` : ""}</div>

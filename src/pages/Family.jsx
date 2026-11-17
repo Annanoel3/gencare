@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { withFamily, useFamily, relationshipLabel, orderMembers, RELATIONSHIPS } from '@/lib/family';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Users, Plus, School, QrCode, StickyNote, PawPrint } from 'lucide-react';
+import { Users, Plus, School, QrCode, StickyNote, PawPrint, HeartHandshake, ChevronRight } from 'lucide-react';
 import InviteModal from '@/components/family/InviteModal';
 import MissingNote from '@/components/shared/MissingNote';
 import CaredForSwitch, { caredForShown } from '@/components/family/CaredForSwitch';
@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion } from 'framer-motion';
 
 import { getMemberColorClass, isPet } from '@/utils/memberColors';
+import { caredFor } from '@/lib/carePrivacy';
 
 const relationships = RELATIONSHIPS;
 const EMPTY = { name: '', relationship: '', birthdate: '', care_notes: '' };
@@ -111,7 +112,12 @@ export default function Family() {
         <section key={g.key} className="mb-6">
         {g.title && <h2 className="font-heading text-lg font-semibold mb-3 flex items-center gap-2"><PawPrint className="w-5 h-5 text-primary" /> {g.title}</h2>}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {g.list.map((member, i) => (
+          {g.list.map((member, i) => {
+            // Someone the family takes care of (and every pet) opens on their Care Log
+            // (Anna, Nov 16 2026); their profile is a tap away at the bottom of the card.
+            const careLog = caredFor(member);
+            const details = member.school_name || member.care_notes;
+            return (
             <motion.div
               key={member.id}
               initial={{ opacity: 0, y: 20 }}
@@ -119,8 +125,8 @@ export default function Family() {
               transition={{ delay: i * 0.05 }}
             >
               <div className="bg-card rounded-2xl border border-border/50 hover:shadow-md transition-all">
-              <Link to={`/family/${member.id}`} className="block p-5">
-                <div className="flex items-center gap-4 mb-4">
+              <Link to={careLog ? `/care-log?for=${member.id}` : `/family/${member.id}`} className="block p-5">
+                <div className={`flex items-center gap-4 ${details ? 'mb-4' : ''}`}>
                   <Avatar className="w-14 h-14">
                     <AvatarImage src={member.photo_url} />
                     <AvatarFallback className={`${getMemberColorClass(member, members)} text-white text-lg font-bold`}>
@@ -132,7 +138,7 @@ export default function Family() {
                     <p className="text-sm text-muted-foreground">{[relationshipLabel(member, me?.id), member.linked_user_id && member.linked_user_id !== me?.id ? 'On GenCare' : '', !isPet(member) && member.cared_for === true ? 'Family helps care for them' : ''].filter(Boolean).join(' · ')}</p>
                   </div>
                 </div>
-                <div className="space-y-2 text-sm">
+                {details && <div className="space-y-2 text-sm">
                   {member.school_name && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <School className="w-4 h-4" />
@@ -145,11 +151,18 @@ export default function Family() {
                       <span className="truncate">{member.care_notes.split('\n')[0]}</span>
                     </div>
                   )}
-                </div>
+                </div>}
               </Link>
+              {careLog && (
+                <div className="flex items-center justify-between gap-3 border-t border-border/50 px-5 py-2.5 text-sm">
+                  <Link to={`/care-log?for=${member.id}`} className="inline-flex items-center gap-1.5 font-medium text-primary"><HeartHandshake className="w-4 h-4" /> Care Log</Link>
+                  <Link to={`/family/${member.id}`} className="inline-flex items-center gap-0.5 text-muted-foreground">Profile <ChevronRight className="w-4 h-4" /></Link>
+                </div>
+              )}
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
         </section>
         ))}

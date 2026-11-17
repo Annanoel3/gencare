@@ -12,6 +12,7 @@ import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass, 
 import { useFamily } from '@/lib/family';
 import { rowIdOf, repeatLabelOn } from '@/lib/occurrences';
 import { categoryOf, isRecordable } from '@/components/calendar/EventRow';
+import { notesLink, showsNotes } from '@/lib/visits';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ClaimButton from '@/components/shared/ClaimButton';
 import { shownTitle } from '@/lib/eventTitle';
@@ -109,11 +110,11 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
         </div>
         {canRecord && isRecordable(appt) && (
           <Link
-            to={`/notes?appointment=${id}`}
+            to={notesLink(appt)}
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700 flex-shrink-0"
           >
-            <Mic className="w-3 h-3" /> {appt.notes_record_id ? 'Notes' : 'Record'}
+            <Mic className="w-3 h-3" /> {showsNotes(appt) ? 'Notes' : 'Record'}
           </Link>
         )}
       </div>
