@@ -327,6 +327,12 @@ export default function CalendarPage() {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 60);
   const pickDay = (day) => { setSelectedDate(day); showBelow('calendar-day'); };
+  // The Calendar button at the bottom, tapped while here (AppLayout).
+  useEffect(() => {
+    const up = () => (view === 'month' ? showBelow('calendar-month') : window.scrollTo({ top: 0, behavior: 'smooth' }));
+    window.addEventListener('gencare:calendar-top', up);
+    return () => window.removeEventListener('gencare:calendar-top', up);
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
   const duplicate = (data) => { closeDialog(); setTimeout(() => { setPrefill(data); setEditing(null); setDialogOpen(true); }, 200); };
   // An occurrence of a series opens the series itself.
   const openEdit = (occ) => { if (occ?.reminder) { openReminder(occ.reminder); return; } setEditing(realEvent(appointments.find((a) => a.id === rowIdOf(occ)) || occ)); setDialogOpen(true); };

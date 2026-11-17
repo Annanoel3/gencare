@@ -286,6 +286,9 @@ function AppShell() {
             <Link
               key={item.path}
               to={item.path}
+              // Calendar tapped while on the Calendar: back up to the month, like
+              // "Back to calendar" (Anna, Nov 17 2026), keeping the day picked.
+              onClick={item.path === '/calendar' && location.pathname === '/calendar' ? (e) => { e.preventDefault(); window.dispatchEvent(new Event('gencare:calendar-top')); } : undefined}
               className={`flex-1 min-w-0 flex flex-col items-center gap-1 px-0.5 py-1.5 rounded-lg text-xs transition-all ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
