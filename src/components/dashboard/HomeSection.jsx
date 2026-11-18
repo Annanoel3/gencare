@@ -10,7 +10,8 @@ import { ChevronDown } from 'lucide-react';
 // leaves, it should be collapsed next open").
 try { localStorage.removeItem('gencare_home_open'); } catch { /* nothing kept */ }
 
-export default function HomeSection({ title, icon, count, preview, previewNext, children }) {
+// nextHeight: how much of the next item shows, fading (To-do's is taller to make up for its gap).
+export default function HomeSection({ title, icon, count, preview, previewNext, nextHeight = 'h-10', children }) {
   const [open, setOpen] = useState(false);
   const box = useRef(null);
   // Closing from the bottom of a long list: bring the section's name back on screen.
@@ -45,7 +46,7 @@ export default function HomeSection({ title, icon, count, preview, previewNext, 
           {previewNext && (
             <>
               {/* The top of the next one, fading out; a tap on it opens the section too. */}
-              <div onClick={() => setOpen(true)} aria-hidden="true" className="relative h-10 overflow-hidden cursor-pointer">
+              <div onClick={() => setOpen(true)} aria-hidden="true" className={`relative ${nextHeight} overflow-hidden cursor-pointer`}>
                 <div inert="" className="pointer-events-none">{previewNext}</div>
                 <span className="absolute inset-0 bg-gradient-to-b from-transparent to-card to-90%" />
               </div>

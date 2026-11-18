@@ -42,7 +42,9 @@ export default function TodoCard({ tasks = [], members = [] }) {
         icon={<ListChecks className="w-5 h-5 text-primary flex-shrink-0" />}
         count={left.length}
         preview={left[0] || <p className="text-sm text-muted-foreground py-1">All done for today.</p>}
-        previewNext={left[0] ? all[1] || null : doneToday[0] || null}
+        // The same small gap between the two as in the opened list (Anna, Nov 18 2026).
+        previewNext={(left[0] ? all[1] : doneToday[0]) ? <div className="pt-2">{left[0] ? all[1] : doneToday[0]}</div> : null}
+        nextHeight="h-12"
       >
         {/* Opened, everything (Anna, Nov 17 2026: "Show more should just show the rest of the items"). */}
         <div className="space-y-2">{all}</div>
