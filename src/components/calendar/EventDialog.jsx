@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
-import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat, Copy, CircleStop, HeartPulse } from 'lucide-react';
+import { Trash2, Users, Lock, Mic, Check, Sparkles, Loader2, Repeat, Copy, CircleStop, Palette } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { isCareEvent } from '@/utils/memberColors';
+import { takesTime } from '@/utils/memberColors';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useFamily, orderMembers } from '@/lib/family';
 import { Link } from 'react-router-dom';
@@ -121,7 +121,6 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
         end_date: appt.end_date || '',
         recurrence: baseRule(appt.recurrence),
         until: untilOf(appt.recurrence),
-        care: isCareEvent(appt, members),
       };
       setForm(loaded);
       lastSaved.current = saveKey(buildData(loaded));
@@ -137,7 +136,12 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const pick = (field, fn) => { touched.current.add(field); fn(); };
-  const repeating = !!form.recurrence && form.recurrence !== '__none__';
+  // In color or plain: the person's own pick once there is one, otherwise what
+  // the calendar works out from the event as it stands in the form.
+  const shownColored = touched.current.has('colored') || typeof appt?.colored === 'boolean'
+    ? !!form.colored
+    : takesTime({ ...appt, category: form.category, family_member_id: form.family_member_id === NONE ? '' : form.family_member_id }, members);
+  const repeating =!!form.recurrence && form.recurrence !== '__none__';
   // The repeat choices (Anna, Nov 14 2026): one "Every month", and with it
   // "The [14th] [day] of every month" / "The [second] [Tuesday] of every
   // month" to pick which (components/shared/MonthlyBlanks.jsx).
@@ -224,9 +228,9 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
       shared_with: f.visibility === 'some' && !everyone(f) ? (f.shared_with || []).filter((id) => others.some((u) => u.id === id)) : [],
       last_changed_at: new Date().toISOString(),
     };
-    // Care-related: saved only once the person has picked it (until then it's
-    // GenCare's call, ai_care).
-    if (appt?.id && (touched.current.has('care') || typeof appt.care === 'boolean')) data.care = !!f.care;
+    // Show in color: saved only once the person has picked it (until then the
+    // calendar works it out: takesTime).
+    if (appt?.id && (touched.current.has('colored') || typeof appt.colored === 'boolean')) data.colored = !!f.colored;
     // What GenCare filled in stays marked as its own until the person changes it.
     if (appt?.id) {
       const legacyPrivateImport = !Array.isArray(appt.auto_set) && appt.source === 'phone' && (appt.visibility || 'private') === 'private';
@@ -392,21 +396,22 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             )}
           </div>
 
-          {editing && (
-            // Anna, Oct 30 2026: a way to fix it when GenCare calls something
-            // care-related (colored) or not (plain text) wrongly.
+          {editing && form.visibility !== 'private' && (
+            // A way to fix it when the calendar shows something in color or as
+            // plain text wrongly (Anna, Oct 30 2026; Nov 17 2026: in color is
+            // for whatever takes someone's time). Only-you events are always gray.
             <label className="flex items-center justify-between gap-3 rounded-xl border border-border/60 p-3">
               <span className="min-w-0">
-                <span className="flex items-center gap-1.5 text-sm font-medium"><HeartPulse className="w-4 h-4 text-primary" /> Care-related</span>
+                <span className="flex items-center gap-1.5 text-sm font-medium"><Palette className="w-4 h-4 text-primary" /> Show in color</span>
                 <span className="block text-xs text-muted-foreground mt-0.5">
-                  {form.care ? 'Shows in color on the calendar.' : 'Shows as plain text on the calendar.'} Turn this {form.care ? 'off' : 'on'} if GenCare got it wrong.
+                  {shownColored ? "It takes someone's time, so it's in their color on the calendar." : "Plain text on the calendar, for things that take nobody's time, like a cleaner's visit."}
                 </span>
               </span>
-              <Switch checked={!!form.care} onCheckedChange={(v) => {
-                pick('care', () => set('care', !!v));
+              <Switch checked={shownColored} onCheckedChange={(v) => {
+                pick('colored', () => set('colored', !!v));
                 // The same event from someone else's calendar, shown as one, follows along.
-                for (const id of appt?.merged_ids || []) base44.entities.Appointment.update(id, { care: !!v }).catch(() => {});
-              }} aria-label="Care-related" />
+                for (const id of appt?.merged_ids || []) base44.entities.Appointment.update(id, { colored: !!v }).catch(() => {});
+              }} aria-label="Show in color" />
             </label>
           )}
 

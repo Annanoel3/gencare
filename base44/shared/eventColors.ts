@@ -65,8 +65,24 @@ export function isCareEvent(appt: any, members: any[] = []): boolean {
   return ['Appointment', 'Doctor', 'Therapy'].includes(String(appt?.category || ''));
 }
 
-/** The color an event is drawn in, or '' for plain text (not care-related). Only-you events are gray. */
+// Does it take someone's time? Then it's in their color (Anna, Nov 17 2026:
+// "anything that affects a family member's schedule/availability should be
+// marked their color"); plain is for a cleaner's day, bills, holidays.
+// TWIN of src/utils/memberColors.js takesTime.
+const BUSY_CATEGORIES = ['Appointment', 'Doctor', 'Therapy', 'School', 'Work', 'Sports', 'Social'];
+export function takesTime(appt: any, members: any[] = []): boolean {
+  if (typeof appt?.colored === 'boolean') return appt.colored;
+  if (typeof appt?.care === 'boolean') return appt.care;
+  if (appt?.away_of || appt?.cover_of) return true;
+  const ids: string[] = Array.isArray(appt?.family_member_ids) && appt.family_member_ids.length ? appt.family_member_ids : appt?.family_member_id ? [appt.family_member_id] : [];
+  if (ids.some((id) => isPet((members || []).find((m: any) => m.id === id)))) return true;
+  if (appt?.ai_trip === true || appt?.ai_care === true) return true;
+  if (typeof appt?.ai_busy === 'boolean') return appt.ai_busy;
+  return BUSY_CATEGORIES.includes(String(appt?.category || 'Appointment'));
+}
+
+/** The color an event is drawn in, or '' for plain text (takes nobody's time). Only-you events are gray. */
 export function eventHighlightHex(appt: any, members: any[] = [], accounts: any[] = []): string {
   if (appt?.visibility === 'private') return PRIVATE_HEX;
-  return isCareEvent(appt, members) ? (HEX[eventClass(appt, members, accounts)] || PRIVATE_HEX) : '';
+  return takesTime(appt, members) ? (HEX[eventClass(appt, members, accounts)] || PRIVATE_HEX) : '';
 }

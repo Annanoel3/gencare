@@ -40,7 +40,7 @@ export async function takeOff(rows, { tell = true } = {}) {
 // What a saved row is (its own fields only, not what the database or the
 // calendar's display adds), to put a taken-off event back with Undo. Whether
 // its reminder went out starts fresh.
-const FIELDS = ["ai_care", "ai_checked_at", "ai_cover", "ai_share", "ai_sort_v", "ai_trip", "all_day", "auto_set", "away_of", "care", "category", "checks", "claims", "cover_of", "created_by_name", "created_by_user_id", "date", "device_key", "doctor_name", "end_date", "end_time", "family_id", "family_member_id", "family_member_name", "import_id", "last_changed_at", "location", "notes", "notes_record_id", "phone_location", "phone_notes", "prep_questions", "recurrence", "reminder_minutes", "shared_with", "source", "time", "timezone", "title", "visibility"];
+const FIELDS = ["ai_busy", "ai_care", "ai_checked_at", "ai_cover", "ai_share", "ai_sort_v", "ai_trip", "all_day", "auto_set", "away_of", "care", "category", "checks", "claims", "colored", "cover_of", "created_by_name", "created_by_user_id", "date", "device_key", "doctor_name", "end_date", "end_time", "family_id", "family_member_id", "family_member_name", "import_id", "last_changed_at", "location", "notes", "notes_record_id", "phone_location", "phone_notes", "prep_questions", "recurrence", "reminder_minutes", "shared_with", "source", "time", "timezone", "title", "visibility"];
 export async function putBack(rows) {
   for (const r of rows || []) {
     const data = Object.fromEntries(FIELDS.filter((k) => r[k] !== undefined && r[k] !== null).map((k) => [k, r[k]]));

@@ -13,7 +13,7 @@ import { time12 } from '@/lib/tasks';
 // The week at a glance (Anna, Nov 14 2026: "Can week be more of 'at a glance'
 // than fully spelled out"): each day on its own row with a thin line between,
 // and each event one line, its time and title, with a bar in its color when
-// it's care-related (the same colors as the month). Tap one for everything
+// it takes someone's time (the same colors as the month). Tap one for everything
 // else (where, notes, who's on it). Done or over: faded, like the month.
 export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext, appointments, members, onOpen, isFocus = () => false }) {
   const { members: accounts } = useFamily();

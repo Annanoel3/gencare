@@ -32,14 +32,18 @@ cover: when share is false because it's the person's own appointment that the fa
 
 care: true when the event is part of looking after someone in the family, a person or a pet: health, therapy, doctor, dentist, eye and vet visits, tests and results, medicine and pharmacy pickups, caregiver help, rides to any of those, meetings about a child's needs, and everyday care of a pet or of someone the family takes care of (bathing, grooming, feeding, walks, haircuts, boarding or a pet sitter). False for everything else: household help and chores (a house cleaner, lawn care), errands, bills, voting, social plans and visits, trips and flights, work, holidays.
 
+busy: true when the event takes up the time of the person it's about, so they aren't free then: appointments and therapy, work, school, practice and games, plans and visits, trips and flights, voting, errands they go out for, meetings and calls. False when it happens without taking anyone's time: help that comes to the house (a house cleaner's day, lawn care), bills, payments, autopays and due dates, birthdays, anniversaries and holidays, and notes about a day.
+
 category: Appointment, School, Work, Sports, Social or Other. The person's own job is always Work.
 
-Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id, self, or empty>","share":false,"trip":false,"cover":"","care":false,"category":"Appointment"}]} with one entry for every event.`;
+Reply with JSON only: {"events":[{"key":"<the event's key>","who":"<profile id, self, or empty>","share":false,"trip":false,"cover":"","care":false,"busy":true,"category":"Appointment"}]} with one entry for every event.`;
 
 export type SortMember = { id: string; name: string; relationship?: string; added_by?: string; added_by_id?: string; is_poster?: boolean; is_pet?: boolean; cared_for?: boolean };
 // for: the profile id the person picked as who it's for, when they did.
 export type SortItem = { key: string; title: string; notes?: string; location?: string; with?: string; date?: string; time?: string; for?: string };
-export type SortResult = { who: string; self: boolean; share: boolean; trip: boolean; cover: string; care: boolean; category: string };
+// busy: takes the time of the person it's about (the calendar shows it in
+// their color: Anna, Nov 17 2026); undefined when the answer left it out.
+export type SortResult = { who: string; self: boolean; share: boolean; trip: boolean; cover: string; care: boolean; busy?: boolean; category: string };
 
 // "Mom"/"Dad" in a title the model left without a profile: the one Mother /
 // Father profile the person who added it made themselves, if there's exactly one.
@@ -116,6 +120,7 @@ export async function sortEvents(items: SortItem[], ctx: { poster: string; poste
           share: r?.share === true,
           trip: own && r?.trip === true,
           care: r?.care === true,
+          busy: typeof r?.busy === "boolean" ? r.busy : undefined,
           cover: r?.share === true || !own ? "" : String(r?.cover || "").replace(/[^\p{L}\p{N} '-]/gu, "").trim().slice(0, 30),
           category: SORT_CATEGORIES.includes(String(r?.category)) ? String(r.category) : "",
         });

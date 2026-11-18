@@ -354,10 +354,11 @@ export default function CalendarPage() {
 
   // Anna, Oct 30 2026: say what plain text means, and how to fix it. Right
   // under the calendar it describes, so the calendar itself starts higher up
-  // (Nov 14 2026; it was a paragraph above it).
+  // (Nov 14 2026; it was a paragraph above it). Nov 17 2026: color now means
+  // it takes that person's time.
   const colorNote = (
     <p className="text-xs text-muted-foreground mt-2 px-1">
-      Events in plain text, with no color, aren't care-related. If GenCare got one wrong, tap it and turn on Care-related.
+      Anything that takes someone's time is in their color. Plain text is for things that don't, like a cleaner's visit. To change one, tap it and use Show in color.
     </p>
   );
 

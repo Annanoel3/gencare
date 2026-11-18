@@ -8,7 +8,7 @@ import DoneButton from '@/components/shared/DoneButton';
 import { toast } from '@/components/ui/use-toast';
 import { track } from '@/lib/activity';
 import { checkOn, setCheck, firstName } from '@/lib/claims';
-import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass, isCareEvent } from '@/utils/memberColors';
+import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass, takesTime } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { rowIdOf, repeatLabelOn } from '@/lib/occurrences';
 import { categoryOf, isRecordable } from '@/components/calendar/EventRow';
@@ -64,9 +64,9 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
     }
   };
   const doneBy = check ? (check.user_id === me?.id ? 'you' : firstName(check.name)) : '';
-  // Care events get their color; the rest are plain (no bar, no tint).
-  const care = isCareEvent(appt, members);
-  const tint = appt.visibility === 'private' || !care ? 'bg-card' : getEventLightColorClass(appt, members, accounts);
+  // What takes someone's time gets their color; the rest are plain (no bar, no tint).
+  const inColor = takesTime(appt, members);
+  const tint = appt.visibility === 'private' || !inColor ? 'bg-card' : getEventLightColorClass(appt, members, accounts);
   const memberDot = getMemberColorByMemberId(appt.family_member_id, members);
   const day = appt.date ? parseISO(appt.date) : null;
   const clock = appt.all_day || !appt.time ? 'All day' : `${fmtTime(appt.time)}${appt.end_time ? ` – ${fmtTime(appt.end_time)}` : ''}`;
@@ -81,7 +81,7 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
       onKeyDown={(e) => { if (e.key === 'Enter') { if (onOpen) onOpen(appt); else navigate(`/calendar?date=${appt.date}&open=${id}`); } }}
       className={`relative overflow-hidden rounded-2xl ${tint} border border-border/50 cursor-pointer ${done ? 'opacity-60' : ''}`}
     >
-      {color && (care || appt.visibility === 'private') && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
+      {color && (inColor || appt.visibility === 'private') && <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${color}`} />}
       <div className="flex items-start gap-3 p-3.5 pl-4">
         <div className="flex-1 min-w-0">
           {/* Who it's for shows just below, so not in the title too. */}

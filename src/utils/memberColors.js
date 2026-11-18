@@ -86,9 +86,10 @@ export function whoseEvent(appt, members = []) {
 }
 
 /**
- * Care events keep their color on the calendar; everything else is plain text
- * (Anna, Oct 30 2026: "Ofelia day is when our house cleaner comes. It's not
- * care related so it should just be text"). GenCare's sorter decides
+ * Is the event part of looking after someone? (Record a visit and the event
+ * emoji go by it; the calendar's colors go by takesTime below.) It started as
+ * the color rule (Anna, Oct 30 2026: "Ofelia day is when our house cleaner
+ * comes. It's not care related so it should just be text"). GenCare's sorter decides
  * (ai_care: health, therapy, doctor/vet visits, medicine, caregiver help);
  * an event it hasn't looked at counts as care when it's an appointment. The
  * person's own pick in the event ("Care-related", Appointment.care) wins over
@@ -105,14 +106,39 @@ export function isCareEvent(appt, members = []) {
 }
 
 /**
- * The event's color if it's a care event, '' for plain text. An only-you
- * event always stays gray, care or not, so it's never mistaken for one the
+ * Does the event take someone's time? Then it's in their color on the
+ * calendar (Anna, Nov 17 2026: "anything that affects a family member's
+ * schedule/availability should be marked their color": her violin gig, a
+ * Work event, was plain). Plain text is for what happens without taking
+ * anyone's time: help that comes to the house (Oct 30 2026: "Ofelia day is
+ * when our house cleaner comes"), bills and due dates, holidays.
+ * In order: the person's own pick in the event ("Show in color",
+ * Appointment.colored), then their older "Care-related" pick (Appointment.care,
+ * which set the color the same way); a trip or a "Mom: doctor" stand-in; anything
+ * for a pet; care and trips by GenCare's read; GenCare's read of whether it
+ * takes time (ai_busy); then the category: everything but Other takes time.
+ * TWIN of base44/shared/eventColors.ts takesTime (the widgets): change both together.
+ */
+const BUSY_CATEGORIES = ['Appointment', 'Doctor', 'Therapy', 'School', 'Work', 'Sports', 'Social'];
+export function takesTime(appt, members = []) {
+  if (typeof appt?.colored === 'boolean') return appt.colored;
+  if (typeof appt?.care === 'boolean') return appt.care;
+  if (appt?.away_of || appt?.cover_of) return true;
+  if (forPet(appt, members)) return true;
+  if (appt?.ai_trip === true || appt?.ai_care === true) return true;
+  if (typeof appt?.ai_busy === 'boolean') return appt.ai_busy;
+  return BUSY_CATEGORIES.includes(String(appt?.category || 'Appointment'));
+}
+
+/**
+ * The event's color if it takes someone's time, '' for plain text. An only-you
+ * event always stays gray, so it's never mistaken for one the
  * family sees (Anna, Oct 30 2026: with her private plans in plain text it
  * looked like everything was shared).
  */
 export function getEventHighlightClass(appt, members = [], accounts = []) {
   if (appt?.visibility === 'private') return PRIVATE_COLOR;
-  return isCareEvent(appt, members) ? getEventColorClass(appt, members, accounts) : '';
+  return takesTime(appt, members) ? getEventColorClass(appt, members, accounts) : '';
 }
 
 // Light tint versions of each palette color, for tinted containers.

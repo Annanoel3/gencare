@@ -210,9 +210,9 @@ async function inGroups<T>(list: T[], fn: (x: T) => Promise<unknown>, size = 8) 
 }
 
 // What one sorting answer changes on an event: only the fields nobody picked.
-function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean; cover?: string; care?: boolean; category: string }, mode: SharingMode, members: any[], now: string) {
+function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean; cover?: string; care?: boolean; busy?: boolean; category: string }, mode: SharingMode, members: any[], now: string) {
   const auto = new Set(autoSetOf(a));
-  const patch: Record<string, unknown> = { ai_checked_at: now, ai_share: !!r.share, ai_trip: !!r.trip, ai_cover: r.cover || '', ai_care: !!r.care, ai_sort_v: SORT_VERSION };
+  const patch: Record<string, unknown> = { ai_checked_at: now, ai_share: !!r.share, ai_trip: !!r.trip, ai_cover: r.cover || '', ai_care: !!r.care, ...(typeof r.busy === 'boolean' ? { ai_busy: r.busy } : {}), ai_sort_v: SORT_VERSION };
   if (!a.family_member_id || auto.has('member')) {
     const m = members.find((x: any) => x.id === r.who);
     if (m) { patch.family_member_id = m.id; patch.family_member_name = m.name; auto.add('member'); }
@@ -477,7 +477,7 @@ Deno.serve(async (req) => {
       const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time, for: String(e.member_id || '') }], { poster: user.display_name || user.full_name || '', posterId: user.id, members, known })).get('e');
       if (!r) return Response.json({ ok: false, error: 'Could not sort' });
       const m = members.find((x) => x.id === r.who);
-      return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, cover: r.cover, care: r.care, category: r.category });
+      return Response.json({ ok: true, member_id: m?.id || '', member_name: m?.name || '', share: r.share, trip: r.trip, cover: r.cover, care: r.care, busy: r.busy, category: r.category });
     }
 
     if (mode === 'activity') {
