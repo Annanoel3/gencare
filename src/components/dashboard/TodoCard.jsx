@@ -1,76 +1,54 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { parseISO, isValid, isToday, isPast, startOfDay, format } from 'date-fns';
-import { useFamily } from '@/lib/family';
-import { getMemberColorByMemberId } from '@/utils/memberColors';
-import { completeTask, time12, PRIORITY_WORD } from '@/lib/tasks';
-import DoneButton from '@/components/shared/DoneButton';
+import React, { useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ListChecks } from 'lucide-react';
+import { isOpen, isStep, sectionOf } from '@/lib/tasks';
+import { slotsForDay, todayStr } from '@/lib/reminders';
+import { useNow } from '@/lib/eventTiming';
+import ReminderSlotCard from '@/components/reminders/ReminderSlotCard';
+import useReminderEditor from '@/components/reminders/useReminderEditor';
+import TaskCard from '@/components/tasks/TaskCard';
 import HomeSection from '@/components/dashboard/HomeSection';
 
 /**
- * The family's open tasks on the home page, newest-due first, tick to complete.
- * Tasks with no date (the ones the quick-add box makes) belong here too; the
- * care feed only shows things pinned to a day, so without this card they were
- * invisible until you opened the Tasks page.
+ * To-do on Home, under Today Across the Family (Anna, Nov 18 2026: "the to-do
+ * list for all family members"): today's reminders for everyone in the family
+ * (the same cards as the Reminders page, with Done and Skip), then any open
+ * task due today, overdue or with no date. Events stay in Today Across the
+ * Family. What's done today drops to the bottom of the open list (so Undo is
+ * still there); the count and the closed preview are what's left to do.
  */
-export default function TodoCard({ tasks = [], members = [], limit = 8 }) {
-  const queryClient = useQueryClient();
-  const { me } = useFamily();
-  const complete = useMutation({
-    mutationFn: (task) => completeTask(task, me),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['careTasks'] }),
-  });
+export default function TodoCard({ tasks = [], members = [] }) {
+  const navigate = useNavigate();
+  const now = useNow();
+  const today = todayStr();
+  const { reminders, logs, editor, openReminder } = useReminderEditor(members);
+  const slots = useMemo(() => slotsForDay(reminders, logs, today), [reminders, logs, today, now]);
 
-  const open = tasks
-    // Steps live under their task and family checklists live on the Tasks page.
-    .filter(t => (t.status === 'pending' || t.status === 'in_progress') && !t.parent_task_id && t.kind !== 'checklist')
-    .map(t => {
-      const due = t.due_date ? parseISO(t.due_date) : null;
-      return { ...t, due: due && isValid(due) ? due : null };
-    })
-    .sort((a, b) => {
-      // overdue and today first, then upcoming by date, then undated (newest first)
-      const rank = (t) => !t.due ? 2 : (isToday(t.due) || isPast(startOfDay(t.due)) ? 0 : 1);
-      const d = rank(a) - rank(b);
-      if (d) return d;
-      if (a.due && b.due) return a.due - b.due;
-      return (b.created_date || '').localeCompare(a.created_date || '');
-    });
+  const finished = (s) => s.status === 'taken' || s.status === 'skipped';
+  const slotCard = (s) => <ReminderSlotCard key={`rm-${s.key}`} slot={s} members={members} onOpen={openReminder} />;
+  // A task opens on the Reminders page, glowing (the task editor lives there).
+  const taskCard = (t) => <TaskCard key={t.id} task={t} members={members} onOpen={(task) => navigate(`/tasks?highlight=${encodeURIComponent(task.id)}`)} />;
 
-  if (open.length === 0) return null;
-  const shown = open.slice(0, limit);
+  const openTasks = tasks.filter((t) => isOpen(t) && !isStep(t) && t.kind !== 'checklist' && ['today', 'nodate'].includes(sectionOf(t)));
+  const left = [...slots.filter((s) => !finished(s)).map(slotCard), ...openTasks.map(taskCard)];
+  const doneToday = slots.filter(finished).map(slotCard);
+  if (!left.length && !doneToday.length) return <>{editor}</>;
+  const all = [...left, ...doneToday];
 
   return (
-    <HomeSection title="Reminders" count={open.length}>
-      <div className="space-y-1">
-        {shown.map(t => {
-          const overdue = t.due && !isToday(t.due) && isPast(startOfDay(t.due));
-          const color = t.family_member_id ? getMemberColorByMemberId(t.family_member_id, members) : null;
-          return (
-            // With big text the Done button moves under the words instead of squeezing them.
-            <div key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
-              <div className="flex-1 min-w-[10rem]">
-                <p className="text-sm font-medium title-fit">{t.title}</p>
-                {/* Wraps instead of cutting off "High priority". */}
-                <p className="text-xs text-muted-foreground">
-                  {t.family_member_name && <span className="inline-flex items-center gap-1 mr-2">{color && <span className={`w-2 h-2 rounded-full ${color}`} />}{t.family_member_name}</span>}
-                  {t.due && (
-                    <span className={`whitespace-nowrap ${overdue ? 'text-destructive' : ''}`}>
-                      {isToday(t.due) ? 'Today' : overdue ? `Overdue · ${format(t.due, 'MMM d')}` : format(t.due, 'MMM d')}
-                      {t.due_time ? ` ${time12(t.due_time)}` : ''}
-                    </span>
-                  )}
-                  {PRIORITY_WORD[t.priority] && <span className={`ml-2 font-medium whitespace-nowrap ${t.priority === 'urgent' ? 'text-destructive' : 'text-orange-600'}`}>{PRIORITY_WORD[t.priority]}</span>}
-                </p>
-              </div>
-              {/* The same Done button as everywhere else (it used to be a small circle). */}
-              <DoneButton busy={complete.isPending && complete.variables?.id === t.id} onDone={() => complete.mutate(t)} label={t.title} className="flex-shrink-0 ml-auto" />
-            </div>
-          );
-        })}
-      </div>
-      <div className="text-right pt-1"><Link to="/tasks" className="text-sm text-primary hover:underline">All of them ({open.length})</Link></div>
-    </HomeSection>
+    <>
+      <HomeSection
+        title="To-do"
+        icon={<ListChecks className="w-5 h-5 text-primary flex-shrink-0" />}
+        count={left.length}
+        preview={left[0] || <p className="text-sm text-muted-foreground py-1">All done for today.</p>}
+        previewNext={left[0] ? all[1] || null : doneToday[0] || null}
+      >
+        {/* Opened, everything (Anna, Nov 17 2026: "Show more should just show the rest of the items"). */}
+        <div className="space-y-2">{all}</div>
+        <div className="text-right pt-2"><Link to="/tasks" className="text-sm text-primary hover:underline">Reminders page</Link></div>
+      </HomeSection>
+      {editor}
+    </>
   );
 }

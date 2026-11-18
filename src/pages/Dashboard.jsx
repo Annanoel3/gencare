@@ -50,7 +50,6 @@ export default function Dashboard() {
       <WelcomeHeader userName={user?.full_name?.split(' ')[0]} />
       {/* No count cards ("3 events today, 1 reminder") since Nov 17 2026: Today
           Across the Family below shows the same things. */}
-      <TodoCard tasks={tasks} members={members} />
 
       <div className="mb-6">
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -67,8 +66,9 @@ export default function Dashboard() {
         <AnnounceDialog open={announcing} onClose={() => setAnnouncing(false)} />
       </div>
 
-      {/* Doctor-type visits coming up, with a Record button (on phones that can
-          record), under what's going on today (Anna, Nov 17 2026). */}
+      {/* Anna, Nov 18 2026: To-do right under what's going on today, then the
+          next appointment with its Record button (on phones that can record). */}
+      <TodoCard tasks={tasks} members={members} />
       <RecordVisitsCard appointments={appointments} members={members} />
 
       {/* Family members live on the Family page (Anna: "there's already a whole page for that"). */}

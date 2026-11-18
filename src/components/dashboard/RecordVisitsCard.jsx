@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format, isToday, isTomorrow, parseISO, startOfDay } from 'date-fns';
-import { Mic } from 'lucide-react';
+import { Mic, CalendarClock } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { expandAppointments } from '@/lib/occurrences';
 import { realEvent } from '@/lib/sameEvent';
@@ -14,14 +14,15 @@ import { notesLink, isNotesOf } from '@/lib/visits';
 import { categoryOf } from '@/components/calendar/EventRow';
 import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import ConsentNote from '@/components/notes/ConsentNote';
-import HomeSection from '@/components/dashboard/HomeSection';
 import { getMemberColorByMemberId, isCareEvent } from '@/utils/memberColors';
 
-// Upcoming visits to record (Anna, Nov 16 2026: "Make a thing for upcoming
-// things to record. (Only doctors appointments etc). So a user knows the
-// option exists and has an easy way to press record"). Doctor-type visits
-// (an Appointment that's care: doctor, dentist, therapy, vet...) from today
-// through the next two days, each with a Record button. Close to the visit
+// The family's next appointment, with a Record button (Anna, Nov 16 2026:
+// "Make a thing for upcoming things to record... So a user knows the option
+// exists and has an easy way to press record"; Nov 18 2026: just one, "your
+// next appointment, and that's where you can click record"). The soonest
+// doctor-type visit (an Appointment that's care: doctor, dentist, therapy,
+// vet...) in the next two weeks. A push offers to record each one shortly
+// before it starts (functions/cronReminders). Close to the visit
 // (from an hour before) Record starts recording right away;
 // earlier it opens the visit's Record Notes page, where the family can add
 // questions and press Start recording. Only on phones that can record.
@@ -31,10 +32,7 @@ import { getMemberColorByMemberId, isCareEvent } from '@/utils/memberColors';
 // after they start).
 
 const HOUR = 60 * 60 * 1000;
-// Opened, it shows the soonest 3; the rest are on Record Notes (Anna, Nov 17
-// 2026: a busy week of therapies could make it long).
-const MAX_SHOWN = 3;
-const DAYS_AHEAD = 2;
+const DAYS_AHEAD = 14;
 
 // When a visit starts (all day: the start of its day).
 function startOf(a) {
@@ -44,10 +42,10 @@ function startOf(a) {
   return { start: new Date(`${a.date}T${t[1].padStart(2, '0')}:${t[2]}:00`).getTime(), allDay: false };
 }
 
-function dayWord(d) {
+function dayWord(d, now) {
   if (isToday(d)) return 'Today';
   if (isTomorrow(d)) return 'Tomorrow';
-  return format(d, 'EEEE');
+  return d.getTime() - now.getTime() < 6 * 24 * HOUR ? format(d, 'EEEE') : format(d, 'EEE, MMM d');
 }
 
 export default function RecordVisitsCard({ appointments = [], members = [] }) {
@@ -96,7 +94,7 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
           <p className="text-sm font-medium title-fit">{shownTitle(a, members, !!a.family_member_name)}</p>
           <p className="text-xs text-muted-foreground">
             {a.family_member_name && <span className="inline-flex items-center gap-1 mr-2">{color && <span className={`w-2 h-2 rounded-full ${color}`} />}{a.family_member_name.split(' ')[0]}</span>}
-            <span className="whitespace-nowrap">{dayWord(parseISO(a.date))}{allDay ? '' : ` ${time12(a.time)}`}</span>
+            <span className="whitespace-nowrap">{dayWord(parseISO(a.date), now)}{allDay ? '' : ` ${time12(a.time)}`}</span>
           </p>
         </div>
         <Link
@@ -110,20 +108,16 @@ export default function RecordVisitsCard({ appointments = [], members = [] }) {
     );
   };
 
+  // One visit, always open: nothing to expand.
   return (
-    <HomeSection
-      title="Record a visit"
-      icon={<Mic className="w-5 h-5 text-red-600 flex-shrink-0" />}
-      count={visits.length}
-      preview={row(visits[0])}
-      previewNext={visits[1] ? <div className="border-t border-border/60">{row(visits[1])}</div> : null}
-    >
-      <p className="text-sm text-muted-foreground mb-2">GenCare can record the visit and write up notes for the family.</p>
-      <div className="divide-y divide-border/60">
-        {visits.slice(0, MAX_SHOWN).map(row)}
+    <div className="bg-card rounded-2xl border border-border/50 mb-6 p-4 md:px-6">
+      <div className="flex items-center gap-2">
+        <CalendarClock className="w-5 h-5 text-primary flex-shrink-0" />
+        <h2 className="font-heading text-lg font-semibold min-w-0">Next appointment</h2>
       </div>
-      {visits.length > MAX_SHOWN && <div className="text-right pt-1"><Link to="/notes" className="text-sm text-primary hover:underline">All of them ({visits.length})</Link></div>}
-      <div className="mt-2"><ConsentNote /></div>
-    </HomeSection>
+      {row(visits[0])}
+      <p className="text-xs text-muted-foreground mb-1.5">Tap Record and GenCare writes up notes from the visit for the family.</p>
+      <ConsentNote />
+    </div>
   );
 }

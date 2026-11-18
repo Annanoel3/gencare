@@ -4,6 +4,7 @@ import { canSee } from '../../shared/sharing.ts';
 import { expandAppointments } from '../../shared/recurrence.ts';
 import { sameEvent } from '../../shared/sameEvent.ts';
 import { claimDayFor, claimOn } from '../../shared/claims.ts';
+import { isCareEvent } from '../../shared/eventColors.ts';
 
 // Runs every 15 minutes (workflow "Reminders every 15 minutes"). Three jobs,
 // each in the family's own time (the owner's timezone, else the first
@@ -13,6 +14,8 @@ import { claimDayFor, claimOn } from '../../shared/claims.ts';
 //      pushed to every family member who wants reminders — or only the person
 //      who added it when the event is private. Marked reminder_sent so it
 //      goes once.
+//  1b. A push offering to record a doctor-type visit, shortly before it
+//      starts, to whoever is going (see below).
 //   2. Task due-time pushes: a task with a due date AND time, at that time.
 //   3. The morning digest at 7:00 local: today's events and the tasks due
 //      today or overdue, one push per person, once a day.
@@ -187,6 +190,62 @@ const MISSED_AFTER_MS = 90 * 60_000;
         if (isSeries) await db.Appointment.update(a.occurrence_of, { reminder_sent_for: a.date });
         else await db.Appointment.update(a.id, { reminder_sent: true });
       }
+
+      // 1b. Offer to record a doctor-type visit (Anna, Nov 18 2026: "a
+      //     notification about 10 minutes before a doctor's visit or something
+      //     like that offering to record"). This job runs every 15 minutes, so
+      //     the push lands 5 to 19 minutes before: about 15 for a visit on the
+      //     quarter hour. A tap opens the visit's Record Notes page, Start
+      //     recording ready for when the visit begins (starting on the tap would
+      //     record the waiting room). It goes to whoever is going: the one who
+      //     said "I'll take it", else the person it's for (their own account),
+      //     else whoever added it. Not for a visit already recorded or checked
+      //     off; once per visit (record_offer_for: the day it was offered).
+      try {
+        const people = ((await db.FamilyMember.filter({ family_id: fam.id })) || []) as any[];
+        const offered: { a: any; to: string }[] = [];
+        for (const a of appts) {
+          // Reminders turned off for the event (None): no push about it at all.
+          if (a.cover_of || a.all_day || !a.time || a.record_offer_for === a.date || a.reminder_minutes < 0) continue;
+          if (!['Appointment', 'Doctor', 'Therapy'].includes(String(a.category || 'Appointment')) || !isCareEvent(a, people)) continue;
+          const startMs = localToMs(a.date, a.time, a.timezone ? safeTz(a.timezone) : tz);
+          const ahead = startMs - now;
+          if (!startMs || ahead <= 4 * 60_000 || ahead > 19 * 60_000) continue;
+          const rowId = a.occurrence_of || a.id;
+          const dayKey = claimDayFor('event', a, a.date);
+          // Checked off on this row, or on the same visit from someone else's calendar.
+          const checkedOn = (b: any) => (Array.isArray(b?.checks) ? b.checks : []).some((c: any) => c && c.user_id && String(c.day || '') === dayKey);
+          const checked = checkedOn(a) || (!dayKey && appts.some((b: any) => b !== a && b.date === a.date && sameEvent(a, b) && checkedOn(b)));
+          let recorded = !a.occurrence_of && !!a.notes_record_id;
+          if (!recorded && !checked) {
+            const recs = ((await db.NoteRecording.filter({ appointment_id: rowId }, '-started_at', 20)) || []) as any[];
+            recorded = recs.some((r: any) => !r.parent_record_id && (!a.occurrence_of || (r.started_at && partsIn(tz, new Date(r.started_at)).day === a.date)));
+          }
+          await db.Appointment.update(rowId, { record_offer_for: a.date });
+          if (checked || recorded) continue;
+          const claim = claimOn(a, dayKey) || (dayKey ? null : appts.filter((b: any) => b !== a && b.date === a.date && sameEvent(a, b)).map((b: any) => claimOn(b, '')).find(Boolean)) || null;
+          const person = people.find((p: any) => p.id === a.family_member_id);
+          const goerId = claim?.user_id || person?.linked_user_id || a.created_by_user_id || a.created_by_id || '';
+          const goer = users.find((u: any) => u.id === goerId && canSee(a, u.id));
+          if (!goer || !wantsPush(goer, 'reminders')) continue;
+          // The same visit on two calendars is offered once.
+          if (offered.some((o) => o.to === goer.id && o.a.date === a.date && sameEvent(a, o.a))) continue;
+          offered.push({ a, to: goer.id });
+          // "for Pam" unless it's Pam's own phone, or the title already says ("Kiri vet").
+          const first = String(a.family_member_name || '').split(' ')[0];
+          const forWhom = first && person?.linked_user_id !== goer.id && !String(a.title || '').toLowerCase().includes(first.toLowerCase()) ? ` for ${first}` : '';
+          const q = new URLSearchParams({ appointment: rowId });
+          if (a.occurrence_of) q.set('on', a.date);
+          await sendPush({
+            email: goer.email,
+            title: `${a.title}${forWhom} at ${fmtClock(a.time)}`,
+            message: 'Tap to record the visit. GenCare will write up notes for the family.',
+            data: { type: 'record_offer', appointmentId: rowId, date: a.date, screen: `/notes?${q}` },
+            priority: 'high',
+          });
+          out.record_offers = (out.record_offers || 0) + 1;
+        }
+      } catch (e) { console.warn('[cronReminders] record offers:', (e as Error).message); }
 
       // 2. Tasks at their due time.
       const dueTasks = (await db.CareTask.filter({ family_id: fam.id, due_date: today })) || [];
