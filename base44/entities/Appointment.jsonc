@@ -198,6 +198,10 @@
       },
       "type": "array"
     },
+    "record_offer_for": {
+      "description": "The day (YYYY-MM-DD) GenCare's push offering to record this visit went out (functions/cronReminders, Anna Nov 18 2026), so each visit, or each day of a repeating one, is offered once",
+      "type": "string"
+    },
     "recurrence": {
       "description": "RRULE for repeating events",
       "type": "string"
