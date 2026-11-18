@@ -1,6 +1,10 @@
 {
   "name": "Appointment",
   "properties": {
+    "ai_busy": {
+      "description": "GenCare's read: takes up the time of the person it's about (appointments, work, school, plans, trips, errands). The calendar shows those in that person's color; ones that take nobody's time (a house cleaner's day, bills, holidays) are plain text (Anna, Nov 17 2026)",
+      "type": "boolean"
+    },
     "ai_care": {
       "description": "GenCare's read: part of looking after someone (health, therapy, doctor or vet visits, medicine, caregiver help). Care events are colored on the calendar; the rest show as plain text",
       "type": "boolean"
@@ -110,6 +114,10 @@
         "type": "object"
       },
       "type": "array"
+    },
+    "colored": {
+      "description": "The person's own pick, made in the event with Show in color: on = in the person's color on the calendar (it takes their time), off = plain text (Anna, Nov 17 2026). When set it wins over everything else; GenCare's sorting never changes it",
+      "type": "boolean"
     },
     "cover_of": {
       "description": "Set on a '<name>: doctor' style event GenCare made so the family sees that a private event is happening without its details; the private event's id",
@@ -247,6 +255,7 @@
     "title",
     "date"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.family_id": "{{user.data.family_id}}"
@@ -280,6 +289,5 @@
     "update": {
       "data.family_id": "{{user.data.family_id}}"
     }
-  },
-  "type": "object"
+  }
 }
