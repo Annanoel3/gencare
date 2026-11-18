@@ -247,8 +247,9 @@ const MISSED_AFTER_MS = 90 * 60_000;
           const isPrivate = m.visibility === 'private';
           const ownerId = m.owner_user_id || m.created_by_id || '';
           // "I'll take it" (for today, or for the whole thing): just them.
-          const claim = isPrivate ? null : claimOn(m, claimDayFor('reminder', m, today));
-          const taker = claim ? users.find((u: any) => u.id === claim.user_id) : null;
+          // No "I'll take it" on reminders any more (Anna, Nov 17 2026: it only makes
+          // sense for events), so an old claim no longer narrows who's reminded.
+          const taker: any = null;
           // Who it's for is who does it (Anna, Nov 17 2026: "this reminder is for
           // Anna" means Anna needs to do it): just them, when they have GenCare
           // themselves. For someone without an account yet (a profile made by

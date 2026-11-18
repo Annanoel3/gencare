@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import { markSlot, fmtClock, REMINDERS_KEY, stepsOf, stepSlot, ticksFor, tickStep, untickLast } from '@/lib/reminders';
-import ClaimButton from '@/components/shared/ClaimButton';
 import { plainError } from '@/lib/errors';
 
 /**
@@ -123,7 +122,8 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
               })}
             </ul>
           )}
-          {/* Done, Skip (a word, not an x that looks like close) and I'll take it, in one row under the words. */}
+          {/* Done and Skip (a word, not an x that looks like close), in one row under the words. No "I'll take it":
+              that's for events only (Anna, Nov 17 2026: taking a reminder "doesn't make sense"). */}
           <div className="flex flex-wrap items-center gap-2 mt-2.5">
             {done ? (
               <DoneButton done busy={busy} onUndo={undo} label={s.med.medication_name} />
@@ -131,7 +131,6 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
               <>
                 <DoneButton busy={busy} onDone={() => mark('taken')} label={s.med.medication_name} />
                 <Button type="button" variant="outline" size="sm" onClick={() => mark('skipped')} disabled={busy} className="rounded-xl bg-card">Skip</Button>
-                <ClaimButton kind="reminder" item={s.med} date={s.day} />
               </>
             )}
           </div>
