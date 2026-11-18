@@ -214,6 +214,8 @@ const MISSED_AFTER_MS = 90 * 60_000;
       // 4. Reminders.
       const meds = ((await db.Medication.filter({ family_id: fam.id })) || []).filter((m: any) => m.is_active !== false);
       if (meds.length) {
+        // The family's people, to find who a reminder is for by their account.
+        const famPeople = ((await db.FamilyMember.filter({ family_id: fam.id })) || []) as any[];
         const dow = new Date(localToMs(today, '12:00', tz)).getUTCDay();
         const logsToday = (await db.MedicationLog.filter({ family_id: fam.id, day: today })) || [];
         const logFor = (m: any, t: string) => logsToday.find((l: any) => l.medication_id === m.id && l.time === t);
@@ -247,7 +249,18 @@ const MISSED_AFTER_MS = 90 * 60_000;
           // "I'll take it" (for today, or for the whole thing): just them.
           const claim = isPrivate ? null : claimOn(m, claimDayFor('reminder', m, today));
           const taker = claim ? users.find((u: any) => u.id === claim.user_id) : null;
-          const audience = isPrivate ? users.filter((u: any) => u.id === ownerId) : taker ? [taker] : users;
+          // Who it's for is who does it (Anna, Nov 17 2026: "this reminder is for
+          // Anna" means Anna needs to do it): just them, when they have GenCare
+          // themselves. For someone without an account yet (a profile made by
+          // hand), or an older reminder for a pet, everyone, so it never goes
+          // to nobody. A general reminder nobody took: everyone.
+          const forList: string[] = Array.isArray(m.family_member_ids) && m.family_member_ids.length ? m.family_member_ids : m.family_member_id ? [m.family_member_id] : [];
+          const doerIds = [...new Set(forList.map((id) => famPeople.find((p: any) => p.id === id)?.linked_user_id).filter(Boolean))];
+          const doers = doerIds.map((uid) => users.find((u: any) => u.id === uid)).filter(Boolean);
+          const audience = isPrivate ? users.filter((u: any) => u.id === ownerId) : taker ? [taker] : doers.length ? doers : users;
+          // Going only to the one person it's for: no "For Anna" under it.
+          const toTheOne = !isPrivate && !taker && doers.length === 1;
+          const aboutLine = toTheOne ? String(m.dosage || '') : about;
           // "Until it's done" (frequency Once): every day from its start day, at
           // the times its priority set (low 1 a day, medium 3, high every 2
           // hours); the app switches it off (is_active false) when someone marks
@@ -272,7 +285,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 logsToday.push(log);
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: what, message: line(stillWaiting ? 'Still to do' : `Due ${fmtClock(t)}`, stepsLine(t), about, m.notes ? String(m.notes).split('\n')[0].slice(0, 100) : ''), data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: what, message: line(stillWaiting ? 'Still to do' : `Due ${fmtClock(t)}`, stepsLine(t), aboutLine, m.notes ? String(m.notes).split('\n')[0].slice(0, 100) : ''), data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.reminder_pushes++;
                 }
                 continue;
@@ -284,7 +297,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 log.status = 'missed';
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: what, message: line(`Not done yet (due ${fmtClock(t)})`, stepsLine(t), about), data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: what, message: line(`Not done yet (due ${fmtClock(t)})`, stepsLine(t), aboutLine), data: { type: 'reminder_missed', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.missed_pushes++;
                 }
               }
@@ -298,7 +311,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
               const when = daysLeft < 0 ? `ran out ${-daysLeft} day${daysLeft === -1 ? '' : 's'} ago` : daysLeft === 0 ? 'runs out today' : daysLeft === 1 ? 'runs out tomorrow' : `runs out in ${daysLeft} days`;
               for (const u of audience) {
                 if (!wantsPush(u, 'reminders')) continue;
-                await sendPush({ email: u.email, title: `${m.medication_name} ${when}`, message: m.family_member_name ? `For ${m.family_member_name}. Time to restock.` : 'Time to restock.', data: { type: 'reminder_restock', reminderId: m.id, screen } });
+                await sendPush({ email: u.email, title: `${m.medication_name} ${when}`, message: m.family_member_name && !toTheOne ? `For ${m.family_member_name}. Time to restock.` : 'Time to restock.', data: { type: 'reminder_restock', reminderId: m.id, screen } });
                 out.runs_out_pushes++;
               }
               await db.Medication.update(m.id, { refill_reminded_on: today });

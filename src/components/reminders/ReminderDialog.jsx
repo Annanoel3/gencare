@@ -13,7 +13,8 @@ import { useFamily, orderMembers } from '@/lib/family';
 import { shortNames } from '@/lib/names';
 import MissingNote from '@/components/shared/MissingNote';
 import { format, parseISO, addDays } from 'date-fns';
-import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME, forIds, stepsOf } from '@/lib/reminders';
+import { DAY_NAMES, defaultTimes, fmtClock, todayStr, nagTimes, nagStart, PRIORITIES, ONE_TIME, forIds, stepsOf, andList } from '@/lib/reminders';
+import { isPet } from '@/utils/memberColors';
 
 const NOBODY = '__nobody__';
 // "Remind me at 12" (one push) or "until it's done" (keeps reminding by
@@ -50,7 +51,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const [stepText, setStepText] = useState('');
   const editing = !!med?.id;
   const { me } = useFamily();
-  const people = orderMembers(members, me?.id); // people first, then pets
+  // Who a reminder is for is who does it (Anna, Nov 17 2026: "this reminder is
+  // for Anna" means Anna needs to do it), so pets aren't on its For list.
+  const people = orderMembers(members, me?.id).filter((m) => !isPet(m));
+  const forNames = shortNames(people);
 
   useEffect(() => {
     if (!open) return;
@@ -63,7 +67,8 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
       setForm({
         ...blank(), ...med,
         how: howOf(med),
-        family_member_ids: forIds(med),
+        // An older reminder for a pet loses the pet when it's next saved.
+        family_member_ids: forIds(med).filter((id) => !isPet(members.find((x) => x.id === id))),
         steps: stepsOf(med),
         times: Array.isArray(med.times) ? med.times : [],
         days_of_week: Array.isArray(med.days_of_week) ? med.days_of_week : [],
@@ -99,7 +104,14 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
 
   const times = form.times.filter((t) => /^\d{2}:\d{2}$/.test(t));
   const at = times.map(fmtClock).join(' and ');
-  const who = justMe ? 'You get' : 'Everyone gets';
+  // Only the people it's for get the notifications, when they have GenCare
+  // themselves; for someone without an account yet (a profile made by hand),
+  // everyone does, so it never goes to nobody. Matches cronReminders.
+  const doers = (form.family_member_ids || []).map((id) => people.find((p) => p.id === id)).filter((p) => p?.linked_user_id);
+  const meOnly = doers.length === 1 && doers[0].linked_user_id === me?.id;
+  const who = justMe || meOnly ? 'You get'
+    : doers.length ? `${andList(doers.map((p) => forNames.get(p.id) || String(p.name || '').split(' ')[0]))} ${doers.length === 1 ? 'gets' : 'get'}`
+    : 'Everyone gets';
   // "Until it's done" starts at the next full hour (or the time it already had).
   const start = nagStart(form.anchor_time || times[0] || defaultTimes('Once')[0], form.once_date || todayStr());
   const anchor = start.anchor;
@@ -110,7 +122,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const untilText = form.end_date ? `, through ${dayText(form.end_date)}` : '';
   const summary = !form.remind ? "No notifications; it shows in Reminders on its days."
     : oneTime ? `${who} one notification at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date || todayStr())}, and that's all.`
-    : once ? `${who} a notification at ${list(nags)} every day${startsLater ? ', starting tomorrow,' : ''} until ${justMe ? 'you mark' : 'someone marks'} it done.`
+    : once ? `${who} a notification at ${list(nags)} every day${startsLater ? ', starting tomorrow,' : ''} until ${justMe || meOnly ? 'you mark' : doers.length === 1 ? 'they mark' : 'someone marks'} it done.`
     : !times.length ? 'No notifications; it shows in Reminders on its days.'
     : form.how === 'days' && form.days_of_week.length ? `${who} a notification at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}${untilText}.`
     : `${who} a notification at ${at} every day${untilText}.`;
@@ -123,7 +135,6 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
     : oneTime && !times.length ? 'Pick a time.'
     : needsEnd ? "Pick the last day it reminds, or tick Until I stop it."
     : '';
-  const forNames = shortNames(people);
   const steps = Array.isArray(form.steps) ? form.steps : [];
   const addStep = () => { const t = stepText.trim(); if (!t) return; if (!steps.includes(t)) set('steps', [...steps, t]); setStepText(''); };
   const save = () => {
@@ -259,7 +270,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           {people.length > 0 && (
             <div>
               <Label>For</Label>
-              {/* Tap as many people and pets as it's for; Whole family (it was "Nobody in particular", the
+              {/* Tap as many people as it's for (the ones doing it); Whole family (it was "Nobody in particular", the
                   to-do form's word for the same thing) clears them. */}
               <div className="flex flex-wrap gap-2 mt-1.5">
                 {[{ id: NOBODY, name: 'Whole family' }, ...people].map((m) => {
