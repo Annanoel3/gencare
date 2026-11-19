@@ -2,6 +2,9 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { canSee } from '../../shared/sharing.ts';
 import { sortEvents, sortMembers } from '../../shared/eventSort.ts';
 import { sameEvent } from '../../shared/sameEvent.ts';
+import { whoseEvent } from '../../shared/eventColors.ts';
+import { alreadyThere, byDay, nameSet, type Occ } from '../../shared/phoneMatch.ts';
+import { expandAppointments, parseRRule } from '../../shared/recurrence.ts';
 
 // The phone's calendars and the family calendar, both ways. Called by the web
 // app (on open, after edits, from the Phone calendar settings) and by the
@@ -90,6 +93,12 @@ async function hashOf(s: string) {
 }
 
 function isHolidayFeed(name: string) { return /^holidays? in /i.test(String(name || '').trim()); }
+// The last line of every event GenCare writes to a phone. A row ending in it
+// is GenCare's own, never something to bring in or to call "already there".
+const MARK = 'Added from GenCare';
+function isGenCareRow(row: any) {
+  return String(row?.description || '').trim().split(/\r?\n/).pop()?.trim() === MARK;
+}
 // Birthdays stay out of GenCare (a whole birthday calendar, or a birthday event).
 function isBirthday(row: any) {
   return /birthday/i.test(String(row.calendarName || '')) || /\b(birthday|bday|b-day)\b/i.test(String(row.title || ''));
@@ -132,7 +141,10 @@ function rowToAppointment(row: any, calendarId: string, tz: string, user: any) {
   return {
     title,
     date, time, end_time: endTime, end_date: endDate, all_day: allDay,
-    timezone: row.timezone || tz,
+    // The zone the day and time above are in (the person's own), not the
+    // event's: an invite made in California would otherwise land hours off
+    // when it's sent to someone else's phone or reminded about.
+    timezone: tz,
     location: String(row.location || ''),
     notes: cleanNotes(row.description).slice(0, 4000),
     category: guessCategory(title),
@@ -433,6 +445,10 @@ Deno.serve(async (req) => {
   if (!familyId) return Response.json({ ok: false, error: 'No family yet' }, { status: 400 });
   const tz = safeTz(body.timezone || user.timezone);
   const mode = String(body.mode || 'status');
+  // Which phone's sign-in is calling (a hash of it): the app and its own
+  // background sync share one, a person's other phone has its own.
+  const auth = req.headers.get('authorization') || '';
+  const session = auth ? await hashOf(`session|${auth}`) : '';
 
   try {
     if (mode === 'settings') {
@@ -443,6 +459,40 @@ Deno.serve(async (req) => {
       if (typeof body.export_calendar_id === 'string') patch.export_calendar_id = body.export_calendar_id;
       if (typeof body.export_reminder_minutes === 'number') patch.export_reminder_minutes = Math.max(-1, Math.min(1440, Math.round(body.export_reminder_minutes)));
       if (['auto', 'family', 'private'].includes(String(body.event_sharing_default))) patch.event_sharing_default = String(body.event_sharing_default);
+      // Whose events go to the phone (the Calendar's "one person's events"); none = everyone.
+      if (arr(body.export_member_ids)) patch.export_member_ids = [...new Set(arr(body.export_member_ids))].slice(0, 50);
+      // One phone per person writes the family's events (two would put
+      // everything on twice). Turning it on, picking the calendar, or "Use
+      // this phone instead" makes this phone the one.
+      const device = String(body.device || '').slice(0, 80);
+      const turningOn = patch.export_enabled === true && !user.export_enabled;
+      const claiming = !!device && (turningOn || body.export_here === true || (typeof patch.export_calendar_id === 'string' && patch.export_calendar_id !== (user.export_calendar_id || '')));
+      // The same phone after GenCare was reinstalled (the app found GenCare's
+      // own events right where they were written): carry on as before.
+      const samePhone = body.same_phone === true && body.export_here === true;
+      const moving = claiming && !!user.export_device && user.export_device !== device && !samePhone;
+      if (claiming) {
+        patch.export_device = device;
+        patch.export_platform = body.platform === 'ios' ? 'ios' : 'android';
+        if (session) patch.export_session = session;
+        // The calendar picked on the other phone isn't one on this phone: pick again here.
+        if (moving && typeof patch.export_calendar_id !== 'string') patch.export_calendar_id = '';
+      }
+      const links = turningOn || moving ? ((await db.CalendarExportLink.filter({ user_id: user.id })) || []) : [];
+      if (moving) {
+        // The other phone's record of what it wrote means nothing on this one,
+        // except which events the person deleted from their phone: those stay off.
+        for (const l of links) {
+          if (l.status === 'removed_on_phone') continue;
+          try { await db.CalendarExportLink.delete(l.id); } catch (_) { /* gone already */ }
+        }
+      } else if (turningOn) {
+        // A fresh start: what was skipped as already there, or deleted from
+        // the phone, gets looked at again.
+        for (const l of links) {
+          if (['on_phone', 'removed_on_phone'].includes(l.status) || !l.device_event_id) { try { await db.CalendarExportLink.delete(l.id); } catch (_) { /* gone already */ } }
+        }
+      }
       if (Object.keys(patch).length) await db.User.update(user.id, patch);
       const after = (await db.User.filter({ id: user.id }))?.[0] || { ...user, ...patch };
       let applied = 0;
@@ -522,7 +572,7 @@ Deno.serve(async (req) => {
       for (const row of rows) {
         const cal = String(row.calendarId || '');
         if (!calendarIds.includes(cal)) continue;
-        if (exportedIds.has(String(row.id || ''))) continue;
+        if (exportedIds.has(String(row.id || '')) || isGenCareRow(row)) continue;
         if (isHolidayFeed(row.calendarName || '')) continue;
         if (isBirthday(row)) continue;
         const key = row.originalId
@@ -569,7 +619,7 @@ Deno.serve(async (req) => {
           if (String(have.phone_rule ?? have.recurrence ?? '') === phoneRule) delete keep.recurrence;
           keep.phone_rule = phoneRule;
           const next = { ...have, ...keep };
-          if (!fieldsMatch(have, next) || (have.phone_location ?? null) !== keep.phone_location || (have.phone_notes ?? null) !== keep.phone_notes || (have.phone_when ?? null) !== keep.phone_when || (have.phone_rule ?? null) !== keep.phone_rule) {
+          if (!fieldsMatch(have, next) || String(have.timezone || '') !== String(keep.timezone || '') || (have.phone_location ?? null) !== keep.phone_location || (have.phone_notes ?? null) !== keep.phone_notes || (have.phone_when ?? null) !== keep.phone_when || (have.phone_rule ?? null) !== keep.phone_rule) {
             await db.Appointment.update(have.id, keep);
             updated++;
           }
@@ -633,110 +683,278 @@ Deno.serve(async (req) => {
     }
 
     if (mode === 'export_pull') {
+      // Who's asking: the app (it reads the phone first, so it can tell what's
+      // already there and what the person deleted) or the phone's own
+      // background sync (it can't, so it only gets what's safe without looking).
+      const bg = body.from === 'phone_background';
+      const smart = !bg && Number(body.v) >= 2;
+      const platform = bg ? (user.export_platform || (body.timezone ? 'ios' : 'android')) : (body.platform === 'ios' ? 'ios' : 'android');
+      const device = String(body.device || '');
       const links = (await db.CalendarExportLink.filter({ user_id: user.id })) || [];
       const byAppt = new Map(links.map((l: any) => [l.appointment_id, l]));
-      const deletes: string[] = [];
+      const cleanup = [...new Set(links.flatMap((l: any) => (Array.isArray(l.cleanup_ids) ? l.cleanup_ids : [])).map(String).filter(Boolean))];
+      const ours = [...new Set([...links.map((l: any) => String(l.device_event_id || '')).filter(Boolean), ...cleanup])];
+      const exporting = !!user.export_enabled && !!user.export_calendar_id;
+      // A background sync on a phone that isn't the one writing (an old phone
+      // still signed in): it does nothing. Without this it would write into a
+      // calendar id that means something else on that phone.
+      if (bg && session && user.export_session && session !== user.export_session) {
+        return Response.json({ ok: true, exporting: false, idle: true, calendarId: '', events: [], deletes: [], ours: [] });
+      }
+      // Another of their phones does the writing: this one leaves the calendar alone.
+      if (!bg && device && user.export_device && device !== user.export_device) {
+        // A few of the events GenCare wrote, so the app can tell whether this is
+        // that same phone with GenCare reinstalled (they'd be right there).
+        const probe = links
+          .filter((l: any) => l.status === 'written' && l.device_event_id && l.written_sig && l.device_calendar_id === user.export_calendar_id)
+          .slice(0, 20)
+          .map((l: any) => ({ id: String(l.device_event_id), sig: String(l.written_sig) }));
+        return Response.json({ ok: true, exporting: false, other_device: true, calendarId: '', probeCalendarId: exporting ? String(user.export_calendar_id) : '', probe, events: [], deletes: [], ours: [] });
+      }
+      if (!bg && device && exporting && (!user.export_device || (session && session !== user.export_session))) {
+        // This phone writes (the first time since the one-phone rule, or after signing in again).
+        await db.User.update(user.id, { export_device: device, export_platform: platform, ...(session ? { export_session: session } : {}) });
+      }
+      const deletes: string[] = [...cleanup];
       const events: any[] = [];
-      if (!user.export_enabled || !user.export_calendar_id) {
+      if (!exporting) {
         // Export off: whatever GenCare wrote to the phone comes off it.
         for (const l of links) {
-          if (l.status === 'written' && l.device_event_id) deletes.push(String(l.device_event_id));
+          if (l.device_event_id && ['written', 'pending', 'failed', 'delete_pending'].includes(l.status)) deletes.push(String(l.device_event_id));
+          else { try { await db.CalendarExportLink.delete(l.id); } catch (_) { /* gone already */ } }
         }
-        return Response.json({ ok: true, calendarId: '', events, deletes, exporting: false });
+        return Response.json({ ok: true, calendarId: '', events, deletes: [...new Set(deletes)], ours, exporting: false });
       }
-      const from = addDays(todayIn(tz), -DAYS_BACK);
-      const to = addDays(todayIn(tz), DAYS_AHEAD);
+      const cal = String(user.export_calendar_id);
+      const today = todayIn(tz);
+      const from = addDays(today, -DAYS_BACK);
+      const to = addDays(today, DAYS_AHEAD);
+      const nowMs = Date.now();
       const all = (await db.Appointment.filter({ family_id: familyId })) || [];
-      const wanted = new Map<string, any>();
+      const byId = new Map(all.map((a: any) => [a.id, a]));
+      const members = (await db.FamilyMember.filter({ family_id: familyId })) || [];
+      const accounts = (await db.User.filter({ family_id: familyId })) || [];
+      const tzOf = new Map(accounts.map((u: any) => [u.id, u.timezone ? safeTz(u.timezone) : '']));
+      const names = nameSet([...members.map((m: any) => m.name), ...accounts.map((u: any) => u.display_name || u.full_name)]);
+      // The zone an event's day and time are in: a phone import's are its
+      // owner's (older imports saved the invite's own zone by mistake); one
+      // typed in has none, so it's the same clock time here as in the app.
+      const zoneOf = (a: any) => (a.source === 'phone' && tzOf.get(a.created_by_user_id)) || (a.timezone ? safeTz(a.timezone) : tz);
+      const known = new Set(['pets', ...members.map((m: any) => m.id), ...accounts.map((u: any) => u.id)]);
+      const only = (Array.isArray(user.export_member_ids) ? user.export_member_ids : []).map(String).filter((id: string) => known.has(id));
       const ownPhone = (a: any) => a.source === 'phone' && (a.created_by_user_id === user.id || a.created_by_id === user.id);
-      const mineFromPhone = all.filter(ownPhone);
+      const eligible = (a: any) => {
+        if (!a.date || !canSee(a, user.id) || ownPhone(a)) return false;
+        // Their own trip as the family sees it ("Anna traveling"): they have the real thing.
+        if (a.away_of && a.away_of === user.id) return false;
+        // A "Mom: doctor" stand-in for a private event they can see themselves.
+        if (a.cover_of) { const real = byId.get(a.cover_of); if (real && canSee(real, user.id)) return false; }
+        if (only.length && !only.includes(whoseEvent(a, members))) return false;
+        return true;
+      };
+      // A repeating event counts while it still happens in the window, however long ago it started.
+      const inWindow = (a: any) => (a.recurrence
+        ? expandAppointments([a], from, to).length > 0
+        : (a.end_date && a.end_date > a.date ? a.end_date : a.date) >= from && a.date <= to);
+      // Each time it happens (a series: its next ones), for "already there".
+      const occsOf = (a: any): Occ[] => {
+        const allDay = !!a.all_day || !a.time;
+        const zone = zoneOf(a);
+        const list = a.recurrence ? expandAppointments([a], today, addDays(today, 400)).filter((o: any) => !o.series_date || o.date === o.series_date).slice(0, 8) : [a];
+        return list.map((o: any) => ({ day: o.date, startMs: allDay ? utcDay(o.date) : localToMs(o.date, o.time, zone), allDay, title: a.title, location: a.location || '', who: a.family_member_name || '' }));
+      };
+      // What they brought in from their own phone, to check against (not twice).
+      const mine = byDay(all.filter(ownPhone).flatMap(occsOf));
+
+      const keepAsIs = new Set<string>();
+      const candidates: any[] = [];
       for (const a of all) {
-        if (!a.date || a.date < from || a.date > to) continue;
-        if (!canSee(a, user.id)) continue;
-        // Came from this person's own phone: it's already there.
-        if (ownPhone(a)) continue;
-        // The same event is already on their phone from their own calendar
-        // (someone else's copy of it, under another name): not twice.
-        if (mineFromPhone.some((m: any) => sameEvent(a, m))) continue;
-        wanted.set(a.id, a);
+        if (!eligible(a)) continue;
+        if (inWindow(a)) candidates.push(a);
+        // Over (or a year out): left as it is on the phone, not taken off.
+        else keepAsIs.add(a.id);
       }
+      // The same event twice in the family's calendar (typed in by one
+      // person, brought in from another's phone): once on the phone. The one
+      // already there stays.
+      const written = (a: any) => Number(byAppt.get(a.id)?.status === 'written');
+      candidates.sort((x: any, y: any) => written(y) - written(x) || String(x.created_date || '').localeCompare(String(y.created_date || '')) || String(x.id).localeCompare(String(y.id)));
+      const wanted = new Map<string, any>();
+      const byDate = new Map<string, any[]>();
+      for (const a of candidates) {
+        if ((byDate.get(a.date) || []).some((w: any) => sameEvent(a, w))) continue;
+        if (alreadyThere(occsOf(a), mine, names)) continue;
+        wanted.set(a.id, a);
+        (byDate.get(a.date) || byDate.set(a.date, []).get(a.date)!).push(a);
+      }
+
       const reminder = typeof user.export_reminder_minutes === 'number' ? user.export_reminder_minutes : 30;
+      const sentAt = new Date().toISOString();
+      // GenCare's copies with nothing to change, for the app to see whether
+      // they're still on the phone: one the person deleted is then known before
+      // anything about it changes (so no sync ever writes it back).
+      const watch: any[] = [];
       for (const a of wanted.values()) {
         const link = byAppt.get(a.id);
+        const zone = zoneOf(a);
+        // No time given: all day on the phone, not a made-up 9 AM.
+        const allDay = !!a.all_day || !a.time;
         const poster = a.created_by_user_id && a.created_by_user_id !== user.id ? String(a.created_by_name || '').split(' ')[0] : '';
         const forWhom = a.away_of || a.cover_of ? '' : a.family_member_name ? `${a.family_member_name}: ` : poster ? `${poster}: ` : '';
         const title = `${forWhom}${a.title}`;
-        const description = [a.notes || '', a.doctor_name ? `With ${a.doctor_name}` : '', 'Added from GenCare'].filter(Boolean).join('\n');
-        const eventTz = a.timezone ? safeTz(a.timezone) : tz;
-        const startMs = a.all_day ? utcDay(a.date) : localToMs(a.date, a.time || '09:00', eventTz);
-        let endMs = 0;
-        if (a.all_day) endMs = (a.end_date && a.end_date > a.date ? utcDay(a.end_date) : startMs) + 86_400_000;
-        else if (a.end_time) endMs = localToMs(a.end_date || a.date, a.end_time, eventTz);
+        const description = [a.notes || '', a.doctor_name ? `With ${a.doctor_name}` : '', MARK].filter(Boolean).join('\n');
+        const startMs = allDay ? utcDay(a.date) : localToMs(a.date, a.time, zone);
         if (!startMs) continue;
-        if (!endMs || endMs <= startMs) endMs = startMs + (a.all_day ? 86_400_000 : 3_600_000);
-        const hash = await hashOf([title, description, a.location || '', startMs, endMs, a.all_day ? 1 : 0, reminder, user.export_calendar_id, a.recurrence || ''].join('|'));
-        if (link && link.status === 'written' && link.written_hash === hash && link.device_calendar_id === user.export_calendar_id) continue;
-        if (link && link.status === 'written' && link.device_event_id && link.device_calendar_id && link.device_calendar_id !== user.export_calendar_id) {
-          // Moved to another calendar: the old row goes, a new one is written.
+        let endMs = 0;
+        if (allDay) endMs = (a.end_date && a.end_date > a.date ? utcDay(a.end_date) : startMs) + 86_400_000;
+        else if (a.end_time) {
+          endMs = localToMs(a.end_date || a.date, a.end_time, zone);
+          // 10 PM to 1 AM: ends the next day.
+          if (!a.end_date && endMs <= startMs) endMs = localToMs(addDays(a.date, 1), a.end_time, zone);
+        }
+        if (!endMs || endMs <= startMs) endMs = startMs + (allDay ? 86_400_000 : 3_600_000);
+        const rrule = phoneRule(a, allDay, zone, platform);
+        const hash = await hashOf([title, description, a.location || '', startMs, endMs, allDay ? 1 : 0, reminder, cal, rrule ? `RRULE:${rrule}` : ''].join('|'));
+        const skipHash = await hashOf([a.title, a.date, a.time || '', a.end_date || '', a.end_time || '', allDay ? 1 : 0, a.recurrence || '', a.location || ''].join('|'));
+        const endsMs = seriesEnds(a, allDay, zone, endMs - startMs, endMs, from, to);
+        const sig = `${startMs}|${title}`;
+        const base = {
+          key: a.id, title, description, location: a.location || '', startMs, endMs, allDay, timezone: zone,
+          reminderMinutes: allDay ? -1 : reminder, rrule, hash,
+          // For the app's own look at the phone first (the phone's writer ignores these).
+          endsMs, sig, prevSig: String(link?.written_sig || ''), skipHash,
+          check: { title: a.title, who: a.family_member_name || '', date: a.date, time: allDay ? '' : a.time, all_day: allDay, end_date: a.end_date || '', recurrence: a.recurrence || '', tz: zone },
+        };
+        if (link?.status === 'removed_on_phone') {
+          // Deleted from the phone: it stays off. The app only looks whether the
+          // phone renumbered it (an iPhone can), and takes that copy back.
+          if (smart) events.push({ ...base, deviceEventId: '', removed: true });
+          continue;
+        }
+        if (link?.status === 'on_phone') {
+          // Already on their phone their own way: left off until it changes here.
+          if (link.skip_hash === skipHash || !smart) continue;
+          events.push({ ...base, deviceEventId: '', recheck: true });
+          continue;
+        }
+        if (link && link.status === 'written' && link.written_hash === hash && link.device_calendar_id === cal) {
+          if (smart && link.device_event_id && (!endsMs || endsMs > nowMs)) watch.push({ key: a.id, deviceEventId: String(link.device_event_id), title, startMs, endsMs, hash, prevSig: String(link.written_sig || '') });
+          continue;
+        }
+        if (link && link.device_event_id && ((link.device_calendar_id && link.device_calendar_id !== cal) || link.status === 'delete_pending')) {
+          // Moved to another calendar (or was on its way off): the old row goes, a new one is written.
           deletes.push(String(link.device_event_id));
         }
-        events.push({
-          key: a.id,
-          title, description,
-          location: a.location || '',
-          startMs, endMs,
-          allDay: !!a.all_day,
-          timezone: a.timezone || tz,
-          reminderMinutes: a.all_day ? -1 : reminder,
-          // A repeating event goes to the phone as a series (the phone expands it).
-          rrule: a.recurrence ? String(a.recurrence).replace(/^RRULE:/i, '') : '',
-          deviceEventId: link && link.device_calendar_id === user.export_calendar_id ? (link.device_event_id || '') : '',
-          hash,
-        });
-        if (!link) {
-          await db.CalendarExportLink.create({ user_id: user.id, family_id: familyId, appointment_id: a.id, device_calendar_id: user.export_calendar_id, status: 'pending' });
-        } else if (link.status !== 'pending' || link.device_calendar_id !== user.export_calendar_id) {
-          await db.CalendarExportLink.update(link.id, { status: 'pending', device_calendar_id: user.export_calendar_id, written_hash: '' });
+        const deviceEventId = link && link.device_calendar_id === cal && link.status !== 'delete_pending' ? String(link.device_event_id || '') : '';
+        if (!deviceEventId) {
+          // Nothing to add once it's over.
+          if (endsMs && endsMs <= nowMs) continue;
+          if (!smart) {
+            // Without a look at the phone: only a timed event (holidays and
+            // birthdays are all-day), only when everything on the phone with a
+            // time is in calendars GenCare brings in (so the check above saw
+            // it), and never again while an earlier send is unanswered.
+            const unanswered = link && link.status === 'pending' && link.sent_at && !link.device_event_id;
+            if (allDay || !user.export_bg_ok || unanswered) {
+              if (!link) await db.CalendarExportLink.create({ user_id: user.id, family_id: familyId, appointment_id: a.id, device_calendar_id: cal, status: 'pending' });
+              continue;
+            }
+          }
         }
+        events.push({ ...base, deviceEventId });
+        const mark = { status: 'pending', device_calendar_id: cal, sent_id: deviceEventId, sent_sig: sig, sent_at: sentAt, skip_hash: skipHash, written_hash: '' };
+        if (!link) await db.CalendarExportLink.create({ user_id: user.id, family_id: familyId, appointment_id: a.id, ...mark });
+        else await db.CalendarExportLink.update(link.id, { ...mark, ...(link.status === 'delete_pending' ? { device_event_id: '' } : {}) });
       }
-      // No longer wanted (deleted, made private, filtered out): off the phone.
+      // No longer wanted (deleted, made private, not one of the people they
+      // picked, or already on their phone their own way): off the phone.
       for (const l of links) {
-        if (wanted.has(l.appointment_id)) continue;
-        if (l.status === 'written' && l.device_event_id) {
+        if (wanted.has(l.appointment_id) || keepAsIs.has(l.appointment_id)) continue;
+        // Deleted from the phone, or already there their own way: remembered
+        // while the event exists (picking other people and back mustn't bring
+        // a deleted one back).
+        if (['removed_on_phone', 'on_phone'].includes(l.status) && byId.has(l.appointment_id)) continue;
+        if (l.device_event_id && ['written', 'pending', 'failed', 'delete_pending'].includes(l.status)) {
           deletes.push(String(l.device_event_id));
-          await db.CalendarExportLink.update(l.id, { status: 'delete_pending' });
-        } else if (l.status === 'pending' || l.status === 'failed') {
-          await db.CalendarExportLink.delete(l.id);
+          if (l.status !== 'delete_pending') await db.CalendarExportLink.update(l.id, { status: 'delete_pending' });
+        } else {
+          try { await db.CalendarExportLink.delete(l.id); } catch (_) { /* gone already */ }
         }
       }
-      return Response.json({ ok: true, calendarId: String(user.export_calendar_id), events, deletes: [...new Set(deletes)], exporting: true });
+      return Response.json({
+        ok: true, calendarId: cal, events, watch, deletes: [...new Set(deletes)], exporting: true,
+        ours, ticked: (Array.isArray(user.device_calendar_ids) ? user.device_calendar_ids : []).map(String), names: [...names], bg_ok: !!user.export_bg_ok,
+      });
     }
 
     if (mode === 'export_report') {
+      if (body.from === 'phone_background' && session && user.export_session && session !== user.export_session) {
+        return Response.json({ ok: true, ignored: true });
+      }
       const results: any[] = Array.isArray(body.results) ? body.results : [];
-      const deleted: string[] = (Array.isArray(body.deleted) ? body.deleted : []).map(String);
+      const skipped: any[] = Array.isArray(body.skipped) ? body.skipped : [];
+      const deleted = new Set((Array.isArray(body.deleted) ? body.deleted : []).map(String));
       const links = (await db.CalendarExportLink.filter({ user_id: user.id })) || [];
       const byAppt = new Map(links.map((l: any) => [l.appointment_id, l]));
-      let written = 0, failed = 0, cleared = 0;
+      const cal = String(user.export_calendar_id || '');
+      let written = 0, failed = 0, cleared = 0, removed = 0, there = 0;
       const now = new Date().toISOString();
+      const save = async (l: any, patch: Record<string, unknown>) => { Object.assign(l, patch); await db.CalendarExportLink.update(l.id, patch); };
+      // What came off the phone.
+      for (const l of links) {
+        const id = String(l.device_event_id || '');
+        if (id && deleted.has(id) && (l.status === 'delete_pending' || !user.export_enabled)) {
+          try { await db.CalendarExportLink.delete(l.id); } catch (_) { /* gone already */ }
+          byAppt.delete(l.appointment_id);
+          cleared++;
+          continue;
+        }
+        const extra = (Array.isArray(l.cleanup_ids) ? l.cleanup_ids : []).map(String);
+        if (extra.some((x: string) => deleted.has(x))) await save(l, { cleanup_ids: extra.filter((x: string) => !deleted.has(x)) });
+      }
       for (const r of results) {
         const link = byAppt.get(String(r.key || ''));
         if (!link) continue;
         if (r.ok && r.deviceEventId) {
-          await db.CalendarExportLink.update(link.id, { status: 'written', device_event_id: String(r.deviceEventId), device_calendar_id: user.export_calendar_id || link.device_calendar_id, written_hash: String(r.hash || body.hashes?.[r.key] || ''), written_at: now, error: '' });
+          const got = String(r.deviceEventId);
+          const asked = String(link.sent_id || '');
+          const cleanupWith = [...new Set([...(Array.isArray(link.cleanup_ids) ? link.cleanup_ids : []).map(String), got])];
+          if (!r.adopted && asked && got !== asked) {
+            // Asked to change a row that's gone, the phone made a new one: the
+            // person deleted it from their phone. The new copy comes off at the
+            // next sync, and it stays off.
+            await save(link, { status: 'removed_on_phone', device_event_id: '', cleanup_ids: cleanupWith, written_hash: '', error: '' });
+            removed++;
+            continue;
+          }
+          if (!r.adopted && !asked && link.status === 'written' && link.device_event_id && String(link.device_event_id) !== got) {
+            // Two syncs at once both added it: the first stays, the second comes off.
+            await save(link, { cleanup_ids: cleanupWith });
+            continue;
+          }
+          await save(link, { status: 'written', device_event_id: got, device_calendar_id: cal || link.device_calendar_id, written_hash: String(r.hash || body.hashes?.[r.key] || ''), written_sig: String(r.sig || link.sent_sig || ''), written_at: now, error: '' });
           written++;
         } else {
-          await db.CalendarExportLink.update(link.id, { status: 'failed', error: String(r.error || 'unknown'), written_at: now });
+          await save(link, { status: 'failed', error: String(r.error || 'unknown').slice(0, 300), written_at: now });
           failed++;
         }
       }
-      for (const l of links) {
-        if (deleted.includes(String(l.device_event_id || '')) && (l.status === 'delete_pending' || !user.export_enabled)) {
-          await db.CalendarExportLink.delete(l.id);
-          cleared++;
+      for (const x of skipped) {
+        const link = byAppt.get(String(x.key || ''));
+        if (!link) continue;
+        if (x.why === 'on_phone') {
+          await save(link, { status: 'on_phone', device_event_id: '', written_hash: '', skip_hash: String(x.skipHash || link.skip_hash || ''), error: '' });
+          there++;
+        } else if (x.why === 'removed_on_phone') {
+          await save(link, { status: 'removed_on_phone', device_event_id: '', written_hash: '', error: '' });
+          removed++;
+        } else if (x.why === 'past' && link.device_event_id) {
+          // Over, and the phone no longer lists it to check: left as it was.
+          await save(link, { status: 'written', written_hash: String(x.hash || ''), error: '' });
         }
       }
-      return Response.json({ ok: true, written, failed, cleared });
+      if (typeof body.bg_ok === 'boolean' && body.bg_ok !== !!user.export_bg_ok) await db.User.update(user.id, { export_bg_ok: body.bg_ok });
+      return Response.json({ ok: true, written, failed, cleared, removed, on_phone: there });
     }
 
     // status
@@ -749,6 +967,9 @@ Deno.serve(async (req) => {
       exported: links.filter((l: any) => l.status === 'written').length,
       pending: links.filter((l: any) => l.status === 'pending').length,
       failed: links.filter((l: any) => l.status === 'failed').length,
+      on_phone: links.filter((l: any) => l.status === 'on_phone').length,
+      removed_on_phone: links.filter((l: any) => l.status === 'removed_on_phone').length,
+      other_device: !!(body.device && user.export_device && String(body.device) !== user.export_device),
     });
   } catch (e) {
     console.error('[phoneCalendar]', mode, (e as Error).message);
@@ -763,6 +984,34 @@ function pick(u: any) {
     export_enabled: !!u.export_enabled,
     export_calendar_id: u.export_calendar_id || '',
     export_reminder_minutes: typeof u.export_reminder_minutes === 'number' ? u.export_reminder_minutes : 30,
+    export_member_ids: Array.isArray(u.export_member_ids) ? u.export_member_ids : [],
+    export_device: u.export_device || '',
     event_sharing_default: sharingMode(u),
   };
+}
+
+// How it repeats, for the phone. Android reads a bare end date as that day's
+// first moment and drops the last time, so a timed series gets the end of
+// that day spelled out in UTC (what the calendar standard asks for); an
+// all-day series and the iPhone (which reads the day itself) keep the day.
+function phoneRule(a: any, allDay: boolean, zone: string, platform: string) {
+  const raw = String(a.recurrence || '').replace(/^RRULE:/i, '').trim();
+  if (!raw || allDay || platform === 'ios') return raw;
+  return raw.replace(/UNTIL=(\d{4})(\d{2})(\d{2})(?=;|$)/i, (_m: string, y: string, mo: string, d: string) => {
+    const ms = localToMs(`${y}-${mo}-${d}`, '23:59', zone) + 59_000;
+    return `UNTIL=${new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`;
+  });
+}
+
+// When it's over for good (epoch ms), or 0 while it's still going: a
+// one-time event's end; a series with an end date or a count, its last time.
+function seriesEnds(a: any, allDay: boolean, zone: string, durMs: number, endMs: number, from: string, to: string) {
+  if (!a.recurrence) return endMs;
+  const rule = parseRRule(a.recurrence);
+  if (!rule || (!rule.until && !rule.count)) return 0;
+  const occ = expandAppointments([a], from, to);
+  if (!occ.length) return 1;
+  const last = occ[occ.length - 1].date;
+  if (last >= addDays(to, -1)) return 0;
+  return (allDay ? utcDay(last) : localToMs(last, a.time, zone)) + durMs;
 }

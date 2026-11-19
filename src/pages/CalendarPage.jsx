@@ -25,23 +25,13 @@ import ReminderSlotCard from '@/components/reminders/ReminderSlotCard';
 import EventDialog from '@/components/calendar/EventDialog';
 import PhoneCalendarSheet from '@/components/calendar/PhoneCalendarSheet';
 import PhotoImportSheet from '@/components/calendar/PhotoImportSheet';
+import PersonChip from '@/components/calendar/PersonChip';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { getMemberColorClass, getUserColorClass, PRIVATE_COLOR, PET_COLOR, isPet, whoseEvent } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { toast } from '@/components/ui/use-toast';
 import { plainError } from '@/lib/errors';
-
-// A name to tap above the calendar: just their events, or (on again) everyone's.
-function PersonChip({ on, dot, onClick, children }) {
-  return (
-    <button type="button" aria-pressed={on} onClick={onClick}
-      className={`h-8 px-3 rounded-full border text-xs font-medium inline-flex items-center gap-1.5 transition-colors ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-foreground border-border hover:bg-muted'}`}>
-      {dot && <span className={`w-2.5 h-2.5 rounded-full ${dot} ${on ? 'ring-2 ring-primary-foreground/80' : ''}`} />}
-      {children}
-    </button>
-  );
-}
 
 // The family calendar. Everyone in the family sees shared events; private
 // ones only their owner. Changes tell the family (notifyFamily) and go to this

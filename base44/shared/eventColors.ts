@@ -81,6 +81,20 @@ export function takesTime(appt: any, members: any[] = []): boolean {
   return BUSY_CATEGORIES.includes(String(appt?.category || 'Appointment'));
 }
 
+/**
+ * Whose event it is: the profile it's for ('pets' for a pet), or, about
+ * nobody the app knows, the profile of the person who added it (their account
+ * id if they have no profile). The Calendar's "one person's events" and the
+ * phone export's "Whose events" both go by it.
+ * TWIN of src/utils/memberColors.js whoseEvent.
+ */
+export function whoseEvent(appt: any, members: any[] = []): string {
+  const m = appt?.family_member_id ? members.find((x: any) => x.id === appt.family_member_id) : null;
+  if (m) return isPet(m) ? 'pets' : m.id;
+  const by = appt?.created_by_user_id || appt?.created_by_id || '';
+  return members.find((x: any) => x.linked_user_id && x.linked_user_id === by)?.id || by;
+}
+
 /** The color an event is drawn in, or '' for plain text (takes nobody's time). Only-you events are gray. */
 export function eventHighlightHex(appt: any, members: any[] = [], accounts: any[] = []): string {
   if (appt?.visibility === 'private') return PRIVATE_HEX;

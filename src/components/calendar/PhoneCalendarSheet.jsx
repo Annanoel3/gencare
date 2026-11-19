@@ -1,4 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
+import PersonChip from '@/components/calendar/PersonChip';
+import { shortNames } from '@/lib/names';
+import { getMemberColorClass, getUserColorClass, PET_COLOR, isPet } from '@/utils/memberColors';
 import { Smartphone, Download, Upload, Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -40,9 +45,22 @@ const REMINDERS = [
 //     private whatever they pick. Birthdays stay out.
 //   Send to my phone — pick ONE phone calendar GenCare writes into. What lands
 //     there is decided per event by whoever adds it ("Share with" on the
-//     event): the whole family, certain people, or only themselves.
+//     event): the whole family, certain people, or only themselves. "Whose
+//     events" narrows it to the people picked (Anna, Nov 18 2026: "Exporting
+//     just one person's events would be great too"), the same way the
+//     Calendar's names do. Nothing already on the phone goes on twice, and
+//     one deleted from the phone stays deleted (lib/calendarSync runExport).
+//     One phone per person does this; on another, it says so.
 export default function PhoneCalendarSheet({ open, onClose }) {
-  const { me, refresh } = useFamily();
+  const { me, members: accounts = [], refresh } = useFamily();
+  const { data: members = [] } = useQuery({
+    queryKey: ['familyMembers'],
+    queryFn: () => base44.entities.FamilyMember.list('-created_date'),
+    enabled: !!open,
+  });
+  // "Whose events", as tapped (saved a moment after the last tap).
+  const [who, setWho] = useState(null);
+  const whoTimer = useRef(null);
   const [calendars, setCalendars] = useState([]);
   const [writable, setWritable] = useState([]);
   const [granted, setGranted] = useState(false);
@@ -64,6 +82,8 @@ export default function PhoneCalendarSheet({ open, onClose }) {
       device_calendar_ids: me.device_calendar_ids || [],
       export_enabled: !!me.export_enabled, export_calendar_id: me.export_calendar_id || '',
       export_reminder_minutes: typeof me.export_reminder_minutes === 'number' ? me.export_reminder_minutes : 30,
+      export_member_ids: me.export_member_ids || [],
+      export_device: me.export_device || '',
     });
     if (native) {
       const r = await listDeviceCalendars();
@@ -144,8 +164,31 @@ export default function PhoneCalendarSheet({ open, onClose }) {
       try { await runExport({ force: true }); } catch (e) { /* the worker tries again */ }
       setBusy('');
       refreshStatus();
+    } else if (next) {
+      // "Use this phone instead": pick a calendar on this phone next.
+      refreshStatus();
     }
   };
+
+  // Whose events: everyone (none picked), or the people tapped.
+  const people = members.filter((m) => !isPet(m));
+  const unlinked = accounts.filter((u) => u?.id && !members.some((m) => m.linked_user_id === u.id));
+  const hasPets = members.some(isPet);
+  const known = new Set([...people.map((m) => m.id), ...unlinked.map((u) => u.id), ...(hasPets ? ['pets'] : [])]);
+  const picked = (who ?? settings?.export_member_ids ?? []).filter((id) => known.has(id));
+  const chipNames = shortNames([...people, ...unlinked]);
+  const pickedNames = picked.map((id) => (id === 'pets' ? 'the pets' : chipNames.get(id))).filter(Boolean);
+  const listText = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+  const pickWho = (next) => {
+    setWho(next);
+    clearTimeout(whoTimer.current);
+    whoTimer.current = setTimeout(async () => {
+      await setExport({ export_member_ids: next });
+      setWho(null);
+    }, 900);
+  };
+  const toggleWho = (id) => pickWho(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
+  useEffect(() => () => clearTimeout(whoTimer.current), []);
 
   const refreshStatus = async () => {
     const st = await calendarStatus().catch(() => null);
@@ -238,6 +281,12 @@ export default function PhoneCalendarSheet({ open, onClose }) {
             {/* Send to phone */}
             <section className="space-y-3">
               <h3 className="font-semibold flex items-center gap-2"><Upload className="w-4 h-4" /> Put family events on my phone</h3>
+              {settings.export_enabled && status?.other_device ? (
+                <div className="rounded-xl border border-border p-3 text-sm space-y-2">
+                  <p>Family events go on the calendar of your other phone. Only one phone does this, so nothing shows up twice.</p>
+                  <Button size="sm" disabled={!!busy} onClick={() => setExport({ export_here: true })}>Use this phone instead</Button>
+                </div>
+              ) : (<>
               <div className="flex items-center justify-between rounded-xl border border-border p-3">
                 <div>
                   <p className="text-sm font-medium">Send to my phone calendar</p>
@@ -265,6 +314,22 @@ export default function PhoneCalendarSheet({ open, onClose }) {
                   </div>
                   <p className="text-xs text-muted-foreground">Events shared with you (by the whole family or by name) go on this calendar; the person adding an event decides that with "Share with".</p>
                   <div>
+                    <Label className="text-xs">Whose events</Label>
+                    <div className="flex flex-wrap gap-2 mt-1" role="group" aria-label="Whose events go on your phone">
+                      <PersonChip on={!picked.length} onClick={() => pickWho([])}>Everyone</PersonChip>
+                      {people.map((m) => (
+                        <PersonChip key={m.id} on={picked.includes(m.id)} dot={getMemberColorClass(m, members)} onClick={() => toggleWho(m.id)}>{chipNames.get(m.id) || '?'}</PersonChip>
+                      ))}
+                      {unlinked.map((u) => (
+                        <PersonChip key={u.id} on={picked.includes(u.id)} dot={getUserColorClass(u.id, members, accounts)} onClick={() => toggleWho(u.id)}>{chipNames.get(u.id) || '?'}</PersonChip>
+                      ))}
+                      {hasPets && <PersonChip on={picked.includes('pets')} dot={PET_COLOR} onClick={() => toggleWho('pets')}>Pets</PersonChip>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {picked.length ? `Only ${listText(pickedNames)}'s events go on your phone. Tap Everyone for all of them.` : 'Tap names to put only their events on your phone.'}
+                    </p>
+                  </div>
+                  <div>
                     <Label className="text-xs">Reminder on the phone</Label>
                     <Select value={String(settings.export_reminder_minutes ?? 30)} onValueChange={(v) => setExport({ export_reminder_minutes: Number(v) })}>
                       <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
@@ -272,12 +337,17 @@ export default function PhoneCalendarSheet({ open, onClose }) {
                     </Select>
                   </div>
                   {status && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> {status.exported} on your phone{status.pending ? `, ${status.pending} waiting` : ''}{status.failed ? `, ${status.failed} failed` : ''}. Things the family adds land there on their own.
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 flex-shrink-0" /> {status.exported} on your phone{status.pending ? `, ${status.pending} waiting` : ''}{status.failed ? `, ${status.failed} didn't go through` : ''}. Things the family adds land there on their own.
+                      </p>
+                      {status.on_phone > 0 && <p className="text-xs text-muted-foreground">{status.on_phone} {status.on_phone === 1 ? 'was' : 'were'} already on your phone, so GenCare didn't add {status.on_phone === 1 ? 'it' : 'them'} again.</p>}
+                      {status.removed_on_phone > 0 && <p className="text-xs text-muted-foreground">{status.removed_on_phone} you deleted from your phone will stay off it. To put {status.removed_on_phone === 1 ? 'it' : 'them'} back, turn Send to my phone calendar off and on again.</p>}
+                    </div>
                   )}
                 </div>
               )}
+              </>)}
             </section>
 
             <div className="flex justify-end">
