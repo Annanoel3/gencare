@@ -90,6 +90,10 @@
       "description": "Reminder set on exported phone events; -1 for none",
       "type": "number"
     },
+    "export_session": {
+      "description": "A hash of the sign-in on the phone that writes the family's events, so a background sync on another phone of theirs (an old one still signed in) does nothing",
+      "type": "string"
+    },
     "family_id": {
       "description": "The Family this person belongs to; every family-scoped record carries the same id",
       "type": "string"
