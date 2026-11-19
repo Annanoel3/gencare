@@ -50,6 +50,10 @@
       ],
       "type": "string"
     },
+    "export_bg_ok": {
+      "description": "Every timed event on that phone is in a calendar GenCare brings in, so the phone's background sync can add new family events without the app checking first",
+      "type": "boolean"
+    },
     "export_calendar_id": {
       "description": "The phone calendar (provider id) GenCare writes into",
       "type": "string"
@@ -60,6 +64,10 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "export_device": {
+      "description": "Which of the person's phones puts the family's events on its calendar (a random id kept on that phone); only one does, so nothing goes on twice",
+      "type": "string"
     },
     "export_enabled": {
       "default": false,
@@ -72,6 +80,10 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "export_platform": {
+      "description": "That phone: android or ios (how it reads a repeat's end date)",
+      "type": "string"
     },
     "export_reminder_minutes": {
       "default": 30,
