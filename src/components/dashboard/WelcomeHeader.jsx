@@ -16,7 +16,7 @@ export default function WelcomeHeader({ userName }) {
         </h1>
       </div>
       <p className="text-muted-foreground ml-9">
-        {format(new Date(), 'EEEE, MMMM d, yyyy')} — Here's what needs your attention today.
+        {format(new Date(), 'EEEE, MMMM d, yyyy')}. Here's what needs your attention today.
       </p>
     </div>
   );

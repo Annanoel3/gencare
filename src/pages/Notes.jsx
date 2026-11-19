@@ -1016,7 +1016,7 @@ export default function Notes() {
                   {askOne?.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask"}
                 </Button>
               </div>
-              {!askOne && <p className={`text-xs ${soft}`}>Like “what did they say about next steps?” — the answer comes with their exact words.</p>}
+              {!askOne && <p className={`text-xs ${soft}`}>Like “what did they say about next steps?” The answer comes with their exact words.</p>}
               {askOne && !askOne.loading && (
                 <div className="space-y-2 pt-1">
                   <p className={heading}>{askOne.answer}</p>

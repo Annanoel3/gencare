@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CalendarDays,
   BellRing, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, LifeBuoy, HeartHandshake,
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, LifeBuoy, HeartHandshake, CircleHelp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -13,6 +13,7 @@ import { startActivity, track } from '@/lib/activity';
 import OneSignalInit from '@/components/shared/OneSignalInit';
 import WelcomeDialog from '@/components/onboarding/WelcomeDialog';
 import TrialEndingNotice from '@/components/shared/TrialEndingNotice';
+import AppTour from '@/components/onboarding/AppTour';
 import RecordingBar from '@/components/shared/RecordingBar';
 import AppUpdateCard from '@/components/shared/AppUpdateCard';
 import NotificationsOffBanner from '@/components/shared/NotificationsOffBanner';
@@ -22,11 +23,13 @@ import { FamilyProvider, useFamily } from '@/lib/family';
 import { syncOnOpen } from '@/lib/calendarSync';
 import { useUnreadMessages } from '@/lib/messages';
 import { isNativeApp, plugin, waitForPlugin } from '@/lib/phone';
-import { setupWidgets, signOut } from '@/lib/widgets';
+import { setupWidgets } from '@/lib/widgets';
+import SignOutDialog from '@/components/shared/SignOutDialog';
 
 function buildNavStructure(members, canRecord, unread = 0) {
   return [
-    { type: 'link', path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    // Called Home, like the bottom bar (it said Dashboard; Nov 18 2026).
+    { type: 'link', path: '/', icon: LayoutDashboard, label: 'Home' },
     { type: 'group', label: 'Family', icon: Users, children: [
       { path: '/messages', icon: MessageCircle, label: 'Feed', badge: unread },
       { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
@@ -44,6 +47,8 @@ function buildNavStructure(members, canRecord, unread = 0) {
     // their pages are kept in the code. Legal & financial moved to each
     // person's profile (Info).
     { type: 'link', path: '/resources', icon: LifeBuoy, label: 'Resources' },
+    // How to do the everyday things (Anna, Nov 18 2026: for the older generations).
+    { type: 'link', path: '/help', icon: CircleHelp, label: 'Help' },
     { type: 'link', path: '/settings', icon: SettingsIcon, label: 'Settings' },
   ];
 }
@@ -137,6 +142,7 @@ export default function AppLayout() {
 
 function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { me, refresh: refreshFamily } = useFamily();
@@ -222,6 +228,8 @@ function AppShell() {
       {currentUser && <OneSignalInit user={currentUser} />}
       {currentUser && <WelcomeDialog user={currentUser} />}
       {currentUser && <TrialEndingNotice />}
+      {currentUser && <AppTour user={currentUser} />}
+      <SignOutDialog open={signingOut} onClose={() => setSigningOut(false)} />
 
       {/* Header (GenCare is a phone app only; Base44's computer sidebar is gone) */}
       <div className="app-header fixed top-0 left-0 right-0 bg-card border-b border-border z-40">
@@ -257,7 +265,7 @@ function AppShell() {
             </nav>
             {/* The way out (Anna, Oct 29 2026: it was hard to find). */}
             <button
-              onClick={() => signOut()}
+              onClick={() => { setMobileOpen(false); setSigningOut(true); }}
               className="mt-4 pt-4 border-t border-border flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full transition-all"
             >
               <LogOut className="w-5 h-5" />

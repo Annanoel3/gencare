@@ -112,7 +112,7 @@ export default function Messages() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><MessageCircle className="w-7 h-7 text-primary" /> Family Feed</h1>
-          <p className="text-muted-foreground mt-1">Updates, announcements, visit summaries, photos — everyone sees them.</p>
+          <p className="text-muted-foreground mt-1">Updates, announcements, visit summaries and photos. Everyone sees them.</p>
         </div>
         <Button variant="ghost" size="icon" onClick={() => refetch()} aria-label="Refresh" className="rounded-full"><RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} /></Button>
       </div>

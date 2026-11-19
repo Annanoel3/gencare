@@ -115,16 +115,16 @@ export default function BabyTimers({ person, logs, me, onChanged }) {
       <div className="grid grid-cols-3 gap-2">
         <div className={tile}>
           <p className="text-[0.6875rem] text-muted-foreground">🍼 Last fed</p>
-          <p className="text-sm font-semibold leading-tight mt-0.5">{nursing ? 'Nursing now' : lastFeed ? ago(ms(lastFeed.timestamp), now) : '—'}</p>
+          <p className="text-sm font-semibold leading-tight mt-0.5">{nursing ? 'Nursing now' : lastFeed ? ago(ms(lastFeed.timestamp), now) : 'Not logged yet'}</p>
           {!nursing && lastFeed && <p className="text-[0.6875rem] text-muted-foreground truncate">{feedLine.split(' · ').slice(1).join(' · ') || (lastFeed.sub_type || '')}</p>}
         </div>
         <div className={tile}>
           <p className="text-[0.6875rem] text-muted-foreground">{sleeping ? '😴 Asleep' : '☀️ Awake'}</p>
-          <p className="text-sm font-semibold leading-tight mt-0.5">{sleeping ? (sleepingFor === 'just now' ? '0m' : sleepingFor) : wokeAt ? since(wokeAt, now) : '—'}</p>
+          <p className="text-sm font-semibold leading-tight mt-0.5">{sleeping ? (sleepingFor === 'just now' ? '0m' : sleepingFor) : wokeAt ? since(wokeAt, now) : 'Not logged yet'}</p>
         </div>
         <div className={tile}>
           <p className="text-[0.6875rem] text-muted-foreground">🧷 Diaper</p>
-          <p className="text-sm font-semibold leading-tight mt-0.5">{lastDiaper ? ago(ms(lastDiaper.timestamp), now) : '—'}</p>
+          <p className="text-sm font-semibold leading-tight mt-0.5">{lastDiaper ? ago(ms(lastDiaper.timestamp), now) : 'Not logged yet'}</p>
           <p className="text-[0.6875rem] text-muted-foreground truncate">{wet} wet · {dirty} dirty</p>
         </div>
       </div>

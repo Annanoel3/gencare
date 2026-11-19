@@ -2,13 +2,14 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Lock, Mail } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import GoogleIcon from "@/components/GoogleIcon";
 import MfaFlow from "@/components/MfaFlow";
 import MfaManage from "@/components/MfaManage";
 import { MfaHeader, MfaNotice, MfaScreen, useAppInfo } from "@/components/MfaParts";
 import { finishSignIn, resumeMfa, signInToManageMfa, signInWithProvider } from "@/lib/authMfaFlow";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import PasswordField from '@/components/shared/PasswordField';
 
 const PROVIDERS = [
   { id: "google", flag: "enable_google_login", name: "Google" },
@@ -107,11 +108,7 @@ function ConfirmIdentity({ returnTo, onChallenge, initialError }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="mfa-password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
-                  <Input id="mfa-password" type="password" autoComplete="current-password" placeholder="••••••••" value={password}
-                    onChange={(e) => setPassword(e.target.value)} className="pl-10 h-12" required />
-                </div>
+                <PasswordField id="mfa-password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
               <Button type="submit" className="w-full h-12 font-medium" disabled={busy}>
                 {busy && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

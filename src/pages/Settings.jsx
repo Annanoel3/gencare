@@ -4,7 +4,7 @@ import { TEXT_SIZES, BIG, savedTextSize, setTextSize } from '@/lib/textSize';
 import MissingNote from '@/components/shared/MissingNote';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Settings as SettingsIcon, Mail, Sun, Moon, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon, LogOut, MessageCircleHeart } from 'lucide-react';
+import { Settings as SettingsIcon, Mail, Sun, Moon, Smartphone, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon, LogOut, MessageCircleHeart, CircleHelp, ChevronRight, Star, Share2 } from 'lucide-react';
 import SupportDialog from '@/components/shared/SupportDialog';
 import { previewWelcome } from '@/components/onboarding/WelcomeDialog';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { signOut } from '@/lib/widgets';
+import SignOutDialog from '@/components/shared/SignOutDialog';
+import ShareAppDialog from '@/components/shared/ShareAppDialog';
+import { canRate, canShare, openRating } from '@/lib/storeLinks';
 
 export default function Settings() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [textSize, setTextSizeState] = useState(savedTextSize());
   const [emailMissing, setEmailMissing] = useState(false);
   const [user, setUser] = useState(null);
@@ -25,6 +27,8 @@ export default function Settings() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [support, setSupport] = useState(null); // 'support' | 'bug' | null
+  const [signingOut, setSigningOut] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     base44.auth.me().then(u => { setUser(u); setLoadingUser(false); }).catch(() => setLoadingUser(false));
@@ -126,32 +130,26 @@ export default function Settings() {
         <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="big-hide w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-              {theme === 'dark' ? <Moon className="w-5 h-5 text-accent" /> : <Sun className="w-5 h-5 text-accent" />}
+              {resolvedTheme === 'dark' ? <Moon className="w-5 h-5 text-accent" /> : <Sun className="w-5 h-5 text-accent" />}
             </div>
             <div>
               <h2 className="font-heading text-lg font-semibold">Appearance</h2>
               <p className="text-xs text-muted-foreground">Choose how GenCare looks to you.</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setTheme('light')}
-              className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                theme === 'light' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'
-              }`}
-            >
-              <Sun className="w-5 h-5 text-amber-500" />
-              <span className="font-medium text-sm">Light</span>
-            </button>
-            <button
-              onClick={() => setTheme('dark')}
-              className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                theme === 'dark' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'
-              }`}
-            >
-              <Moon className="w-5 h-5 text-indigo-500" />
-              <span className="font-medium text-sm">Dark</span>
-            </button>
+          {/* Light, Dark, or follow the phone's own setting (testers' report, Nov 2026). */}
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Look">
+            {[
+              { value: 'light', label: 'Light', icon: <Sun className="w-5 h-5 text-amber-500" /> },
+              { value: 'dark', label: 'Dark', icon: <Moon className="w-5 h-5 text-indigo-500" /> },
+              { value: 'system', label: 'Match my phone', icon: <Smartphone className="w-5 h-5 text-primary" /> },
+            ].map((t) => (
+              <button key={t.value} type="button" role="radio" aria-checked={theme === t.value} onClick={() => setTheme(t.value)}
+                className={`flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl border-2 text-center transition-all ${theme === t.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted'}`}>
+                {t.icon}
+                <span className="font-medium text-sm leading-tight">{t.label}</span>
+              </button>
+            ))}
           </div>
           {/* Text size, kept on this phone (lib/textSize). */}
           <h3 className="text-sm font-medium mt-5 mb-1">Text size</h3>
@@ -168,14 +166,30 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Help */}
+        {/* Help: the how-tos first (Anna, Nov 18 2026), then asking a person. */}
         <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
           <h2 className="font-heading text-lg font-semibold mb-4">Help</h2>
+          <Link to="/help" className="flex items-center gap-3 h-14 px-4 mb-3 rounded-xl border-2 border-primary/30 text-base font-medium hover:bg-muted">
+            <CircleHelp className="w-5 h-5 text-primary" /> <span className="flex-1">How to use GenCare</span> <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </Link>
           <div className="grid grid-cols-2 gap-3">
             <Button variant="outline" onClick={() => setSupport('support')} className="gap-2 h-12"><LifeBuoy className="w-4 h-4" /> Ask for help</Button>
             <Button variant="outline" onClick={() => setSupport('bug')} className="gap-2 h-12"><Bug className="w-4 h-4" /> Report a bug</Button>
           </div>
         </div>
+
+        {/* Rate and Share (testers' report, Nov 2026). Each shows only where its
+            store link works (lib/storeLinks). */}
+        {(canRate() || canShare()) && (
+          <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
+            <h2 className="font-heading text-lg font-semibold">Like GenCare?</h2>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-4">{canShare() ? 'A rating or a share helps' : 'A rating helps'} other families find it.</p>
+            <div className={`grid gap-3 ${canRate() && canShare() ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {canRate() && <Button variant="outline" onClick={openRating} className="gap-2 h-12"><Star className="w-4 h-4" /> Rate GenCare</Button>}
+              {canShare() && <Button variant="outline" onClick={() => setSharing(true)} className="gap-2 h-12"><Share2 className="w-4 h-4" /> Share GenCare</Button>}
+            </div>
+          </div>
+        )}
 
         {/* Links */}
         <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">
@@ -213,11 +227,13 @@ export default function Settings() {
 
         {/* Sign out lives here as well as the menus (Anna, Oct 29 2026: on a
             phone it was hard to find). */}
-        <Button variant="outline" onClick={() => signOut()} className="w-full h-12 gap-2 text-destructive border-destructive/30 hover:bg-destructive/5">
+        <Button variant="outline" onClick={() => setSigningOut(true)} className="w-full h-12 gap-2 text-destructive border-destructive/30 hover:bg-destructive/5">
           <LogOut className="w-4 h-4" /> Sign out{user?.email ? ` of ${user.email}` : ''}
         </Button>
       </div>
 
+      <SignOutDialog open={signingOut} onClose={() => setSigningOut(false)} />
+      <ShareAppDialog open={sharing} onClose={() => setSharing(false)} />
       <SupportDialog open={!!support} kind={support || 'support'} onClose={() => setSupport(null)} />
 
       {/* Email Change Dialog */}

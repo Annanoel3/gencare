@@ -22,6 +22,7 @@ import Tasks from '@/pages/Tasks';
 import CareLogPage from './pages/CareLogPage';
 import Messages from '@/pages/Messages';
 import Resources from '@/pages/Resources';
+import Help from '@/pages/Help';
 import JoinPage from '@/pages/JoinPage';
 import Activity from '@/pages/Activity';
 import Settings from '@/pages/Settings';
@@ -95,6 +96,7 @@ const AuthenticatedApp = () => {
           ))}
           <Route path="/messages" element={<Messages />} />
           <Route path="/resources" element={<Resources />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/notes" element={<Notes />} />
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/family-settings" element={<FamilySettings />} />
