@@ -3,7 +3,7 @@
   "name": "Medication",
   "properties": {
     "anchor_time": {
-      "description": "For an \"until it's done\" reminder: when it starts on its first day (HH:MM, 8 AM to 8 PM); the other push times are worked out from it and the priority",
+      "description": "For an \"until it's done\" reminder: when it starts on its first day (HH:MM). The time picked on the form (Nov 19 2026); one added without a time starts at the next full hour, 8 AM to 8 PM. The other push times are worked out from it, the priority and end_time",
       "type": "string"
     },
     "claim_changed_at": {
@@ -47,6 +47,10 @@
     "end_date": {
       "description": "For a repeating reminder (every day / certain days): the last day it reminds. Empty = no end picked (\"Until I stop it\"); Stop repeating sets it to that day",
       "format": "date",
+      "type": "string"
+    },
+    "end_time": {
+      "description": "A one-off to-do's end time, HH:MM (Anna, Nov 19 2026: \"pick up dry cleaning from 3-5 p.m.\"). One time: shown as the range, one push at the start. Until it's done: its pushes stay inside the range (the start, its priority's usual ones, and a last one 30 minutes before the end), and not done by then it comes back the next day in the same range. Empty = no end time",
       "type": "string"
     },
     "family_id": {
