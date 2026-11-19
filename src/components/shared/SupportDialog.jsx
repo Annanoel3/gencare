@@ -13,6 +13,8 @@ import { plainError } from '@/lib/errors';
 const COPY = {
   support: { title: 'Ask for help', desc: 'A question, a problem, or something GenCare should do better.', placeholder: 'How can we help?', done: 'Sent', doneDesc: 'You will hear back by email.' },
   bug: { title: 'Report a bug', desc: 'What happened, and what you expected instead. The page and app version come along on their own.', placeholder: 'I tapped … and then …', done: 'Thanks, the bug report went out', doneDesc: 'You will hear back by email.' },
+  // From the welcome chat (Anna, Nov 18 2026: "let them know they can send questions or suggestions to the developer").
+  idea: { title: 'Send a question or idea', desc: 'Ask anything, or tell me what GenCare should do. It goes straight to me, the developer.', placeholder: 'Your question or idea', done: 'Sent. Thank you!', doneDesc: 'You will hear back by email.' },
   resource: { title: 'Suggest a resource', desc: "Know a group or program that helps families like yours? Tell us and we'll look into adding it.", placeholder: 'Its name, website or phone, and what it helps with', done: 'Thanks for the suggestion', doneDesc: "We'll check it out." },
 };
 export default function SupportDialog({ open, onClose, kind = 'support' }) {

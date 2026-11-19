@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { phonePlatform, appBuild } from '@/lib/phone';
+import { signInReturn } from '@/lib/family';
 
 // Apple requires "Sign in with Apple" next to "Continue with Google" in an
 // iPhone app (App Store Review Guideline 4.8). Apple sign-in is turned on in
@@ -32,7 +33,7 @@ export default function AppleSignInButton({ className = '' }) {
   const show = useAppleSignIn();
   if (!show) return null;
   return (
-    <Button variant="outline" className={`w-full h-12 text-sm font-medium ${className}`} onClick={() => base44.auth.loginWithProvider('apple', '/')}>
+    <Button variant="outline" className={`w-full h-12 text-sm font-medium ${className}`} onClick={() => base44.auth.loginWithProvider('apple', signInReturn())}>
       <AppleLogo className="w-5 h-5 mr-2" />
       Continue with Apple
     </Button>

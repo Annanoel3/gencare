@@ -9,6 +9,7 @@ import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import AppleSignInButton from "@/components/AppleSignIn";
 import PasswordField from '@/components/shared/PasswordField';
+import { signInReturn } from "@/lib/family";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -31,7 +32,7 @@ export default function Login() {
   };
 
   const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", "/");
+    base44.auth.loginWithProvider("google", signInReturn());
   };
 
   return (

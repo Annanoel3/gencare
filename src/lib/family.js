@@ -14,6 +14,22 @@ let currentUserName = '';
 
 export const PENDING_INVITE_KEY = 'gencare_pending_invite';
 
+// Where Google or Apple sign-in sends someone back to. With an invite code
+// waiting, it rides along in the address, because the round trip can finish
+// in another browser window where this one's saved code isn't (Nov 18 2026: a
+// Google sign-up from the join link landed in a family of its own).
+// Signing up: /?join=CODE, which only ever moves a brand-new account
+// (functions/family). Signing in to an account that already exists: back to
+// the join page, where they tap Join themselves.
+export function signInReturn() {
+  let code = '';
+  try { code = new URLSearchParams(window.location.search).get('invite') || localStorage.getItem(PENDING_INVITE_KEY) || ''; } catch (e) { code = ''; }
+  code = String(code).trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+  if (!code) return '/';
+  const signingUp = /^\/register/.test(window.location.pathname);
+  return signingUp ? `/?join=${code}` : `/join?code=${code}`;
+}
+
 export function getFamilyId() {
   return currentFamilyId;
 }
@@ -37,10 +53,22 @@ export function FamilyProvider({ children }) {
     try {
       let pending = '';
       try { pending = localStorage.getItem(PENDING_INVITE_KEY) || ''; } catch (e) { pending = ''; }
+      // Back from Google/Apple sign-up with the code in the address (signInReturn).
+      let fromUrlCode = false;
+      try {
+        const url = new URL(window.location.href);
+        const fromUrl = String(url.searchParams.get('join') || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+        if (fromUrl) {
+          pending = fromUrl;
+          fromUrlCode = true;
+          url.searchParams.delete('join');
+          window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+        }
+      } catch (e) { /* the saved code, if any, still counts */ }
       let timezone = '';
       try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { timezone = ''; }
       const build = await appBuild();
-      const res = await base44.functions.invoke('family', { mode: 'ensure', pending_invite: pending || undefined, timezone: timezone || undefined, app_build: build || undefined, platform: phonePlatform(), os: osName() || undefined });
+      const res = await base44.functions.invoke('family', { mode: 'ensure', pending_invite: pending || undefined, pending_from_url: fromUrlCode || undefined, timezone: timezone || undefined, app_build: build || undefined, platform: phonePlatform(), os: osName() || undefined });
       const data = res?.data || res;
       if (!data?.ok) throw new Error(data?.error || 'Could not load your family');
       if (pending) { try { localStorage.removeItem(PENDING_INVITE_KEY); } catch (e) { /* fine */ } }

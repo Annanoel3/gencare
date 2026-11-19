@@ -9,6 +9,7 @@ import { serverMs } from '@/lib/serverTime';
 import { homeArea, isZip } from '@/lib/homeArea';
 import { setWelcomeState } from '@/lib/welcome';
 import { track } from '@/lib/activity';
+import { queryClientInstance } from '@/lib/query-client';
 import WelcomeChat from './WelcomeChat';
 
 // Decides whether this person gets the welcome chat, and with which questions
@@ -100,7 +101,7 @@ export default function WelcomeDialog({ user: me }) {
     const open = () => {
       // Shows the family-ZIP button the way a new family member sees it.
       homeArea().then((h) => setHome(h?.zip ? { ...h, own: false } : null));
-      setPlan({ preview: true, fresh: true, needName: true, nameGuess: '', needZip: true, needNotify: isNativeApp(), solo: false });
+      setPlan({ preview: true, fresh: true, needName: true, nameGuess: '', needZip: true, needNotify: isNativeApp(), solo: true });
     };
     window.addEventListener(PREVIEW_EVENT, open);
     return () => window.removeEventListener(PREVIEW_EVENT, open);
@@ -119,6 +120,8 @@ export default function WelcomeDialog({ user: me }) {
     track('action', 'welcome chat closed', then || 'done');
     refresh?.();
     if (then === 'invite') navigate('/family?invite=1');
+    // Joined another family from the chat: everything on screen belongs to the new one now.
+    if (then === 'joined') { queryClientInstance.invalidateQueries(); navigate('/'); }
   };
 
   return (

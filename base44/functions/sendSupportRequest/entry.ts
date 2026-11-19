@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await req.json().catch(() => ({}));
-    const kind = body?.kind === 'bug' ? 'Bug report' : body?.kind === 'resource' ? 'Resource suggestion' : 'Support request';
+    const kind = body?.kind === 'bug' ? 'Bug report' : body?.kind === 'resource' ? 'Resource suggestion' : body?.kind === 'idea' ? 'Question or idea' : 'Support request';
     const message = String(body?.message || '').trim().slice(0, 4000);
     if (!message) return Response.json({ error: 'Nothing to send' }, { status: 400 });
     const row = (await base44.asServiceRole.entities.User.filter({ id: user.id }))?.[0] || user;

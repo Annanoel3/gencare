@@ -10,7 +10,7 @@ import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import AppleSignInButton from "@/components/AppleSignIn";
 import { toast } from "@/components/ui/use-toast";
-import { PENDING_INVITE_KEY } from "@/lib/family";
+import { PENDING_INVITE_KEY, signInReturn } from "@/lib/family";
 import PasswordField from '@/components/shared/PasswordField';
 
 export default function Register() {
@@ -76,7 +76,7 @@ export default function Register() {
   };
 
   const handleGoogle = () => {
-    base44.auth.loginWithProvider("google", "/");
+    base44.auth.loginWithProvider("google", signInReturn());
   };
 
   if (showOtp) {

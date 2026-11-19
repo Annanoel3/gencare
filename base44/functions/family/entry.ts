@@ -227,7 +227,10 @@ Deno.serve(async (req) => {
   try {
     if (mode === 'ensure') {
       let family: any = null;
-      if (body.pending_invite) {
+      // A code from the address (?join=, back from Google/Apple sign-up) only
+      // moves a brand-new account with no family yet, so a link can never pull
+      // someone's existing family into another one (Nov 18 2026).
+      if (body.pending_invite && !(body.pending_from_url && me.family_id)) {
         try { family = await joinByCode(db, me, body.pending_invite); } catch (e) { console.warn('[family] pending invite failed:', (e as Error).message); }
       }
       if (!family && me.family_id) {
