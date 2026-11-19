@@ -4,6 +4,13 @@
     "appointment_id": {
       "type": "string"
     },
+    "cleanup_ids": {
+      "description": "Phone rows GenCare made by mistake (a deleted event the phone re-made, or a second copy from two syncs at once), taken off at the next sync",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "device_calendar_id": {
       "description": "The phone calendar it was written into",
       "type": "string"
@@ -18,14 +25,34 @@
     "family_id": {
       "type": "string"
     },
+    "sent_at": {
+      "description": "When it was last sent to the phone",
+      "format": "date-time",
+      "type": "string"
+    },
+    "sent_id": {
+      "description": "The phone row the last send asked to update ('' = a new one), to tell an update from a phone that made a new row because the old one was deleted",
+      "type": "string"
+    },
+    "sent_sig": {
+      "description": "Start time and title of the last send (ms|title)",
+      "type": "string"
+    },
+    "skip_hash": {
+      "description": "The event's day, time, title and repeat when it was found already on the phone; a change to any of them means it's checked again",
+      "type": "string"
+    },
     "status": {
       "default": "pending",
+      "description": "on_phone = the person already has it on their phone their own way, so GenCare left it off; removed_on_phone = they deleted GenCare's copy from their phone, so it stays off",
       "enum": [
         "pending",
         "written",
         "delete_pending",
         "deleted",
-        "failed"
+        "failed",
+        "on_phone",
+        "removed_on_phone"
       ],
       "type": "string"
     },
@@ -40,12 +67,17 @@
     "written_hash": {
       "description": "Hash of what was last written, so unchanged events aren't rewritten",
       "type": "string"
+    },
+    "written_sig": {
+      "description": "Start time and title last written (ms|title), to find GenCare's copy on the phone again if its id changes",
+      "type": "string"
     }
   },
   "required": [
     "user_id",
     "appointment_id"
   ],
+  "type": "object",
   "rls": {
     "create": {
       "data.user_id": "{{user.id}}"
@@ -59,6 +91,5 @@
     "update": {
       "data.user_id": "{{user.id}}"
     }
-  },
-  "type": "object"
+  }
 }
