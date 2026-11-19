@@ -158,6 +158,11 @@
       "description": "IANA timezone, e.g. America/Chicago",
       "type": "string"
     },
+    "tour_done_at": {
+      "description": "When this person finished or skipped the quick tour of GenCare (components/onboarding/AppTour, Anna Nov 18 2026), so it shows once per account; Help can show it again",
+      "format": "date-time",
+      "type": "string"
+    },
     "welcome_done_at": {
       "description": "When this person finished or closed the welcome chat (so it never shows again on another phone)",
       "format": "date-time",
