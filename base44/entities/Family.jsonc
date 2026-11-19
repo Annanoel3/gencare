@@ -54,6 +54,10 @@
       "description": "GenCare's own free week (no card), for families made where store billing isn't live yet (Android, web). iPhone families made after Oct 29 2026 use the App Store's free week instead and have none",
       "format": "date-time",
       "type": "string"
+    },
+    "trial_warned_for": {
+      "description": "The subscription_expires_at a 'Your free trial ends tomorrow' push was sent for (functions/cronReminders, Anna Nov 18 2026), so each store trial is warned about once",
+      "type": "string"
     }
   },
   "required": [
