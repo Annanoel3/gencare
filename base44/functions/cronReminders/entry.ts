@@ -5,6 +5,7 @@ import { expandAppointments } from '../../shared/recurrence.ts';
 import { sameEvent } from '../../shared/sameEvent.ts';
 import { claimDayFor, claimOn } from '../../shared/claims.ts';
 import { isCareEvent } from '../../shared/eventColors.ts';
+import { fetchRevenueCat } from '../../shared/revenuecat.ts';
 
 // Runs every 15 minutes (workflow "Reminders every 15 minutes"). Three jobs,
 // each in the family's own time (the owner's timezone, else the first
@@ -16,6 +17,8 @@ import { isCareEvent } from '../../shared/eventColors.ts';
 //      goes once.
 //  1b. A push offering to record a doctor-type visit, shortly before it
 //      starts, to whoever is going (see below).
+//  1c. A heads-up the day before a store free trial turns into a charge, to
+//      the person who started it (see below).
 //   2. Task due-time pushes: a task with a due date AND time, at that time.
 //   3. The morning digest at 7:00 local: today's events and the tasks due
 //      today or overdue, one push per person, once a day.
@@ -105,6 +108,49 @@ const MISSED_AFTER_MS = 90 * 60_000;
       const local = partsIn(tz, new Date(now));
       const today = local.day;
       const tomorrow = addDays(today, 1);
+
+      // 1c. The store's free trial is about to turn into a charge (Anna, Nov 18
+      //     2026: "So they can cancel if they want and not feel cheated
+      //     because they forgot"). One push to the person who started it, 12 to
+      //     36 hours before, between 9 AM and 9 PM their time; a tap opens the
+      //     app's "Your free trial ends..." popup with Keep and Cancel
+      //     (components/shared/TrialEndingNotice). RevenueCat is asked first, so
+      //     someone who already cancelled hears nothing. Once per trial
+      //     (Family.trial_warned_for = the end it was sent for).
+      try {
+        const endsAt = fam.subscription_expires_at ? Date.parse(fam.subscription_expires_at) : 0;
+        const left = endsAt - now;
+        const payer = users.find((u: any) => u.id === fam.subscription_user_id);
+        const payerTz = safeTz(payer?.timezone || tz);
+        const hour = partsIn(payerTz, new Date(now)).hour;
+        if (fam.subscription_active && fam.subscription_trial && fam.subscription_will_renew && payer
+            && left > 0 && left <= 36 * 3600_000 && hour >= 9 && hour < 21
+            && fam.trial_warned_for !== fam.subscription_expires_at) {
+          const info: any = await fetchRevenueCat(payer.id);
+          // Not set up: go by what's saved. Otherwise only while it's really a trial that renews.
+          const still = !info.configured || (info.active && info.trial && info.will_renew);
+          await db.Family.update(fam.id, { trial_warned_for: fam.subscription_expires_at });
+          if (still && wantsPush(payer, 'reminders')) {
+            const end = new Date(info.configured && info.expires_at ? info.expires_at : fam.subscription_expires_at);
+            const endParts = partsIn(payerTz, end);
+            const nowDay = partsIn(payerTz, new Date(now)).day;
+            const when = endParts.day === nowDay ? 'today' : endParts.day === addDays(nowDay, 1) ? 'tomorrow'
+              : new Intl.DateTimeFormat('en-US', { timeZone: payerTz, weekday: 'long' }).format(end);
+            const clock = fmtClock(`${endParts.hour}:${String(endParts.minute).padStart(2, '0')}`);
+            const product = String((info.configured && info.product_id) || fam.subscription_product_id || '');
+            const price = /year/i.test(product) ? '$39.99 a year' : '$5.99 a month';
+            const store = /app_store|mac_app_store/i.test(String(fam.subscription_store || info.store || '')) ? 'The App Store' : 'Google Play';
+            await sendPush({
+              email: payer.email,
+              title: `Your GenCare free trial ends ${when}`,
+              message: `${store} starts charging ${price} ${when} at ${clock}. Tap to keep it or cancel.`,
+              data: { type: 'trial_ending', screen: '/?trial_ending=1' },
+              priority: 'high',
+            });
+            out.trial_warnings = (out.trial_warnings || 0) + 1;
+          }
+        }
+      } catch (e) { console.warn('[cronReminders] trial ending:', (e as Error).message); }
 
       // 6. Announcements set for later whose time has come (up to a minute
       //    early, since the run can start a little before the quarter hour).

@@ -12,6 +12,7 @@ import QuickCaptureButton from '@/components/shared/QuickCaptureButton';
 import { startActivity, track } from '@/lib/activity';
 import OneSignalInit from '@/components/shared/OneSignalInit';
 import WelcomeDialog from '@/components/onboarding/WelcomeDialog';
+import TrialEndingNotice from '@/components/shared/TrialEndingNotice';
 import RecordingBar from '@/components/shared/RecordingBar';
 import AppUpdateCard from '@/components/shared/AppUpdateCard';
 import NotificationsOffBanner from '@/components/shared/NotificationsOffBanner';
@@ -220,6 +221,7 @@ function AppShell() {
     <div className="min-h-screen bg-background flex overflow-x-hidden">
       {currentUser && <OneSignalInit user={currentUser} />}
       {currentUser && <WelcomeDialog user={currentUser} />}
+      {currentUser && <TrialEndingNotice />}
 
       {/* Header (GenCare is a phone app only; Base44's computer sidebar is gone) */}
       <div className="app-header fixed top-0 left-0 right-0 bg-card border-b border-border z-40">
