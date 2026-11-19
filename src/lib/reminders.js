@@ -52,7 +52,10 @@ export function fmtClock(t) {
 //                 done, as often as its priority says. No time to pick; it
 //                 starts at the next full hour and works out the rest.
 export const ONE_TIME = 'One time';
-export const PRIORITIES = [['low', 'Low', 'once a day'], ['medium', 'Medium', '3 times a day'], ['high', 'High', 'every 2 hours']];
+// How hard an "until it's done" to-do keeps after people: Low reminds once a
+// day, Medium about 3 times, High every 2 hours (untilTimes). The buttons say
+// only Low / Medium / High; the form spells out the times under them.
+export const PRIORITIES = [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']];
 const DAY_START = 8 * 60; // nagging pushes stay between 8 AM
 const DAY_END = 20 * 60; //  and 8 PM, so nobody gets them at night
 const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));

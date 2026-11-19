@@ -152,10 +152,16 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const dayText = (d) => (d === todayStr() ? 'today' : d === format(addDays(new Date(), 1), 'yyyy-MM-dd') ? 'tomorrow' : format(parseISO(d), 'EEE, MMM d'));
   const onDay = (d) => { const t = dayText(d); return t === 'today' || t === 'tomorrow' ? t : `on ${t}`; };
   const untilText = form.end_date ? `, through ${dayText(form.end_date)}` : '';
+  const marks = justMe || meOnly ? 'you mark' : doers.length === 1 ? 'they mark' : 'someone marks';
+  // Right under Priority: exactly when its reminders come (Anna, Nov 19 2026:
+  // "Priority and how often seem too similar"; its buttons said "once a day",
+  // "3 times a day", "every 2 hours", like more How often choices).
+  const nagLine = !form.remind ? 'No notifications; it shows in Reminders until it\'s done.'
+    : end ? `${nags.length === 1 ? 'A reminder' : 'Reminders'} at ${list(nags)} ${onDay(form.once_date || todayStr())}. Not done by ${fmtClock(end)}? ${nags.length === 1 ? 'The same time' : 'The same times'} the next day, until ${marks} it done.`
+    : `${nags.length === 1 ? 'A reminder' : 'Reminders'} at ${list(nags)} every day${startsLater ? `, starting ${dayText(form.once_date)},` : ''} until ${marks} it done.`;
   const summary = !form.remind ? "No notifications; it shows in Reminders on its days."
     : oneTime ? `${who} one notification at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date || todayStr())}, and that's all.`
-    : once && end ? `${who} a notification at ${list(nags)} ${onDay(form.once_date || todayStr())}. Not done by ${fmtClock(end)}? It comes back the next day at the same times, until ${justMe || meOnly ? 'you mark' : doers.length === 1 ? 'they mark' : 'someone marks'} it done.`
-    : once ? `${who} a notification at ${list(nags)} every day${startsLater ? `, starting ${dayText(form.once_date)},` : ''} until ${justMe || meOnly ? 'you mark' : doers.length === 1 ? 'they mark' : 'someone marks'} it done.`
+    : once ? `${who} these reminders.`
     : !times.length ? 'No notifications; it shows in Reminders on its days.'
     : form.how === 'days' && form.days_of_week.length ? `${who} a notification at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}${untilText}.`
     : `${who} a notification at ${at} every day${untilText}.`;
@@ -260,14 +266,14 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             <div>
               <Label>Priority</Label>
               <div className="grid grid-cols-3 gap-2 mt-1.5">
-                {PRIORITIES.map(([v, label, how]) => (
-                  <button key={v} type="button" onClick={() => set('priority', v)}
-                    className={`rounded-xl border px-2 py-2 text-center ${form.priority === v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}>
-                    <span className="block text-sm font-semibold">{label}</span>
-                    <span className={`block text-[0.6875rem] ${form.priority === v ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>{how}</span>
+                {PRIORITIES.map(([v, label]) => (
+                  <button key={v} type="button" onClick={() => set('priority', v)} aria-pressed={form.priority === v}
+                    className={`rounded-xl border px-2 py-2.5 text-center text-sm font-semibold ${form.priority === v ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border'}`}>
+                    {label}
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-1.5">{nagLine}</p>
             </div>
           ) : oneTime ? null : (
           <>
