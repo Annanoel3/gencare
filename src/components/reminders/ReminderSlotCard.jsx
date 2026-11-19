@@ -8,7 +8,7 @@ import { useFamily } from '@/lib/family';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
-import { markSlot, fmtClock, REMINDERS_KEY, stepsOf, stepSlot, ticksFor, tickStep, untickLast } from '@/lib/reminders';
+import { markSlot, fmtClock, fmtRange, endOf, REMINDERS_KEY, stepsOf, stepSlot, ticksFor, tickStep, untickLast } from '@/lib/reminders';
 import { plainError } from '@/lib/errors';
 
 /**
@@ -27,7 +27,10 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
   // when the next push comes instead.
   const nags = Array.isArray(s.nags) ? s.nags : null;
   const next = nags && !done ? nags.find((t) => t > format(new Date(), 'HH:mm')) : null;
-  const late = !done && !nags && (s.status === 'missed' || s.time < format(new Date(), 'HH:mm'));
+  // A to-do with an end time ("3 to 5 PM") shows its range, and isn't late until it ends.
+  const end = endOf(s.med);
+  const late = !done && !nags && (s.status === 'missed' || (end || s.time) < format(new Date(), 'HH:mm'));
+  const when = nags ? [end ? fmtRange(s.med.anchor_time, end) : '', "until it's done"].filter(Boolean).join(' · ') : end ? fmtRange(s.time, end) : fmtClock(s.time);
   const color = s.med.family_member_id ? getMemberColorByMemberId(s.med.family_member_id, members) : null;
   const tint = s.med.family_member_id ? getMemberLightColorByMemberId(s.med.family_member_id, members) : 'bg-card';
 
@@ -96,7 +99,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
           <button type="button" onClick={() => onOpen?.(s.med)} className="w-full text-left">
             <p className={`font-medium text-sm leading-snug ${s.status === 'taken' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</p>
             <p className={`text-xs mt-1 ${late && !done ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {[s.med.family_member_name, nags ? "until it's done" : fmtClock(s.time), next ? `next reminder ${fmtClock(next)}` : '', carried ? `waiting since ${format(parseISO(s.med.once_date), 'EEE, MMM d')}` : ''].filter(Boolean).join(' · ')}
+              {[s.med.family_member_name, when, next ? `next reminder ${fmtClock(next)}` : '', carried ? `waiting since ${format(parseISO(s.med.once_date), 'EEE, MMM d')}` : ''].filter(Boolean).join(' · ')}
               {s.status === 'taken' && s.log?.taken_by_name ? ` · done by ${s.log.taken_by_name.split(' ')[0]}` : ''}
               {s.status === 'skipped' ? ' · skipped' : ''}
               {s.status === 'missed' ? ' · not done yet' : ''}

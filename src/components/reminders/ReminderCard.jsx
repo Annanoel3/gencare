@@ -3,17 +3,18 @@ import { AlertCircle, Clock, Bell, BellOff, Lock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { adherence, fmtClock, todayStr, frequencyLabel, isPrivate, ONE_TIME, PRIORITIES, stepsOf } from '@/lib/reminders';
+import { adherence, fmtClock, fmtRange, endOf, todayStr, frequencyLabel, isPrivate, ONE_TIME, PRIORITIES, stepsOf } from '@/lib/reminders';
 
 const dayText = (d) => (d === todayStr() ? 'today' : format(parseISO(d), 'EEE, MMM d'));
 const prio = (p) => PRIORITIES.find(([v]) => v === p);
 
 // "One time · today at 12:00 PM", "Until it's done · Medium, 3 times a day · since Mon, Oct 26".
 function howText(item) {
-  if (item.frequency === ONE_TIME && item.once_date) return `One time · ${dayText(item.once_date)}${item.times?.[0] ? ` at ${fmtClock(item.times[0])}` : ''}`;
+  const end = endOf(item);
+  if (item.frequency === ONE_TIME && item.once_date) return `One time · ${dayText(item.once_date)}${item.times?.[0] ? (end ? `, ${fmtRange(item.times[0], end)}` : ` at ${fmtClock(item.times[0])}`) : ''}`;
   if (item.frequency === 'Once' && item.once_date) {
     const p = prio(item.priority);
-    return ["Until it's done", p ? `${p[1]}, ${p[2]}` : '', item.once_date <= todayStr() ? `since ${dayText(item.once_date)}` : `starts ${format(parseISO(item.once_date), 'EEE, MMM d')}`].filter(Boolean).join(' · ');
+    return ["Until it's done", end ? fmtRange(item.anchor_time, end) : '', p ? `${p[1]}, ${p[2]}` : '', item.once_date <= todayStr() ? `since ${dayText(item.once_date)}` : `starts ${format(parseISO(item.once_date), 'EEE, MMM d')}`].filter(Boolean).join(' · ');
   }
   const f = frequencyLabel(item.frequency);
   if (item.end_date) return `${f} · ${item.end_date < todayStr() ? 'ended' : 'through'} ${format(parseISO(item.end_date), 'EEE, MMM d')}`;

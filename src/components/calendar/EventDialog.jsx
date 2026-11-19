@@ -54,6 +54,13 @@ function nextHour() {
   return `${String(h).padStart(2, '0')}:00`;
 }
 
+const okClock = (t) => /^\d{2}:\d{2}$/.test(t || '');
+const mins = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+// Minutes from midnight -> "HH:MM", no later than 11:59 PM.
+const clockAt = (m) => { const x = Math.min(Math.max(m, 0), 23 * 60 + 59); return `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`; };
+// Runs over several days (a phone event can): its end time can be earlier in the day than its start.
+const multiDay = (f) => !!f.end_date && !!f.date && f.end_date > f.date;
+
 const AUTOSAVE_MS = 700;
 // What autosave compares (the timestamp changes on every build).
 const saveKey = (d) => JSON.stringify({ ...d, last_changed_at: undefined });
@@ -79,6 +86,8 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   // button says what's missing instead of sitting grey (Anna, Nov 14 2026).
   const [shareOpen, setShareOpen] = useState(false);
   const [missing, setMissing] = useState(false);
+  // "Add end time" (Anna, Nov 19 2026: a time range, as a little check box, on events and to-dos).
+  const [showEnd, setShowEnd] = useState(false);
   const canRecord = usePluginPresent('RecorderBridge');
   const { me, members: accounts } = useFamily();
   const others = (accounts || []).filter((u) => u.id !== me?.id);
@@ -104,6 +113,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
     setMoved(''); setAnchor(''); setChosen(null); setAskMonthly(false);
     setNoEnd(!!appt?.recurrence && !untilOf(appt.recurrence));
     setStopped('');
+    setShowEnd(!!(appt ? appt.end_time : prefill?.end_time));
     touched.current = new Set();
     setSaveState('');
     clearTimeout(timer.current);
@@ -136,6 +146,18 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const pick = (field, fn) => { touched.current.add(field); fn(); };
+  // A new start keeps the end the same length after it.
+  const changeStart = (v) => setForm((f) => {
+    if (!okClock(v) || !okClock(f.time) || !okClock(f.end_time) || multiDay(f) || f.end_time <= f.time) return { ...f, time: v };
+    return { ...f, time: v, end_time: clockAt(mins(v) + mins(f.end_time) - mins(f.time)) };
+  });
+  const toggleEnd = (on) => {
+    setShowEnd(on);
+    if (!on) set('end_time', '');
+    else if (!okClock(form.end_time) && okClock(form.time)) set('end_time', clockAt(mins(form.time) + 60));
+  };
+  // An end that's not after the start (the same day): said right under it.
+  const endWrong = showEnd && !form.all_day && !multiDay(form) && !(okClock(form.end_time) && okClock(form.time) && form.end_time > form.time);
   // In color or plain: the person's own pick once there is one, otherwise what
   // the calendar works out from the event as it stands in the form.
   const shownColored = touched.current.has('colored') || typeof appt?.colored === 'boolean'
@@ -192,6 +214,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
   // What Add still needs, said in words (shown after Add is tapped, gone once it's filled in).
   const whyMissing = !form.title.trim() ? 'Add a title first (under What).'
     : !form.date ? 'Pick a day first.'
+    : endWrong ? 'Pick an end time after the start time, or untick Add end time.'
     : needsEnd ? "Pick the last day it repeats, or tick Until I stop it."
     : '';
   // "Stop repeating": the days up to today stay; nothing after. One that
@@ -210,9 +233,9 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
       title: f.title.trim(),
       date: f.date,
       time: f.all_day ? '' : f.time,
-      // No end-time field any more (Anna: nobody uses it); one from the phone
-      // stays while it's still after the start.
-      end_time: f.all_day || !f.end_time || (f.time && f.end_time <= f.time) ? '' : f.end_time,
+      // "Add end time" (back Nov 19 2026): kept while it's after the start, or
+      // on a later day for an event that runs over several days.
+      end_time: f.all_day || !okClock(f.end_time) || (!multiDay(f) && f.time && f.end_time <= f.time) ? '' : f.end_time,
       all_day: !!f.all_day,
       category: f.category,
       family_member_id: member ? member.id : '',
@@ -302,8 +325,23 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
             <Label>When</Label>
             <div className="flex flex-wrap gap-3 mt-1">
               <Input type="date" value={form.date} onChange={(e) => changeDate(e.target.value)} aria-label="Day" className="flex-1 min-w-[9.5rem]" />
-              {!form.all_day ? <Input type="time" value={form.time} onChange={(e) => set('time', e.target.value)} aria-label="Time" className="flex-1 min-w-[8rem]" /> : <span className="flex-1 min-w-[8rem]" />}
+              {!form.all_day ? <Input type="time" value={form.time} onChange={(e) => changeStart(e.target.value)} aria-label={showEnd ? 'Starts' : 'Time'} className="flex-1 min-w-[8rem]" /> : <span className="flex-1 min-w-[8rem]" />}
             </div>
+            {!form.all_day && (
+              <>
+                <label className="flex items-center gap-2 text-sm mt-2 w-fit">
+                  <Checkbox checked={showEnd} onCheckedChange={(v) => toggleEnd(!!v)} /> Add end time
+                </label>
+                {showEnd && (
+                  <div className="flex items-center gap-3 mt-2">
+                    <Label htmlFor="event-end" className="text-sm font-normal text-muted-foreground w-10">Ends</Label>
+                    <Input id="event-end" type="time" value={form.end_time || ''} onChange={(e) => set('end_time', e.target.value)} className="flex-1" aria-label="Ends" />
+                  </div>
+                )}
+                {multiDay(form) && showEnd && <p className="text-xs text-muted-foreground mt-1">Ends {format(parseISO(form.end_date), 'EEE, MMM d')}.</p>}
+                {endWrong && editing && <p className="text-xs text-destructive mt-1">Pick an end time after the start time, or untick Add end time.</p>}
+              </>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mt-2">
               <label className="flex items-center gap-2 text-sm whitespace-nowrap"><Switch checked={!!form.all_day} onCheckedChange={(v) => set('all_day', v)} /> All day</label>
               {/* A phone event's repeat can be changed here too (Anna, Nov 14 2026); phoneCalendar keeps it until the phone's changes. */}

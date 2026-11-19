@@ -76,6 +76,34 @@ export function nagTimes(anchor, priority = 'medium') {
   return [...new Set([...pick, a].map(toT))].sort();
 }
 /**
+ * An "until it's done" to-do's push times when someone picked its time (Anna,
+ * Nov 19 2026: "pick up dry cleaning from 3-5 p.m."): the time they picked,
+ * then its priority's usual pushes. With an end time, only inside the range,
+ * plus a last nudge 30 minutes before it ends (not for Low, once a day); not
+ * done by then, it comes back the next day in the same range.
+ */
+export function untilTimes(start, priority = 'medium', end = '') {
+  const ok = (t) => /^\d{2}:\d{2}$/.test(t || '');
+  if (!ok(start)) return nagTimes(start, priority);
+  // Low is once a day: at the time picked.
+  if (priority === 'low') return [start];
+  const usual = nagTimes(start, priority);
+  if (!ok(end) || end <= start) return [...new Set([start, ...usual])].sort();
+  const a = toMin(start), e = toMin(end);
+  const out = new Set([start, ...usual.filter((t) => toMin(t) > a && toMin(t) < e)]);
+  if (priority !== 'low' && e - 30 >= a + 30) out.add(toT(e - 30));
+  return [...out].sort();
+}
+
+/** "3:00 PM – 5:00 PM" (how events show theirs), or just the start. */
+export const fmtRange = (start, end) => (start ? `${fmtClock(start)}${end && end > start ? ` – ${fmtClock(end)}` : ''}` : '');
+/** A to-do's end time, while it's after its start. */
+export const endOf = (m) => {
+  const start = m?.frequency === 'Once' ? m.anchor_time : (Array.isArray(m?.times) ? m.times[0] : '');
+  return /^\d{2}:\d{2}$/.test(m?.end_time || '') && start && m.end_time > start ? m.end_time : '';
+};
+
+/**
  * Where an "until it's done" reminder starts: at its time, kept inside 8 AM to
  * 8 PM. One added late in the evening starts at 8 the next morning.
  */
@@ -225,13 +253,22 @@ export function cleanMed(form, members, me) {
     refill_reminder_days: Number(form.refill_reminder_days ?? 3),
     is_active: form.is_active !== false,
   };
+  // A to-do's end time ("3 to 5 PM"), while it's after the start.
+  const startAt = once ? form.anchor_time : times[0];
+  data.end_time = (once || oneTime) && /^\d{2}:\d{2}$/.test(form.end_time || '') && /^\d{2}:\d{2}$/.test(startAt || '') && form.end_time > startAt ? form.end_time : null;
   // "Until it's done": its pushes come from when it starts and its priority.
   if (once) {
     data.priority = ['low', 'medium', 'high'].includes(form.priority) ? form.priority : 'medium';
-    const start = nagStart(/^\d{2}:\d{2}$/.test(form.anchor_time || '') ? form.anchor_time : (times[0] || defaultTimes('Once')[0]), data.once_date);
-    data.anchor_time = start.anchor;
-    data.once_date = start.day;
-    data.times = nagTimes(start.anchor, data.priority);
+    if (form.picked_time && /^\d{2}:\d{2}$/.test(form.anchor_time || '')) {
+      // The day and time they picked on the form, as they are.
+      data.anchor_time = form.anchor_time;
+      data.times = untilTimes(form.anchor_time, data.priority, data.end_time || '');
+    } else {
+      const start = nagStart(/^\d{2}:\d{2}$/.test(form.anchor_time || '') ? form.anchor_time : (times[0] || defaultTimes('Once')[0]), data.once_date);
+      data.anchor_time = start.anchor;
+      data.once_date = start.day;
+      data.times = untilTimes(start.anchor, data.priority, data.end_time || '');
+    }
   }
   if (form.refill_date && !once && !oneTime) data.refill_date = form.refill_date; else data.refill_date = null;
   // A repeating one's last day (empty = "Until I stop it").
@@ -275,7 +312,7 @@ export function reminderEvents(reminders = [], from, to, members = [], caredFor 
         title: `\u{1F514} ${m.medication_name || 'Reminder'}`,
         date: m.once_date,
         time,
-        end_time: '',
+        end_time: endOf(m),
         all_day: !time,
         family_member_id: m.family_member_id || '',
         family_member_ids: forIds(m),

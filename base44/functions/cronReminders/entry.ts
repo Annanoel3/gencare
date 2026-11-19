@@ -374,6 +374,10 @@ const MISSED_AFTER_MS = 90 * 60_000;
           // "One time": one push, at its time on its day, and that's all.
           const until = m.frequency === 'Once';
           const oneTime = m.frequency === 'One time';
+          // A to-do with an end time (Anna, Nov 19 2026: "pick up dry cleaning
+          // from 3-5 p.m."): the first push says the range, later ones how long is left.
+          const startAt = until ? String(m.anchor_time || '') : String(times[0] || '');
+          const endAt = (until || oneTime) && /^\d{2}:\d{2}$/.test(String(m.end_time || '')) && startAt && m.end_time > startAt ? String(m.end_time) : '';
           const onToday = until ? !!m.once_date && m.once_date <= today
             : oneTime ? m.once_date === today
             : (!days.length || days.includes(dow)) && !(m.end_date && today > m.end_date); // past its last day
@@ -391,7 +395,7 @@ const MISSED_AFTER_MS = 90 * 60_000;
                 logsToday.push(log);
                 for (const u of audience) {
                   if (!wantsPush(u, 'reminders')) continue;
-                  await sendPush({ email: u.email, title: what, message: line(stillWaiting ? 'Still to do' : `Due ${fmtClock(t)}`, stepsLine(t), aboutLine, m.notes ? String(m.notes).split('\n')[0].slice(0, 100) : ''), data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
+                  await sendPush({ email: u.email, title: what, message: line(stillWaiting ? `Still to do${endAt ? ` · until ${fmtClock(endAt)}` : ''}` : endAt ? `${fmtClock(startAt)} – ${fmtClock(endAt)}` : `Due ${fmtClock(t)}`, stepsLine(t), aboutLine, m.notes ? String(m.notes).split('\n')[0].slice(0, 100) : ''), data: { type: 'reminder_due', reminderId: m.id, logId: log.id, screen }, priority: 'high' });
                   out.reminder_pushes++;
                 }
                 continue;
