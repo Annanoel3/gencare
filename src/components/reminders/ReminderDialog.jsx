@@ -4,7 +4,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Choices } from '@/components/shared/MoreOptions';
@@ -16,6 +15,7 @@ import { format, parseISO, addDays } from 'date-fns';
 import { DAY_NAMES, defaultTimes, fmtClock, todayStr, untilTimes, nagStart, PRIORITIES, ONE_TIME, forIds, stepsOf, andList } from '@/lib/reminders';
 import { isPet } from '@/utils/memberColors';
 import { GrowingInput } from '@/components/ui/growing-input';
+import { DateTimeInput } from '@/components/ui/date-time-input';
 
 const NOBODY = '__nobody__';
 // "Remind me at 12" (one push) or "until it's done" (keeps reminding by
@@ -23,12 +23,14 @@ const NOBODY = '__nobody__';
 // days are the repeating ones, at the times picked.
 const HOW = [['one', 'One time'], ['once', "Until it's done"], ['daily', 'Every day'], ['days', 'Certain days']];
 
+// A new reminder's day and time start empty, showing only placeholder text
+// (Anna, Nov 20 2026). "Until it's done" left empty starts today at the next
+// full hour (8 the next morning when it's added at night), or 9 AM on a later
+// day; the form says when. One time and the repeating kinds ask for a time.
 function blank() {
-  // "Until it's done" starts at the next full hour (8 the next morning when
-  // it's added at night), shown on the form so it can be changed.
-  const start = nagStart(defaultTimes('Once')[0], todayStr());
-  return { medication_name: '', dosage: '', steps: [], how: 'once', priority: 'medium', anchor_time: start.anchor, end_time: '', family_member_ids: [], notes: '', refill_date: '', refill_reminder_days: 3, times: defaultTimes('Once'), days_of_week: [], remind: true, is_active: true, once_date: start.day, visibility: 'family' };
+  return { medication_name: '', dosage: '', steps: [], how: 'once', priority: 'medium', anchor_time: '', end_time: '', family_member_ids: [], notes: '', refill_date: '', refill_reminder_days: 3, times: [''], days_of_week: [], remind: true, is_active: true, once_date: '', visibility: 'family' };
 }
+const autoStart = (day) => (day && day > todayStr() ? { anchor: '09:00', day } : nagStart(defaultTimes('Once')[0], todayStr()));
 // An hour after a time (no later than 11:59 PM): an end time's first guess.
 const hourAfter = (t) => { const m = Math.min(Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) + 60, 23 * 60 + 59); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
 const okTime = (t) => /^\d{2}:\d{2}$/.test(t || '');
@@ -81,7 +83,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
         // An older reminder for a pet loses the pet when it's next saved.
         family_member_ids: forIds(med).filter((id) => !isPet(members.find((x) => x.id === id))),
         steps: stepsOf(med),
-        times: Array.isArray(med.times) ? med.times : [],
+        times: Array.isArray(med.times) ? med.times : (med.id ? [] : b.times),
         days_of_week: Array.isArray(med.days_of_week) ? med.days_of_week : [],
         remind: med.remind !== false,
         refill_reminder_days: typeof med.refill_reminder_days === 'number' ? med.refill_reminder_days : 3,
@@ -107,7 +109,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   const repeatsDaily = form.how === 'daily' || form.how === 'days';
   const needsEnd = repeatsDaily && !form.end_date && !noEnd;
   const setHow = (v) => setForm((f) => {
-    let ts = (v === 'one' ? f.times.slice(0, 1) : f.times).length ? (v === 'one' ? f.times.slice(0, 1) : f.times) : defaultTimes(v === 'once' || v === 'one' ? 'Once' : 'Once daily');
+    let ts = (v === 'one' ? f.times.slice(0, 1) : f.times).length ? (v === 'one' ? f.times.slice(0, 1) : f.times) : [''];
     // The two one-off kinds share their day and start time.
     if (v === 'one' && f.how === 'once' && okTime(f.anchor_time)) ts = [f.anchor_time];
     return { ...f, how: v, times: ts, ...(v === 'once' && f.how === 'one' && okTime(f.times[0]) ? { anchor_time: f.times[0] } : {}) };
@@ -124,13 +126,9 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
     }
     return { ...f, ...(f.how === 'once' ? { anchor_time: v } : { times: [v] }), end_time: end };
   });
-  const toggleEnd = (on) => { setShowEnd(on); if (on && !okTime(form.end_time) && okTime(startOf(form))) set('end_time', hourAfter(startOf(form))); };
+  const toggleEnd = (on) => { setShowEnd(on); if (on && editing && !okTime(form.end_time) && okTime(startOf(form))) set('end_time', hourAfter(startOf(form))); };
   const setTime = (i, v) => set('times', form.times.map((t, j) => (j === i ? v : t)));
-  const addTime = () => {
-    const last = form.times[form.times.length - 1] || '08:00';
-    const h = Math.min(Number(last.slice(0, 2)) + 6, 23);
-    set('times', [...form.times, `${String(h).padStart(2, '0')}:00`]);
-  };
+  const addTime = () => set('times', [...form.times, '']);
   const toggleDay = (n) => set('days_of_week', form.days_of_week.includes(n) ? form.days_of_week.filter((d) => d !== n) : [...form.days_of_week, n].sort());
 
   const times = form.times.filter((t) => /^\d{2}:\d{2}$/.test(t));
@@ -146,11 +144,12 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   // "Until it's done" starts at the day and time on the form; its other
   // reminders come from its priority (inside the end time, when there is one).
   const end = (once || oneTime) && showEnd && okTime(form.end_time) && okTime(startOf(form)) && form.end_time > startOf(form) ? form.end_time : '';
-  const anchor = okTime(form.anchor_time) ? form.anchor_time : nagStart(defaultTimes('Once')[0], todayStr()).anchor;
+  const start = okTime(form.anchor_time) ? { anchor: form.anchor_time, day: form.once_date || todayStr() } : autoStart(form.once_date);
+  const anchor = start.anchor;
   const nags = untilTimes(anchor, form.priority, end);
-  const startsLater = (form.once_date || todayStr()) > todayStr();
+  const startsLater = start.day > todayStr();
   const list = (ts) => (ts.length < 3 ? ts.map(fmtClock).join(' and ') : `${ts.slice(0, -1).map(fmtClock).join(', ')} and ${fmtClock(ts[ts.length - 1])}`);
-  const dayText = (d) => (d === todayStr() ? 'today' : d === format(addDays(new Date(), 1), 'yyyy-MM-dd') ? 'tomorrow' : format(parseISO(d), 'EEE, MMM d'));
+  const dayText = (d) => (!d ? '…' : d === todayStr() ? 'today' : d === format(addDays(new Date(), 1), 'yyyy-MM-dd') ? 'tomorrow' : format(parseISO(d), 'EEE, MMM d'));
   const onDay = (d) => { const t = dayText(d); return t === 'today' || t === 'tomorrow' ? t : `on ${t}`; };
   const untilText = form.end_date ? `, through ${dayText(form.end_date)}` : '';
   const marks = justMe || meOnly ? 'you mark' : doers.length === 1 ? 'they mark' : 'someone marks';
@@ -158,10 +157,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   // "Priority and how often seem too similar"; its buttons said "once a day",
   // "3 times a day", "every 2 hours", like more How often choices).
   const nagLine = !form.remind ? 'No notifications; it shows in Reminders until it\'s done.'
-    : end ? `${nags.length === 1 ? 'A reminder' : 'Reminders'} at ${list(nags)} ${onDay(form.once_date || todayStr())}. Not done by ${fmtClock(end)}? ${nags.length === 1 ? 'The same time' : 'The same times'} the next day, until ${marks} it done.`
-    : `${nags.length === 1 ? 'A reminder' : 'Reminders'} at ${list(nags)} every day${startsLater ? `, starting ${dayText(form.once_date)},` : ''} until ${marks} it done.`;
+    : end ? `${nags.length === 1 ? 'A reminder' : 'Reminders'} at ${list(nags)} ${onDay(start.day)}. Not done by ${fmtClock(end)}? ${nags.length === 1 ? 'The same time' : 'The same times'} the next day, until ${marks} it done.`
+    : `${nags.length === 1 ? 'A reminder' : 'Reminders'} at ${list(nags)} every day${startsLater ? `, starting ${dayText(start.day)},` : ''} until ${marks} it done.`;
   const summary = !form.remind ? "No notifications; it shows in Reminders on its days."
-    : oneTime ? `${who} one notification at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date || todayStr())}, and that's all.`
+    : oneTime ? `${who} one notification at ${times[0] ? fmtClock(times[0]) : '…'} ${dayText(form.once_date)}, and that's all.`
     : once ? `${who} these reminders.`
     : !times.length ? 'No notifications; it shows in Reminders on its days.'
     : form.how === 'days' && form.days_of_week.length ? `${who} a notification at ${at} on ${form.days_of_week.map((d) => DAY_NAMES[d]).join(', ')}${untilText}.`
@@ -172,7 +171,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
   // What Save/Add still needs, in words, shown once it's tapped (it used to just sit grey).
   const whyMissing = !form.medication_name.trim() ? 'Write what it is first (under What).'
     : form.how === 'days' && !form.days_of_week.length ? 'Pick at least one day.'
+    : oneTime && !form.once_date ? 'Pick a day.'
     : oneTime && !times.length ? 'Pick a time.'
+    : repeatsDaily && form.remind && !times.length ? 'Pick a time.'
+    : (once || oneTime) && showEnd && !okTime(startOf(form)) ? 'Pick a start time, or untick Add end time.'
     : (once || oneTime) && showEnd && !(okTime(form.end_time) && form.end_time > startOf(form)) ? 'Pick an end time after the start time, or untick Add end time.'
     : needsEnd ? "Pick the last day it reminds, or tick Until I stop it."
     : '';
@@ -187,6 +189,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
       steps: stepsOf({ steps: [...steps, stepText] }),
       times: once ? [anchor] : oneTime ? sorted.slice(0, 1) : sorted,
       anchor_time: once ? anchor : '',
+      ...(once ? { once_date: start.day } : {}),
       // The day and time on the form, as they are (lib/reminders cleanMed).
       picked_time: once,
       end_time: end,
@@ -247,8 +250,8 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             <div>
               <Label>When</Label>
               <div className="grid grid-cols-2 gap-3 mt-1">
-                <Input type="date" value={form.once_date || todayStr()} min={editing ? undefined : todayStr()} onChange={(e) => set('once_date', e.target.value)} aria-label="Day" />
-                <Input type="time" value={startOf(form)} onChange={(e) => setStart(e.target.value)} aria-label={showEnd ? 'Starts' : 'Time'} />
+                <DateTimeInput type="date" value={form.once_date} placeholder="Pick a day" min={editing ? undefined : todayStr()} onChange={(e) => set('once_date', e.target.value)} aria-label="Day" />
+                <DateTimeInput type="time" value={startOf(form)} placeholder="Pick a time" onChange={(e) => setStart(e.target.value)} aria-label={showEnd ? 'Starts' : 'Time'} />
               </div>
               <label className="flex items-center gap-2 text-sm mt-2 w-fit">
                 <Checkbox checked={showEnd} onCheckedChange={(v) => toggleEnd(!!v)} /> Add end time
@@ -256,10 +259,10 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
               {showEnd && (
                 <div className="flex items-center gap-3 mt-2">
                   <Label htmlFor="todo-end" className="text-sm font-normal text-muted-foreground w-10">Ends</Label>
-                  <Input id="todo-end" type="time" value={form.end_time || ''} onChange={(e) => set('end_time', e.target.value)} className="flex-1" aria-label="Ends" />
+                  <DateTimeInput id="todo-end" type="time" value={form.end_time} placeholder="Pick a time" onChange={(e) => set('end_time', e.target.value)} wrapClassName="flex-1" aria-label="Ends" />
                 </div>
               )}
-              {once && !showEnd && <p className="text-xs text-muted-foreground mt-1.5">It starts reminding at {fmtClock(anchor)}.</p>}
+              {once && !showEnd && <p className="text-xs text-muted-foreground mt-1.5">It starts reminding {onDay(start.day)} at {fmtClock(anchor)}.</p>}
             </div>
           )}
 
@@ -283,7 +286,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {form.times.map((t, i) => (
                 <div key={i} className="flex items-center gap-1">
-                  <Input type="time" value={t} onChange={(e) => setTime(i, e.target.value)} className="h-10 w-32" aria-label={`Time ${i + 1}`} />
+                  <DateTimeInput type="time" value={t} placeholder="Pick a time" onChange={(e) => setTime(i, e.target.value)} className="h-10" wrapClassName="w-36" aria-label={`Time ${i + 1}`} />
                   {form.times.length > 1 && <button type="button" onClick={() => set('times', form.times.filter((_, j) => j !== i))} className="p-1 text-muted-foreground" aria-label="Remove this time"><X className="w-4 h-4" /></button>}
                 </div>
               ))}
@@ -293,8 +296,8 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           <div className={`rounded-xl border p-3 ${needsEnd ? 'border-primary/40 bg-primary/5' : 'border-border/60 bg-muted/40'}`}>
             <Label className="text-xs">Last day it reminds</Label>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-1">
-              <Input type="date" value={form.end_date || ''} min={editing ? undefined : todayStr()} disabled={noEnd}
-                onChange={(e) => { set('end_date', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9 flex-1 min-w-[9.5rem]" aria-label="Last day it reminds" />
+              <DateTimeInput type="date" value={form.end_date} placeholder="Pick a day" min={editing ? undefined : todayStr()} disabled={noEnd}
+                onChange={(e) => { set('end_date', e.target.value); if (e.target.value) setNoEnd(false); }} className="h-9" wrapClassName="flex-1 min-w-[9.5rem]" aria-label="Last day it reminds" />
               <label className="flex items-center gap-2 text-sm whitespace-nowrap">
                 <Checkbox checked={noEnd} onCheckedChange={(v) => { setNoEnd(!!v); if (v) set('end_date', ''); }} /> Until I stop it
               </label>

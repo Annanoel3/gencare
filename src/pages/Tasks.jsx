@@ -13,7 +13,7 @@ import ReminderCard from '@/components/reminders/ReminderCard';
 import useReminderEditor from '@/components/reminders/useReminderEditor';
 import useEventEditor from '@/components/calendar/useEventEditor';
 import { SECTIONS, sectionOf, sortTasks, isOpen, isStep } from '@/lib/tasks';
-import { slotsForDay, todayStr, isFinishedOnce, isEnded, defaultTimes } from '@/lib/reminders';
+import { slotsForDay, todayStr, isFinishedOnce, isEnded } from '@/lib/reminders';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { startOfDay, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
@@ -186,7 +186,7 @@ export default function Tasks() {
       {/* One way to add things: a reminder (Anna, Oct 29 2026: "get rid of the add task... people can
           just use reminders for things that would be tasks too"). Typing here opens it with the words in. */}
       {/* The + is always full color: with nothing typed it opens the full form (it used to sit pale and look broken). */}
-      <form onSubmit={(e) => { e.preventDefault(); const t = quick.trim(); if (!t) { openReminder(null); return; } openReminder({ medication_name: t, frequency: 'Once', times: defaultTimes('Once') }); setQuick(''); }} className="flex items-start gap-2 mb-6">
+      <form onSubmit={(e) => { e.preventDefault(); const t = quick.trim(); if (!t) { openReminder(null); return; } openReminder({ medication_name: t, frequency: 'Once' }); setQuick(''); }} className="flex items-start gap-2 mb-6">
         <GrowingInput value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="Add a reminder…" enterKeyHint="next" aria-label="New reminder" className="min-h-11 py-2.5 rounded-xl text-base" />
         <Button type="submit" size="icon" className="h-11 w-11 rounded-xl shrink-0" aria-label="Add reminder"><Plus className="w-5 h-5" /></Button>
       </form>
