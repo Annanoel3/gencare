@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from '@/components/ui/use-toast';
 import { saveSharingDefault } from '@/lib/calendarSync';
 import { plainError } from '@/lib/errors';
+import { askAi } from '@/lib/aiConsent';
 
 // "Who sees the events you add?" — asked once, the first time someone opens
 // the Calendar, and changeable in Settings → My Family. Counts for events
@@ -49,6 +50,8 @@ export function SharingOptions({ value, onPick, busy }) {
 export function useSharingChoice(onSaved) {
   const [busy, setBusy] = useState('');
   const pick = async (value) => {
+    // GenCare decides with OpenAI's help (lib/aiConsent).
+    if (value === 'auto' && !(await askAi('To decide who sees your events, GenCare sends their details to OpenAI.'))) return;
     setBusy(value);
     try {
       await saveSharingDefault(value);

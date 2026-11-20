@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import { canSee } from '../../shared/sharing.ts';
 import { sortEvents, sortMembers } from '../../shared/eventSort.ts';
+import { aiOk, aiRefusal } from '../../shared/aiConsent.ts';
 import { sameEvent } from '../../shared/sameEvent.ts';
 import { whoseEvent } from '../../shared/eventColors.ts';
 import { alreadyThere, byDay, nameSet, type Occ } from '../../shared/phoneMatch.ts';
@@ -248,7 +249,8 @@ const SORT_BATCH = 40;
 // Sort these events (one AI call per 40) and save what GenCare decided for
 // the fields nobody picked.
 async function sortRows(db: any, user: any, familyId: string, rows: any[], given?: { members: any[]; known: string[] }) {
-  if (!rows.length) return 0;
+  // The sorting is done by OpenAI: only for someone who said yes to that (shared/aiConsent).
+  if (!rows.length || !aiOk(user)) return 0;
   const { members: people, known } = given || (await sortMembers(db, familyId, user.id));
   const mode = sharingMode(user);
   const now = new Date().toISOString();
@@ -352,6 +354,7 @@ function inSortWindow(a: any, tz: string) {
 // that matched nobody, when a profile has been added since). One batch per
 // run keeps each sync quick; the rest go on the next sync.
 async function sortImports(db: any, user: any, familyId: string, tz: string) {
+  if (!aiOk(user)) return 0;
   const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
   const { members, newest, known } = await sortMembers(db, familyId, user.id);
   const due = mine.filter((a: any) => {
@@ -522,6 +525,7 @@ Deno.serve(async (req) => {
       const e = body.event || {};
       const title = String(e.title || '').trim();
       if (!title) return Response.json({ ok: false, error: 'No title' }, { status: 400 });
+      if (!aiOk(user)) return aiRefusal();
       const { members, known } = await sortMembers(db, familyId, user.id);
       // member_id: who the person said it's for, when they picked someone.
       const r = (await sortEvents([{ key: 'e', title, notes: e.notes, location: e.location, with: e.with, date: e.date, time: e.time, for: String(e.member_id || '') }], { poster: user.display_name || user.full_name || '', posterId: user.id, members, known })).get('e');

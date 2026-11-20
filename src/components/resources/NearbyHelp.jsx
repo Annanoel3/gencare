@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/activity';
 import { format } from 'date-fns';
 import { Loader2, MapPin, Search } from 'lucide-react';
+import { withAi } from '@/lib/aiConsent';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,8 @@ export default function NearbyHelp({ Entry }) {
     if (z.length !== 5) { setError('Enter a 5-digit ZIP code.'); return; }
     setBusy(true); setError('');
     try {
-      const d = await call({ zip: z });
+      const d = await withAi('To find help near you, GenCare sends your ZIP code to OpenAI.', () => call({ zip: z }));
+      if (d?.declined) return;
       setResult(d); setEditing(false);
       track('action', 'search:local help', `${d.saved ? 'saved list' : 'new search'}, ${d.places?.length || 0} places`);
       if (!d.places?.length) setError("We couldn't find local places for that ZIP code. The numbers below still work anywhere.");

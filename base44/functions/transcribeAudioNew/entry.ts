@@ -2,6 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.46";
 import OpenAI, { toFile } from "npm:openai";
 import { lean } from "../../shared/aiCost.ts";
 import { accessOf } from "../../shared/access.ts";
+import { aiOk, aiRefusal } from "../../shared/aiConsent.ts";
 
 // Recorded notes (the Record Notes page; RecorderBridge on the phone records).
 // The same setup as ADHDone's transcribeAudioNew, with the recordings in the
@@ -871,6 +872,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
 
     if (body?.mode === "usage") return Response.json({ ok: true, usage: publicUsage(await usageOf(base44, user, await planOf(base44, user))) });
+    // Everything below sends things to OpenAI: only with the person's OK.
+    if (!aiOk(user)) return aiRefusal();
     if (body?.mode === "notes_part") return await notesPart(base44, user, body);
     if (body?.mode === "notes_make") return await notesMake(base44, user, body);
     if (body?.mode === "notes_change") return await notesChange(base44, user, body);

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, isValid } from 'date-fns';
 import { Camera, ImagePlus, Loader2, Repeat, AlertCircle, ChevronDown } from 'lucide-react';
+import { askAi } from '@/lib/aiConsent';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -128,6 +129,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
   const read = async (files) => {
     const list = [...(files || [])].slice(0, 4);
     if (!list.length) return;
+    if (!(await askAi('To find the dates, GenCare sends the photo to OpenAI.'))) return;
     setStep('reading');
     try {
       const images = [];

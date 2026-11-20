@@ -320,13 +320,13 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               From {appt.created_by_name ? `${appt.created_by_name.split(' ')[0]}'s` : 'a'} phone calendar. Changes made on the phone show up here. Who it's for, who sees it, and a time, repeat, place or notes changed here stay, unless they're changed on the phone later.
             </p>
           )}
-          <div><Label>What *</Label><GrowingInput value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Dentist appointment" className="mt-1" /></div>
+          <div><Label>What *</Label><GrowingInput data-guide="event-what" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Soccer practice" className="mt-1" /></div>
 
-          <div>
+          <div data-guide="event-when">
             <Label>When</Label>
             <div className="flex flex-wrap gap-3 mt-1">
-              <Input type="date" value={form.date} onChange={(e) => changeDate(e.target.value)} aria-label="Day" className="flex-1 min-w-[9.5rem]" />
-              {!form.all_day ? <Input type="time" value={form.time} onChange={(e) => changeStart(e.target.value)} aria-label={showEnd ? 'Starts' : 'Time'} className="flex-1 min-w-[8rem]" /> : <span className="flex-1 min-w-[8rem]" />}
+              <Input data-guide="event-day" type="date" value={form.date} onChange={(e) => changeDate(e.target.value)} aria-label="Day" className="flex-1 min-w-[9.5rem]" />
+              {!form.all_day ? <Input data-guide="event-time" type="time" value={form.time} onChange={(e) => changeStart(e.target.value)} aria-label={showEnd ? 'Starts' : 'Time'} className="flex-1 min-w-[8rem]" /> : <span className="flex-1 min-w-[8rem]" />}
             </div>
             {!form.all_day && (
               <>
@@ -387,7 +387,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
 
           <div>
             <Label>Who it's for</Label>
-            <div className="flex flex-wrap gap-2 mt-1.5">
+            <div className="flex flex-wrap gap-2 mt-1.5" data-guide="event-who">
               {orderMembers(members, me?.id).map((m) => (
                 <Chip key={m.id} on={form.family_member_id === m.id} onClick={() => pick('member', () => set('family_member_id', form.family_member_id === m.id ? NONE : m.id))}>{memberNames.get(m.id) || (m.name || '').split(' ')[0]}</Chip>
               ))}
@@ -492,7 +492,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               <div className="flex flex-col items-end gap-1.5 ml-auto">
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={onClose}>Cancel</Button>
-                  <Button onClick={submit} disabled={saving}>
+                  <Button onClick={submit} disabled={saving} data-guide="event-add">
                     {saving ? 'Saving…' : 'Add'}
                   </Button>
                 </div>

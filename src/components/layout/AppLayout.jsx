@@ -14,6 +14,8 @@ import OneSignalInit from '@/components/shared/OneSignalInit';
 import WelcomeDialog from '@/components/onboarding/WelcomeDialog';
 import TrialEndingNotice from '@/components/shared/TrialEndingNotice';
 import AppTour from '@/components/onboarding/AppTour';
+import AiConsentDialog from '@/components/shared/AiConsentDialog';
+import GuideOverlay from '@/components/help/GuideOverlay';
 import RecordingBar from '@/components/shared/RecordingBar';
 import AppUpdateCard from '@/components/shared/AppUpdateCard';
 import NotificationsOffBanner from '@/components/shared/NotificationsOffBanner';
@@ -73,6 +75,7 @@ function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
           key={item.path}
           to={item.path}
           onClick={onNavigate}
+          data-guide={`menu-${item.path === '/' ? 'home' : item.path.slice(1)}`}
           className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
             isActive 
               ? 'bg-primary text-primary-foreground shadow-md' 
@@ -111,6 +114,7 @@ function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
                   key={child.path}
                   to={child.path}
                   onClick={onNavigate}
+                  data-guide={`menu-${child.path.slice(1)}`}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
                     isActive 
                       ? 'bg-primary/10 text-primary font-medium' 
@@ -229,6 +233,8 @@ function AppShell() {
       {currentUser && <WelcomeDialog user={currentUser} />}
       {currentUser && <TrialEndingNotice />}
       {currentUser && <AppTour user={currentUser} />}
+      {currentUser && <AiConsentDialog user={currentUser} />}
+      <GuideOverlay />
       <SignOutDialog open={signingOut} onClose={() => setSigningOut(false)} />
 
       {/* Header (GenCare is a phone app only; Base44's computer sidebar is gone) */}
@@ -240,7 +246,7 @@ function AppShell() {
           </div>
           <span className="font-heading text-lg font-bold">GenCare</span>
         </Link>
-        <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
+        <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)} data-guide="menu" aria-label={mobileOpen ? 'Close the menu' : 'Menu'}>
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
       </div>
@@ -296,6 +302,7 @@ function AppShell() {
             <Link
               key={item.path}
               to={item.path}
+              data-guide={`nav-${item.path === '/' ? 'home' : item.path.slice(1)}`}
               // Calendar tapped while on the Calendar: back up to the month, like
               // "Back to calendar" (Anna, Nov 17 2026), keeping the day picked.
               onClick={item.path === '/calendar' && location.pathname === '/calendar' ? (e) => { e.preventDefault(); window.dispatchEvent(new Event('gencare:calendar-top')); } : undefined}
@@ -314,7 +321,8 @@ function AppShell() {
       </div>
 
       {/* Not on the plan screen, where it would sit on the Terms and Privacy links. */}
-      {location.pathname !== '/subscribe' && <QuickCaptureButton />}
+      {/* Nor on the Help chat, where it would sit on the Ask button. */}
+      {location.pathname !== '/subscribe' && location.pathname !== '/help/ask' && <QuickCaptureButton />}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import OpenAI from "npm:openai";
 import { lean } from "./aiCost.ts";
+import { aiOk } from "./aiConsent.ts";
 
 // Sorting family calendar events: who each one is about, whether the family
 // should see it, and its category. Used for events brought in from a phone
@@ -163,7 +164,10 @@ export async function sortMembers(db: any, familyId: string, posterId: string): 
     }
     const names = new Map(rows.map((m: any) => [m.id, String(m.name || "")]));
     const seen = new Set<string>();
+    // Only events added by people who said GenCare may use OpenAI (shared/aiConsent).
+    const okUsers = new Set(users.filter((u: any) => aiOk(u)).map((u: any) => String(u.id)));
     const shared = appts
+      .filter((a: any) => okUsers.has(String(a.created_by_user_id || a.created_by_id || "")))
       .filter((a: any) => a.visibility === "family" && names.has(String(a.family_member_id || "")) && !a.away_of && !a.cover_of && a.title)
       .sort((x: any, y: any) => String(y.date || "").localeCompare(String(x.date || "")));
     for (const a of shared) {

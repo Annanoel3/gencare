@@ -1,0 +1,128 @@
+// What the Help chat knows about GenCare (functions/helpChat). Anna, Nov 20
+// 2026: "an ai chat that knows everything about the app. No wrong info
+// allowed." Every line here was checked against the app's screens when it was
+// written; the chat answers only from it. When a screen changes, change its
+// lines here too (the button names are the ones on screen, word for word).
+//
+// GUIDE_IDS: TWIN of src/components/help/guides.jsx (the "Show me how" walkthroughs).
+
+export const GUIDE_IDS: Record<string, string> = {
+  event: 'Put something on the calendar',
+  reminder: 'Add a reminder',
+  done: 'Check something off',
+  day: "See what's on a day",
+  person: "See one person's events",
+  record: 'Record an appointment or meeting',
+  invite: 'Invite someone to the family',
+  bigger: 'Make the words bigger',
+  photo: 'Add events from a photo',
+  phone: "Bring in your phone's calendar",
+};
+
+export const APP_GUIDE = `GENCARE APP GUIDE
+
+What GenCare is
+- A family organizing app: one shared family calendar, reminders and to-dos, a family feed, a care log, recorded notes, and local help. It's for families who help take care of each other: older parents, kids, pets.
+- GenCare organizes care. It is not a medical app and gives no medical advice.
+
+Getting around
+- The bar at the bottom of the screen has five buttons: Home, Reminders, Calendar, Feed, Family.
+- The menu button is at the top right (three lines). The menu has: Home; Family (Feed, Calendar, Family Members); Tools (Reminders, Care Log, Record Notes); Resources; Help; Settings; and Sign Out at the bottom. On the website, Record Notes is called Notes.
+- Tapping the GenCare name at the top left goes to Home.
+- The round green + in the bottom right corner is on every page. Tapping it shows: Event, Events from a photo, Reminder, Announcement, Log care.
+
+Home
+- At the top: a greeting and today's date.
+- "Today Across the Family": announcements first, then what's going on for the family today, and what was logged today. The Announce button there sends an announcement.
+- "To-do": today's reminders and to-dos, each with a Done button. It has a link to the Reminders page.
+- "Next appointment": on phones that can record, an upcoming appointment in the next two weeks, with a red Record button.
+- "Who did what": what people in the family did lately.
+
+Calendar
+- Tap Calendar at the bottom. There are Month, Week and Day tabs.
+- Each person has their own color. Plain text, with no color, is for things that don't take anyone's time, like a cleaner's visit. Gray means only you see it ("Only me").
+- Tap a day to see everything on it, below the calendar. To go back up, tap Back to calendar, or tap Calendar at the bottom again.
+- The names above the calendar: tap a name to see only that person's events. Tap Everyone to see all of them again. Pets shows when the family has pets.
+- To add an event: tap Add event at the top of the Calendar, or the green + and then Event. Then:
+  - What: type what it is (this one is required).
+  - When: pick the day and the time. "Add end time" adds when it ends. The All day switch is for events with no time. Repeat lets it repeat: Every day, Weekdays, Every week, Every other week, Every month or Every year. A repeating event asks for its "Last day it repeats", or tick "Until I stop it".
+  - Who it's for: tap the person.
+  - Share with: Whole family, Only me, or certain people. ("Let GenCare decide" shows for people who picked that choice.)
+  - Where, and Notes, if you like.
+  - Tap Add.
+- To change an event, tap it. Changes save on their own; tap Done when finished. An open event also has: Delete; Copy to another day; Stop repeating (on a repeating event); a "Show in color" switch; and "Record notes at this visit" on phones that can record.
+- "I'll take it" on an event says you'll handle it (for a repeating event, just that day). Everyone sees who took it, and its reminder goes to them.
+- Notifications: about an hour before an event that has a time, GenCare sends a notification to the people in the family who can see it (or only to the person who took it).
+- The More button at the top of the Calendar has: Add events from a photo; Get events from my phone; Check my phone for changes now.
+- Add events from a photo: tap Take a photo, or Choose a photo or screenshot, of an appointment card, a schedule or a flyer. GenCare finds the dates, and you check them before anything is added. The photo isn't saved. (Also on the green +: Events from a photo.)
+- Phone calendar: More, then Get events from my phone. Pick which of your phone's calendars to bring in. It can also put family events on your phone's calendar. This works in the GenCare app on your phone. The same settings are in Settings, then My Family, then Phone calendar.
+- Who sees the events you add: Settings, then My Family, then "Who sees the events you add". The choices are Let GenCare decide, Everyone in the family, or Only me. Any one event can still be changed on the event.
+
+Reminders
+- Tap Reminders at the bottom. The page shows events, reminders and things to do. Anyone in the family can tick them off. Its tabs are Reminders and Done.
+- To add one: type it in the box that says "Add a reminder…" and tap the green + next to it. (With nothing typed, the + opens an empty form.) The green + in the corner, then Reminder, works too, and so does the Reminder button at the top of the page.
+- The reminder form:
+  - What: what to remind about (required).
+  - Steps (optional): like a checklist. Anyone can tick them off, and ticking the last one marks it done.
+  - How often: One time (one notification at the time you pick, and that's all), Until it's done (it keeps reminding every day until someone marks it done), Every day, or Certain days.
+  - When: the day and the time. "Add end time" is for things with a window, like "pick up the dry cleaning from 3 to 5 PM". If it isn't done by the end time, it comes back the next day.
+  - Priority (for "Until it's done"): Low is one reminder a day. Medium is a few a day. High is about every two hours. Reminders only go out between 8 AM and 8 PM. The form says exactly when the reminders will go out.
+  - Who gets reminded: Everyone, or Only me.
+  - For: who needs to do it. Tap as many people as you need. Whole family means anyone can.
+  - Tap Add.
+- On a reminder: tap Done when it's finished. Skip skips that time. Tapped one by mistake? Tap Undo.
+- To change or delete a reminder, tap its words to open it.
+- Finished ones are on the Done tab.
+
+Feed
+- Tap Feed at the bottom (the page is called Family Feed). It has updates, announcements, visit summaries and photos, and everyone in the family sees them.
+- To post: type in "Share an update with your family…". You can pick who it's about and add a photo. Then tap Post.
+- You can reply to a post, and change or delete your own posts. Pinned posts stay at the top.
+- An announcement is news for the whole family: it shows on everyone's Home and sends them a notification. To send one, tap Announce on Home, or the green + and then Announcement. Type what everyone needs to know. Under "Send it" pick Now or At a later time, and pick how long to "Keep it on Home for".
+
+Family
+- Tap Family at the bottom to see everyone's profiles. The buttons at the top are Invite, Add Family Member and Add Pet.
+- Adding someone: Name and Relationship (both required), Date of Birth (Birthday for a pet) and Important info. If they'll use GenCare on their own phone, tap Add & Invite: when they join with the invite, the profile becomes theirs. Otherwise tap Add Member.
+- Tap a person to open their profile. A profile can have the tabs Overview, Info, School and Reminders.
+- The switch "The family helps take care of them" on a profile puts that person on the Care Log.
+- Inviting: tap Invite (on the Family page, or Settings, then My Family). They can point their phone's camera at the square code, or type the code on the join page. Copy code and Copy link let you text it to them. A code works for 7 days; Make a new code makes another.
+- Settings, then My Family, lists the people with accounts in the family. The family's owner can remove someone there, and anyone can tap Leave this family.
+
+Care Log
+- In the menu, tap Care Log (or the green +, then Log care). It shows who did what today, so nobody has to ask.
+- It shows the people the family helps take care of. To add someone, open their profile on the Family page and turn on "The family helps take care of them." Babies, kids and pets show up on their own.
+- Tap a button when it happens, and it shows with who did it. "Choose buttons" picks which buttons show. Only you see what you log with a locked button.
+
+Record Notes (appointments and meetings)
+- In the menu, tap Record Notes. It's for an appointment, a meeting or a class. GenCare writes short, clear notes the whole family can read: to-dos first, then the details.
+- Type what it is in the box (optional), then tap Record. When it's over, tap Stop. GenCare writes up the notes, and you can pick who in the family sees them.
+- Ask everyone there before you record. In 12 states everyone has to agree before you record them; "Which states?" on that page shows the list.
+- On Home, the red Record button next to "Next appointment" starts a recording for that appointment.
+- "Coming up" lists upcoming appointments. Open one to add "Things to bring up": questions you don't want to forget, which stay on screen while you record.
+- The box "Search or ask the notes" searches your family's recordings. Tap Ask to ask it a question.
+- How many recording minutes a family gets each month depends on its plan; the page shows what's left.
+- Recording works in the GenCare app on your phone, not on the website.
+
+Resources
+- In the menu, tap Resources: free and low-cost help for families caring for each other. Tap a number to call.
+- "Places near you": type a ZIP code and tap Search to find the local Area Agency on Aging, adult day and respite care, equipment loan closets, support groups, meals and rides. A family can search a few new ZIP codes a day.
+
+Help
+- In the menu, tap Help. "Show me how" walks you through things one tap at a time, right on the screen. "Take the quick tour again" replays the tour. "Ask a question or submit feedback" opens this chat. "Send a message" writes to the person who makes GenCare.
+
+Settings
+- In the menu, tap Settings.
+- Big text mode is at the top: it makes the words and buttons much bigger on that phone. Text size and Appearance (Light, Dark or Match my phone) are further down.
+- My Family: who's in it, invites, the plan, notifications, who sees the events you add, and the phone calendar.
+- Notifications (Settings, then My Family, then Notifications): "Notifications on"; "When someone adds or changes a family event, reminder or message"; "Reminders before appointments, due reminders, and the 7 AM "today" summary"; and "Send me a test notification". Each person picks their own. If no notifications come at all, GenCare's notifications may be turned off in the phone's own settings.
+- AI features: a switch for the features that use OpenAI (see below).
+- Help: Ask for help, and Report a bug, both go to the person who makes GenCare.
+- Account Email: you can ask to change it.
+- Terms of Use, Privacy Policy, and Account Management (delete your data or account).
+- "Sign out" is at the bottom of Settings, and Sign Out is at the bottom of the menu.
+
+The plan
+- Settings, then My Family, then Plan shows the family's plan. "See the plan" (or "Manage plan") opens it. This guide doesn't have prices; the plan page shows them.
+
+AI features
+- Some features use OpenAI, an AI company, to do their work: Record Notes (recordings and questions about notes), Events from a photo, the calendar's sorting of who an event is for and who sees it, Help near you on Resources (the ZIP code), and this Help chat (the questions). GenCare asks before any of them send anything, and the AI features switch in Settings changes it.`;

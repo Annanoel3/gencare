@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
           <Shield className="w-7 h-7 text-primary" />
           Privacy Policy
         </h1>
-        <p className="text-muted-foreground mt-1 text-sm">Last updated: October 2026</p>
+        <p className="text-muted-foreground mt-1 text-sm">Last updated: November 2026</p>
       </div>
 
       <div className="prose prose-sm max-w-none space-y-6 text-foreground">
@@ -49,7 +49,7 @@ export default function PrivacyPolicy() {
 
         <section>
           <h2 className="font-heading text-lg font-semibold mb-2">4. Data Sharing</h2>
-          <p className="text-muted-foreground">We do not sell your data. Your family care information is only visible to you and family members you explicitly invite. We share data with third-party providers only as necessary to provide the service: push notification services, and OpenAI, which processes Record Notes audio and transcripts the calendar event details and family profile names used to sort events, and the ZIP code you search on the Resources page (to search the web for local services). These providers process the data only to provide those features for you.</p>
+          <p className="text-muted-foreground">We do not sell your data. Your family care information is only visible to you and family members you explicitly invite. We share data with third-party providers only as necessary to provide the service: push notification services, and OpenAI, an AI company, which processes Record Notes recordings and transcripts and the questions or changes you ask of your notes; photos you choose for "Add events from a photo"; the calendar event details and family profile names used to sort events; the ZIP code you search on the Resources page (to search the web for local services); and the questions you ask in the Help chat. GenCare sends data to OpenAI only after you tap Allow in the app, and you can turn this off at any time in Settings under AI features. These providers process the data only to provide those features for you.</p>
         </section>
 
         <section>

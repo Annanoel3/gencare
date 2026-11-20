@@ -136,3 +136,10 @@
 .ios-edge .app-menu { padding-top: calc(1rem + env(safe-area-inset-top)); }
 .ios-edge .app-fab { bottom: calc(5rem + env(safe-area-inset-bottom)); }
 .ios-edge .app-page { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+
+/* Help's walkthrough box gives a little shake when a tap lands outside the lit-up spot. */
+@keyframes guide-nudge {
+  0%, 100% { transform: translateX(-50%); }
+  25% { transform: translateX(calc(-50% - 7px)); }
+  75% { transform: translateX(calc(-50% + 7px)); }
+}

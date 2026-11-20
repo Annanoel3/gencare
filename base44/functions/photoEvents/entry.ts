@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import OpenAI from 'npm:openai';
 import { lean } from '../../shared/aiCost.ts';
 import { accessOf } from '../../shared/access.ts';
+import { aiOk, aiRefusal } from '../../shared/aiConsent.ts';
 
 // Add to the calendar from a photo (Anna, Nov 9 2026): an appointment card, a
 // school calendar, a flyer, a screenshot of a text. The app shrinks the
@@ -64,6 +65,8 @@ Deno.serve(async (req) => {
     if (!user.family_id) return Response.json({ ok: false, error: 'No family' }, { status: 400 });
     const fam = (await db.Family.filter({ id: user.family_id }))?.[0];
     if (!accessOf(fam, user).access) return Response.json({ ok: false, error: 'no_access' }, { status: 402 });
+    // The photo goes to OpenAI: only with the person's OK.
+    if (!aiOk(user)) return aiRefusal();
 
     const body = await req.json().catch(() => ({}));
     const images = (Array.isArray(body?.images) ? body.images : [])

@@ -1,3 +1,4 @@
+import { aiAllowedNow } from '@/lib/aiConsent';
 import { base44 } from '@/api/base44Client';
 import { format, addDays } from 'date-fns';
 import { mergeSameEvents } from '@/lib/sameEvent';
@@ -67,6 +68,8 @@ export async function sortNewEvent(created, left = {}, mode = '', opts = {}) {
   if (!created?.id || !created.title) return null;
   const wantShare = !!left.visibility && mode === 'auto';
   if (!wantShare && !left.member && !left.category) return null;
+  // Sorting is done by OpenAI: only with the person's OK (lib/aiConsent). Without it the event stays as saved.
+  if (!aiAllowedNow()) return null;
   let r = null;
   try {
     const res = await withTimeout(base44.functions.invoke('phoneCalendar', {

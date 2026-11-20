@@ -64,6 +64,8 @@ export default function MonthView({ currentMonth, setCurrentMonth, selectedDate,
             <button
               key={day.toISOString()}
               onClick={() => setSelectedDate(day)}
+              data-guide="cal-day"
+              data-today={today ? '1' : undefined}
               className={`min-h-[92px] md:min-h-[88px] rounded-md md:rounded-lg flex flex-col items-stretch px-px py-0.5 md:p-1 text-left transition-all overflow-hidden ${
                 selected ? 'bg-primary/15 ring-2 ring-primary' :
                 today ? 'bg-primary/5' :

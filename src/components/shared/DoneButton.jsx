@@ -20,7 +20,7 @@ export default function DoneButton({ done = false, busy = false, onDone, onUndo,
     );
   }
   return (
-    <Button type="button" size="sm" onClick={stop(onDone)} onKeyDown={keys} disabled={busy}
+    <Button type="button" size="sm" onClick={stop(onDone)} onKeyDown={keys} disabled={busy} data-guide="todo-done"
       aria-label={label ? `Mark "${label}" done` : 'Done'} className={`rounded-xl gap-1 ${className}`}>
       {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Done
     </Button>

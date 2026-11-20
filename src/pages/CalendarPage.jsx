@@ -369,16 +369,16 @@ export default function CalendarPage() {
         {/* Add event up top; the rest in one More button with plain names, so the
             calendar isn't pushed down by a stack of buttons (Anna, Nov 14 2026). */}
         <div className="flex gap-2">
-          <Button onClick={openNew} className="rounded-xl gap-2 flex-1 sm:flex-none h-11"><Plus className="w-5 h-5" /> Add event</Button>
+          <Button onClick={openNew} data-guide="cal-add" className="rounded-xl gap-2 flex-1 sm:flex-none h-11"><Plus className="w-5 h-5" /> Add event</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="rounded-xl gap-2 flex-1 sm:flex-none h-11" disabled={syncing || resorting}>
+              <Button data-guide="cal-more" variant="outline" className="rounded-xl gap-2 flex-1 sm:flex-none h-11" disabled={syncing || resorting}>
                 {syncing || resorting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MoreHorizontal className="w-5 h-5" />} More
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[min(18rem,calc(100vw-2rem))] p-1.5">
-              <DropdownMenuItem onSelect={() => setPhotoOpen(true)} className="gap-3 py-3 text-base"><Camera className="w-5 h-5 text-primary" /> Add events from a photo</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setPhoneOpen(true)} className="gap-3 py-3 text-base"><Smartphone className="w-5 h-5 text-primary" /> Get events from my phone</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPhotoOpen(true)} data-guide="cal-photo" className="gap-3 py-3 text-base"><Camera className="w-5 h-5 text-primary" /> Add events from a photo</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPhoneOpen(true)} data-guide="cal-phone" className="gap-3 py-3 text-base"><Smartphone className="w-5 h-5 text-primary" /> Get events from my phone</DropdownMenuItem>
               <DropdownMenuItem onSelect={sync} className="gap-3 py-3 text-base"><RefreshCw className="w-5 h-5 text-primary" /> Check my phone for changes now</DropdownMenuItem>
               {me?.role === 'admin' && (
                 <DropdownMenuItem onSelect={resort} className="gap-3 py-3 text-base"><Sparkles className="w-5 h-5 text-primary" /> Sort again (only you see this)</DropdownMenuItem>
@@ -391,10 +391,10 @@ export default function CalendarPage() {
       {/* Whose events to show, and what the colors mean: whose event it is
           (about them, or from their calendar when it's about nobody the app
           knows); gray is only you. Tap a name for just their events. */}
-      <div className="flex flex-wrap items-center gap-2 mb-4 px-1" role="group" aria-label="Whose events to show">
+      <div className="flex flex-wrap items-center gap-2 mb-4 px-1" role="group" aria-label="Whose events to show" data-guide="cal-people">
         <PersonChip on={!shown} onClick={() => setPerson('')}>Everyone</PersonChip>
         {people.map((m) => (
-          <PersonChip key={m.id} on={shown === m.id} dot={getMemberColorClass(m, members)} onClick={() => setPerson(shown === m.id ? '' : m.id)}>{chipName(m)}</PersonChip>
+          <PersonChip key={m.id} data-guide="cal-person" on={shown === m.id} dot={getMemberColorClass(m, members)} onClick={() => setPerson(shown === m.id ? '' : m.id)}>{chipName(m)}</PersonChip>
         ))}
         {unlinked.map((u) => (
           <PersonChip key={u.id} on={shown === u.id} dot={getUserColorClass(u.id, members, accounts)} onClick={() => setPerson(shown === u.id ? '' : u.id)}>{chipName(u)}</PersonChip>
@@ -418,7 +418,7 @@ export default function CalendarPage() {
         </TabsList>
 
         <TabsContent value="month">
-          <div id="calendar-month" className="scroll-mt-20">
+          <div id="calendar-month" data-guide="cal-month" className="scroll-mt-20">
             <MonthView
               currentMonth={currentMonth}
               setCurrentMonth={setCurrentMonth}
@@ -431,7 +431,7 @@ export default function CalendarPage() {
           {colorNote}
           {/* Room below so a short day can still scroll up to the top of the screen. */}
           <div className="min-h-[calc(100dvh-5rem)]">
-          <div id="calendar-day" className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6 scroll-mt-20">
+          <div id="calendar-day" data-guide="cal-daylist" className="bg-card rounded-2xl border border-border/50 p-4 md:p-6 mt-6 scroll-mt-20">
             <button type="button" onClick={() => showBelow('calendar-month')} className="inline-flex items-center gap-1.5 -ml-1 mb-2 px-1 py-1 text-sm font-medium text-primary">
               <ArrowUp className="w-4 h-4" /> Back to calendar
             </button>

@@ -68,7 +68,7 @@ export default function Dashboard() {
 
       {/* Anna, Nov 18 2026: To-do right under what's going on today, then the
           next appointment with its Record button (on phones that can record). */}
-      <TodoCard tasks={tasks} members={members} />
+      <div data-guide="home-todo"><TodoCard tasks={tasks} members={members} /></div>
       <RecordVisitsCard appointments={appointments} members={members} />
 
       {/* Family members live on the Family page (Anna: "there's already a whole page for that"). */}

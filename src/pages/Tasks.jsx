@@ -187,8 +187,8 @@ export default function Tasks() {
           just use reminders for things that would be tasks too"). Typing here opens it with the words in. */}
       {/* The + is always full color: with nothing typed it opens the full form (it used to sit pale and look broken). */}
       <form onSubmit={(e) => { e.preventDefault(); const t = quick.trim(); if (!t) { openReminder(null); return; } openReminder({ medication_name: t, frequency: 'Once' }); setQuick(''); }} className="flex items-start gap-2 mb-6">
-        <GrowingInput value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="Add a reminder…" enterKeyHint="next" aria-label="New reminder" className="min-h-11 py-2.5 rounded-xl text-base" />
-        <Button type="submit" size="icon" className="h-11 w-11 rounded-xl shrink-0" aria-label="Add reminder"><Plus className="w-5 h-5" /></Button>
+        <GrowingInput data-guide="rem-quick" value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="Add a reminder…" enterKeyHint="next" aria-label="New reminder" className="min-h-11 py-2.5 rounded-xl text-base" />
+        <Button type="submit" size="icon" data-guide="rem-quick-add" className="h-11 w-11 rounded-xl shrink-0" aria-label="Add reminder"><Plus className="w-5 h-5" /></Button>
       </form>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -197,7 +197,7 @@ export default function Tasks() {
           <TabsTrigger value="done" className="rounded-lg py-1.5">Done ({completed.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="open" className="space-y-6">
+        <TabsContent value="open" className="space-y-6" data-guide="rem-list">
           {!isLoading && bySection.length === 0 && (
             <div className="text-center py-16">
               <Check className="w-14 h-14 mx-auto mb-3 text-emerald-500/30" />

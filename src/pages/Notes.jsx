@@ -17,7 +17,8 @@ import PrepPointsList from "@/components/notes/PrepPointsList";
 import ConsentNote from "@/components/notes/ConsentNote";
 import ShareNotesDialog, { sharingLabel } from "@/components/notes/ShareNotesDialog";
 import { withFamily, useFamily } from "@/lib/family";
-import { plugin } from "@/lib/phone";
+import { plugin, isNativeApp, isAndroidApp } from "@/lib/phone";
+import { askAi } from "@/lib/aiConsent";
 import { isRecordable } from "@/components/calendar/EventRow";
 import { GrowingInput } from "@/components/ui/growing-input";
 
@@ -514,6 +515,8 @@ export default function Notes() {
   const startRecording = async (link = null) => {
     const R = recorder();
     if (!R || busy) return;
+    // The recording goes to OpenAI to be written up (lib/aiConsent).
+    if (!(await askAi("To write up notes from a recording, GenCare sends the recording to OpenAI."))) return;
     const name = (link?.moreOf?.title || link?.moreOf?.notes?.title || link?.appt?.title || title).trim();
     const now = await refreshUsage();
     if (!now || now.left_seconds < 60) { setCapOpen(true); return; }
@@ -624,6 +627,7 @@ export default function Notes() {
   const submitChange = async (record) => {
     const request = changeText.trim();
     if (!request || changing || !record) return;
+    if (!(await askAi("To change the notes, GenCare sends them and what you asked to OpenAI."))) return;
     setChanging(true);
     setChangeSaid("");
     try {
@@ -644,6 +648,7 @@ export default function Notes() {
 
   const fillNotes = async (record) => {
     if (!record || filling) return;
+    if (!(await askAi("To check the notes, GenCare sends them to OpenAI."))) return;
     setFilling(true);
     setChangeSaid("");
     try {
@@ -662,6 +667,7 @@ export default function Notes() {
   const askAboutThis = async (record) => {
     const question = askOneText.trim();
     if (question.length < 3 || askOne?.loading || !record) return;
+    if (!(await askAi("To answer from the notes, GenCare sends your question and the notes to OpenAI."))) return;
     setAskOne({ question, loading: true, answer: "", quotes: [] });
     try {
       const res = await base44.functions.invoke("transcribeAudioNew", { mode: "notes_ask_one", record_id: record.id, question });
@@ -676,6 +682,7 @@ export default function Notes() {
   const askNotes = async () => {
     const question = search.trim();
     if (question.length < 3 || asked?.loading) return;
+    if (!(await askAi("To answer from the notes, GenCare sends your question and the notes to OpenAI."))) return;
     setAsked({ question, loading: true, answer: "", sources: [] });
     try {
       const res = await base44.functions.invoke("transcribeAudioNew", { mode: "notes_ask", question });
@@ -918,7 +925,7 @@ export default function Notes() {
         <div className="max-w-2xl mx-auto space-y-4">
           <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Notes</h1>
           <div className={card}>
-            <p className={soft}>Recording works in the GenCare app on your phone. Update it from Google Play if you already have it. Notes the family recorded are listed here.</p>
+            <p className={soft}>Recording works in the GenCare app on your phone{isNativeApp() ? `. Update it from ${isAndroidApp() ? 'Google Play' : 'the App Store'} to get it` : ''}. Notes the family recorded are listed here.</p>
           </div>
           {loaded && records.length > 0 && (
             <div className="space-y-2">
@@ -1257,9 +1264,9 @@ export default function Notes() {
           <p className={soft}>Record an appointment, meeting or class. GenCare writes short, clear notes the whole family can read: to-dos first, then the details you'll need.</p>
         </div>
 
-        <div className={`${card} space-y-3`}>
+        <div className={`${card} space-y-3`} data-guide="notes-start">
           <GrowingInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What is it? (optional)" className="min-h-11 py-2.5 rounded-xl border-border bg-background text-[0.9375rem] shadow-none" />
-          <Button onClick={() => startRecording()} disabled={busy || !!progress} className="w-full h-14 rounded-2xl text-base bg-red-600 hover:bg-red-700 text-white">
+          <Button onClick={() => startRecording()} disabled={busy || !!progress} data-guide="notes-record" className="w-full h-14 rounded-2xl text-base bg-red-600 hover:bg-red-700 text-white">
             {busy ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Mic className="w-5 h-5 mr-2" />} Record
           </Button>
           <p className={`text-xs ${soft}`}>{usageLine(usage)}</p>

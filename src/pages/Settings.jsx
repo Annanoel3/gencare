@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Settings as SettingsIcon, Mail, Sun, Moon, Smartphone, Shield, UserX, Send, Loader2, CheckCircle2, Users, FileText, LifeBuoy, Bug, Activity as ActivityIcon, LogOut, MessageCircleHeart, CircleHelp, ChevronRight, Star, Share2 } from 'lucide-react';
 import SupportDialog from '@/components/shared/SupportDialog';
+import { AiSetting } from '@/components/shared/AiConsentDialog';
 import { previewWelcome } from '@/components/onboarding/WelcomeDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,11 +67,11 @@ export default function Settings() {
         {/* Big text mode, first thing on the page so it's easy to find (Anna, Nov 15 2026:
             "The text is still too small for my dad"). Kept on this phone (lib/textSize). */}
         {/* The words sit under the name and switch so they keep the card's whole width when big. */}
-        <div className="bg-card rounded-2xl border-2 border-primary/30 p-5 md:p-6">
+        <div className="bg-card rounded-2xl border-2 border-primary/30 p-5 md:p-6" data-guide="big-text">
           <div className="flex items-center gap-3">
             <div className="big-hide w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0"><span className="font-heading font-bold text-primary text-lg leading-none" aria-hidden="true">Aa</span></div>
             <h2 className="flex-1 min-w-0 font-heading text-lg font-semibold"><label htmlFor="big-text">Big text mode</label></h2>
-            <Switch id="big-text" checked={textSize === BIG.value} onCheckedChange={(on) => { const v = on ? BIG.value : 'normal'; setTextSize(v); setTextSizeState(v); }} />
+            <Switch id="big-text" data-guide="big-text-switch" checked={textSize === BIG.value} onCheckedChange={(on) => { const v = on ? BIG.value : 'normal'; setTextSize(v); setTextSizeState(v); }} />
           </div>
           <p className="big-flush text-xs text-muted-foreground mt-1 pl-[3.25rem]">Makes the words and buttons much bigger on this phone.</p>
         </div>
@@ -165,6 +166,9 @@ export default function Settings() {
             ))}
           </div>
         </div>
+
+        {/* OpenAI on or off (Apple 5.1.2(i); Nov 20 2026). */}
+        <AiSetting />
 
         {/* Help: the how-tos first (Anna, Nov 18 2026), then asking a person. */}
         <div className="bg-card rounded-2xl border border-border/50 p-5 md:p-6">

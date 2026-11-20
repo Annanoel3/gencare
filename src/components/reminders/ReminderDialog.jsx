@@ -247,7 +247,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           </div>
 
           {(once || oneTime) && (
-            <div>
+            <div data-guide="rem-when">
               <Label>When</Label>
               <div className="grid grid-cols-2 gap-3 mt-1">
                 <DateTimeInput type="date" value={form.once_date} placeholder="Pick a day" min={editing ? undefined : todayStr()} onChange={(e) => set('once_date', e.target.value)} aria-label="Day" />
@@ -325,7 +325,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           </div>
 
           {people.length > 0 && (
-            <div>
+            <div data-guide="rem-for">
               <Label>For</Label>
               {/* Tap as many people as it's for (the ones doing it); Whole family (it was "Nobody in particular", the
                   to-do form's word for the same thing) clears them. */}
@@ -360,7 +360,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
             {editing && <Button variant="ghost" size="sm" className="text-destructive gap-1" onClick={() => setConfirmDelete(true)}><Trash2 className="w-4 h-4" /> Delete</Button>}
             <div className="flex gap-2 ml-auto">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
+              <Button onClick={save} disabled={saving} data-guide="rem-add">{saving ? 'Saving…' : editing ? 'Save' : 'Add'}</Button>
             </div>
           </div>
           <MissingNote text={missing ? whyMissing : ''} className="-mt-2" />

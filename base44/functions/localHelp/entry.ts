@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.46';
 import OpenAI from 'npm:openai';
+import { aiOk, aiRefusal } from '../../shared/aiConsent.ts';
 
 // "Help near you" on the Resources page: someone types a ZIP code and gets
 // real local places (their Area Agency on Aging, respite and adult day care,
@@ -189,6 +190,12 @@ Deno.serve(async (req) => {
     const fresh = saved && daysOld(saved.searched_at) < ((saved.places || []).length ? KEEP_DAYS : KEEP_EMPTY_DAYS);
     if (fresh) return Response.json({ zip, area: saved.area || '', places: cleanPlaces(saved.places), searched_at: saved.searched_at, saved: true });
     if (body?.peek) return Response.json({ zip, area: '', places: [], searched_at: null, saved: false });
+
+    // A new search sends the ZIP code to OpenAI: only with the person's OK.
+    if (!aiOk(user)) {
+      if (saved) return Response.json({ zip, area: saved.area || '', places: cleanPlaces(saved.places), searched_at: saved.searched_at, saved: true });
+      return aiRefusal();
+    }
 
     // A new search costs money: a few per family per day.
     const familyId = user.family_id || `user:${user.id}`;

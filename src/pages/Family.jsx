@@ -80,7 +80,7 @@ export default function Family() {
           <p className="text-muted-foreground mt-1">Manage your loved ones' profiles and information.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setInviteOpen(true)} className="rounded-xl gap-2">
+          <Button variant="outline" onClick={() => setInviteOpen(true)} data-guide="family-invite" className="rounded-xl gap-2">
             <QrCode className="w-4 h-4" /> Invite
           </Button>
           <Button variant="outline" onClick={() => openAdd(true)} className="rounded-xl gap-2">
