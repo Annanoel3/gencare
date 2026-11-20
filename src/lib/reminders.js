@@ -122,7 +122,8 @@ export function slotsForDay(meds, logs, day = todayStr()) {
   const dow = new Date(day + 'T12:00:00').getDay();
   const out = [];
   for (const m of meds) {
-    if (m.is_active === false) continue;
+    // Finished (done or skipped): gone, except on the day it was finished, where it shows with Undo.
+    if (m.is_active === false && !(m.frequency === 'Once' && logs.some((l) => l.medication_id === m.id && l.day === day && (l.status === 'taken' || l.status === 'skipped')))) continue;
     // "Until it's done": every day from its start day until someone marks it done.
     if (m.frequency === ONE_TIME) { if (m.once_date !== day) continue; } else if (m.frequency === 'Once') { if (!m.once_date || m.once_date > day) continue; } else {
       if (m.end_date && day > m.end_date) continue; // past its last day
@@ -137,9 +138,10 @@ export function slotsForDay(meds, logs, day = todayStr()) {
       const log = logs.find((l) => l.medication_id === m.id && l.day === day && l.time === t) || null;
       mine.push({ key: `${m.id}@${t}`, med: m, time: t, day, log, status: log?.status || 'upcoming' });
     }
-    // An "until it's done" reminder that nags several times a day is still
-    // one thing to do: one card (the latest push so far, or the first one).
-    if (m.frequency === 'Once' && mine.length > 1) {
+    // An "until it's done" reminder is one thing to do: one card (the latest
+    // push so far, or the first one), shown as "until it's done" even with one
+    // push a day (Low), not as a missed time.
+    if (m.frequency === 'Once' && mine.length) {
       const by = day === todayStr() ? nowHHMM() : day < todayStr() ? '23:59' : '00:00';
       const pick = mine.find((x) => x.status === 'taken' || x.status === 'skipped') || [...mine].reverse().find((x) => x.time <= by) || mine[0];
       out.push({ ...pick, nags: mine.map((x) => x.time) });
@@ -164,10 +166,11 @@ export async function markSlot(slot, status, me) {
   const saved = slot.log?.id
     ? await base44.entities.MedicationLog.update(slot.log.id, patch)
     : await base44.entities.MedicationLog.create(withFamily({ ...base, ...patch }));
-  // An "until it's done" reminder ends when someone marks it done (Undo brings
-  // it back). Skip only skips today; it comes back tomorrow.
-  if (slot.med.frequency === 'Once' && (status === 'taken' || status === 'due')) {
-    const active = status !== 'taken';
+  // An "until it's done" reminder ends when someone marks it done or skips it
+  // (Anna, Nov 19 2026: "Each time i press skip, it stays on other days"); it
+  // stays on that day's list, greyed, with Undo, which brings it back.
+  if (slot.med.frequency === 'Once' && (status === 'taken' || status === 'skipped' || status === 'due')) {
+    const active = status === 'due';
     if ((slot.med.is_active !== false) !== active) await base44.entities.Medication.update(slot.med.id, { is_active: active });
   }
   return saved;

@@ -54,14 +54,14 @@ export default function PersonToday({ person, members = [] }) {
           <h2 className="text-sm font-semibold flex items-center gap-2 mb-1.5"><BellRing className="w-4 h-4 text-emerald-600" /> Reminders today</h2>
           <ul className="space-y-1.5">
             {slots.map((s) => {
-              const done = s.status === 'taken';
+              const done = s.status === 'taken' || s.status === 'skipped';
               return (
                 <li key={s.key} className={`flex items-center gap-3 ${done ? 'opacity-60' : ''}`}>
                   <span className="text-xs text-muted-foreground w-16 flex-shrink-0">{fmtClock(s.time)}</span>
-                  <span className={`text-sm flex-1 min-w-0 truncate ${done ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</span>
+                  <span className={`text-sm flex-1 min-w-0 truncate ${s.status === 'taken' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</span>
                   {done ? (
                     <button type="button" className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1 flex-shrink-0" disabled={busy === s.key} onClick={() => mark(s, 'due')} aria-label="Undo">
-                      <Check className="w-3.5 h-3.5" /> {firstName(s.log?.taken_by_name) || 'Done'}
+                      <Check className="w-3.5 h-3.5" /> {s.status === 'skipped' ? 'Skipped' : firstName(s.log?.taken_by_name) || 'Done'}
                     </button>
                   ) : (
                     <Button size="sm" variant="secondary" className="h-8 rounded-full flex-shrink-0" disabled={busy === s.key} onClick={() => mark(s, 'taken')}>Done</Button>

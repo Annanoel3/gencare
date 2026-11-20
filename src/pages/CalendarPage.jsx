@@ -292,13 +292,15 @@ export default function CalendarPage() {
   // the bottom of the day"): the until-it's-done reminders waiting that day,
   // today and later (an earlier day can't say what was still waiting then).
   const selectedKey = format(selectedDate, 'yyyy-MM-dd');
+  // One finished (done or skipped) on this day stays at the end, greyed, with Undo.
+  const finishedSlot = (sl) => sl.status === 'taken' || sl.status === 'skipped';
   const stillToDo = useMemo(() => (selectedKey < todayStr() ? [] : slotsForDay(reminders.filter((m) => m.frequency === 'Once'), reminderLogs, selectedKey)
-    .filter((sl) => sl.status !== 'taken' && sl.status !== 'skipped')
+    .sort((a, b) => Number(finishedSlot(a)) - Number(finishedSlot(b)))
     .filter((sl) => showsFor({ family_member_id: sl.med.family_member_id, family_member_name: sl.med.family_member_name, visibility: sl.med.visibility, created_by_user_id: sl.med.owner_user_id }))),
   [reminders, reminderLogs, selectedKey, shown, members]); // eslint-disable-line react-hooks/exhaustive-deps
   const stillSection = stillToDo.length > 0 && (
     <div className="mt-5">
-      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Still to do ({stillToDo.length})</h4>
+      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Still to do{stillToDo.some((sl) => !finishedSlot(sl)) ? ` (${stillToDo.filter((sl) => !finishedSlot(sl)).length})` : ''}</h4>
       <div className="space-y-2">
         {stillToDo.map((sl) => <ReminderSlotCard key={sl.key} slot={sl} members={members} onOpen={openReminder} />)}
       </div>

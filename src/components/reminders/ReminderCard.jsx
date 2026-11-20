@@ -8,13 +8,13 @@ import { adherence, fmtClock, fmtRange, endOf, todayStr, frequencyLabel, isPriva
 const dayText = (d) => (d === todayStr() ? 'today' : format(parseISO(d), 'EEE, MMM d'));
 const prio = (p) => PRIORITIES.find(([v]) => v === p);
 
-// "One time · today at 12:00 PM", "Until it's done · Medium priority · since Mon, Oct 26".
+// "One time · today at 12:00 PM", "Until it's done · Medium priority · on the list since Mon, Oct 26".
 function howText(item) {
   const end = endOf(item);
   if (item.frequency === ONE_TIME && item.once_date) return `One time · ${dayText(item.once_date)}${item.times?.[0] ? (end ? `, ${fmtRange(item.times[0], end)}` : ` at ${fmtClock(item.times[0])}`) : ''}`;
   if (item.frequency === 'Once' && item.once_date) {
     const p = prio(item.priority);
-    return ["Until it's done", end ? fmtRange(item.anchor_time, end) : '', p ? `${p[1]} priority` : '', item.once_date <= todayStr() ? `since ${dayText(item.once_date)}` : `starts ${format(parseISO(item.once_date), 'EEE, MMM d')}`].filter(Boolean).join(' · ');
+    return ["Until it's done", end ? fmtRange(item.anchor_time, end) : '', p ? `${p[1]} priority` : '', item.once_date <= todayStr() ? `on the list since ${dayText(item.once_date)}` : `starts ${format(parseISO(item.once_date), 'EEE, MMM d')}`].filter(Boolean).join(' · ');
   }
   const f = frequencyLabel(item.frequency);
   if (item.end_date) return `${f} · ${item.end_date < todayStr() ? 'ended' : 'through'} ${format(parseISO(item.end_date), 'EEE, MMM d')}`;
