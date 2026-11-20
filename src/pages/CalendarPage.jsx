@@ -289,12 +289,14 @@ export default function CalendarPage() {
 
   // "Still to do" at the bottom of a day (Anna, Nov 14 2026: "Dont put the
   // 'until its done' stuff on the actual calendar. But put it in a section at
-  // the bottom of the day"): the until-it's-done reminders waiting that day,
-  // today and later (an earlier day can't say what was still waiting then).
+  // the bottom of the day"): today, the until-it's-done reminders waiting
+  // (ones from earlier days too); a later day, only the ones dated that day
+  // (Anna, Nov 20 2026: one dated ahead showed on every day after it, as if
+  // it would still be waiting); an earlier day can't say what was waiting then.
   const selectedKey = format(selectedDate, 'yyyy-MM-dd');
   // One finished (done or skipped) on this day stays at the end, greyed, with Undo.
   const finishedSlot = (sl) => sl.status === 'taken' || sl.status === 'skipped';
-  const stillToDo = useMemo(() => (selectedKey < todayStr() ? [] : slotsForDay(reminders.filter((m) => m.frequency === 'Once'), reminderLogs, selectedKey)
+  const stillToDo = useMemo(() => (selectedKey < todayStr() ? [] : slotsForDay(reminders.filter((m) => m.frequency === 'Once' && (selectedKey === todayStr() || m.once_date === selectedKey)), reminderLogs, selectedKey)
     .sort((a, b) => Number(finishedSlot(a)) - Number(finishedSlot(b)))
     .filter((sl) => showsFor({ family_member_id: sl.med.family_member_id, family_member_name: sl.med.family_member_name, visibility: sl.med.visibility, created_by_user_id: sl.med.owner_user_id }))),
   [reminders, reminderLogs, selectedKey, shown, members]); // eslint-disable-line react-hooks/exhaustive-deps

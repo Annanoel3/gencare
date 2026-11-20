@@ -99,7 +99,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
           <button type="button" onClick={() => onOpen?.(s.med)} className="w-full text-left">
             <p className={`font-medium text-sm leading-snug ${s.status === 'taken' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</p>
             <p className={`text-xs mt-1 ${late && !done ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {[s.med.family_member_name, when, next ? `next reminder ${fmtClock(next)}` : '', carried ? `on the list since ${format(parseISO(s.med.once_date), 'EEE, MMM d')}` : ''].filter(Boolean).join(' · ')}
+              {[s.med.family_member_name, when, next ? `next reminder ${fmtClock(next)}` : '', carried ? `due ${format(parseISO(s.med.once_date), 'EEE, MMM d')}` : ''].filter(Boolean).join(' · ')}
               {s.status === 'taken' && s.log?.taken_by_name ? ` · done by ${s.log.taken_by_name.split(' ')[0]}` : ''}
               {s.status === 'skipped' ? ' · skipped' : ''}
               {s.status === 'missed' ? ' · not done yet' : ''}
