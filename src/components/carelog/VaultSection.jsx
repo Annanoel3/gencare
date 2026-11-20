@@ -20,6 +20,7 @@ import {
   listItems, saveItem, deleteItem, moveOldEntries, countOldEntries, KINDS, kindOf,
 } from '@/lib/vault';
 import { plainError } from '@/lib/errors';
+import { GrowingInput } from '@/components/ui/growing-input';
 
 const MIN_PASSWORD = 8;
 
@@ -358,7 +359,7 @@ function ItemDialog({ open, onOpenChange, vault, item, people, onSaved }) {
         </DialogHeader>
         <div className="space-y-4 mt-1">
           <Choices value={form.kind} onChange={(v) => set('kind', v)} options={KINDS.map(([v, label]) => [v, label])} />
-          <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={PLACEHOLDER[form.kind] || ''} className="mt-1" /></div>
+          <div><Label>What *</Label><GrowingInput value={form.title} onChange={(e) => set('title', e.target.value)} placeholder={PLACEHOLDER[form.kind] || ''} className="mt-1" /></div>
           <div><Label>Details</Label><Textarea value={form.details} onChange={(e) => set('details', e.target.value)} rows={3} placeholder="Policy or account numbers, who to call, where the paper copy is" className="mt-1" /></div>
           <MoreOptions defaultOpen={editing && !!(form.amount !== '' || form.date || form.link)} hint="Amount, date, link, who it's for">
             <div className="grid grid-cols-2 gap-3">

@@ -24,6 +24,7 @@ import {
   completeTask, uncompleteTask, toggleStep, nextCopyText, clean,
 } from '@/lib/tasks';
 import { plainError } from '@/lib/errors';
+import { GrowingInput } from '@/components/ui/growing-input';
 
 const NONE = '__none__';
 // How often, as buttons in this order (the common ones first). lib/tasks REPEAT_OPTIONS has the same values.
@@ -238,7 +239,7 @@ export default function TaskSheet({ open, onOpenChange, task = null, kind = 'tas
         <div className="space-y-4 mt-1">
           <div>
             <Label>{isChecklist ? 'Checklist name' : 'What needs doing'} *</Label>
-            <Input value={form.title} onChange={(e) => set('title', e.target.value)} className="mt-1" placeholder={isChecklist ? 'Morning routine' : 'Pick up the dry cleaning'} />
+            <GrowingInput value={form.title} onChange={(e) => set('title', e.target.value)} className="mt-1" placeholder={isChecklist ? 'Morning routine' : 'Pick up the dry cleaning'} />
           </div>
 
           <div>

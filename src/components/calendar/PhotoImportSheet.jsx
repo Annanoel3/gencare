@@ -20,6 +20,7 @@ import { expandAppointments } from '@/lib/occurrences';
 import { matchCalendar, notOnSchedule } from '@/lib/photoDupes';
 import { newImportId, takeOff, putBack } from '@/lib/photoBatch';
 import { SAVED_PLACES_KEY, listSavedPlaces, samePlace, placeKey, savedFor, pastFor, pastLike, rememberPlaces } from '@/lib/savedPlaces';
+import { GrowingInput } from '@/components/ui/growing-input';
 
 // Add to the calendar from a photo (Anna, Nov 9 2026): an appointment card, a
 // school calendar, a flyer, a screenshot. GenCare reads the dates
@@ -388,7 +389,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
         <div className="flex items-start gap-3">
           <Checkbox checked={e.on} onCheckedChange={(v) => update(e.key, { on: !!v })} className="mt-2.5" aria-label="Add this one" />
           <div className="flex-1 min-w-0 space-y-1.5">
-            <Input value={e.title} onChange={(ev) => update(e.key, { title: ev.target.value })} className="h-9" aria-label="What" />
+            <GrowingInput value={e.title} onChange={(ev) => update(e.key, { title: ev.target.value })} className="h-9" aria-label="What" />
             <div className="grid grid-cols-2 gap-2">
               <Input type="date" value={e.date} onChange={(ev) => ev.target.value && update(e.key, { date: ev.target.value })} className="h-9 min-w-0 w-full px-2" aria-label="Day" />
               <Input type="time" value={e.all_day ? '' : e.time} onChange={(ev) => update(e.key, { time: ev.target.value, all_day: !ev.target.value })} className="h-9 min-w-0 w-full px-2" aria-label="Time" />

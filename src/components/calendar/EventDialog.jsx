@@ -23,6 +23,7 @@ import { andList } from '@/lib/reminders';
 import AddressField from '@/components/shared/AddressField';
 import NotesField from '@/components/shared/NotesField';
 import PhotoBatchRow from '@/components/calendar/PhotoBatchRow';
+import { GrowingInput } from '@/components/ui/growing-input';
 
 export { CATEGORIES };
 
@@ -319,7 +320,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
               From {appt.created_by_name ? `${appt.created_by_name.split(' ')[0]}'s` : 'a'} phone calendar. Changes made on the phone show up here. Who it's for, who sees it, and a time, repeat, place or notes changed here stay, unless they're changed on the phone later.
             </p>
           )}
-          <div><Label>What *</Label><Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Dentist appointment" className="mt-1" /></div>
+          <div><Label>What *</Label><GrowingInput value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Dentist appointment" className="mt-1" /></div>
 
           <div>
             <Label>When</Label>

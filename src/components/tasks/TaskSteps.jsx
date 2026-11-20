@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Plus, X, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { GrowingInput } from '@/components/ui/growing-input';
 
 /**
  * The steps inside a task or checklist: tick, add, remove. `steps` are
@@ -46,9 +46,9 @@ export default function TaskSteps({ steps = [], onToggle, onAdd, onRemove, busyI
         );
       })}
       {canEdit && onAdd && (
-        <form onSubmit={submit} className="flex items-center gap-2 pt-1">
-          <Plus className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Add a step…" className="h-9 text-sm" enterKeyHint="done" />
+        <form onSubmit={submit} className="flex items-start gap-2 pt-1">
+          <Plus className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-2.5" />
+          <GrowingInput value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Add a step…" className="text-sm" enterKeyHint="done" />
         </form>
       )}
     </div>

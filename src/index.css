@@ -107,6 +107,9 @@
   /* Big text mode: a card's small picture steps aside so its words get the width. */
   :root[data-text-size="big"] .big-hide { display: none; }
   :root[data-text-size="big"] .big-flush { padding-left: 0; }
+  /* Big text mode: a box and its button go one above the other, so the box gets the whole width. */
+  :root[data-text-size="big"] .big-stack { flex-direction: column; align-items: stretch; }
+  :root[data-text-size="big"] .big-stack > * { width: 100%; }
   .title-fit { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   :root[data-text-size="larger"] .title-fit, :root[data-text-size="big"] .title-fit {
     white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere;

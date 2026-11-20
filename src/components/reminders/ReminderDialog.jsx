@@ -15,6 +15,7 @@ import MissingNote from '@/components/shared/MissingNote';
 import { format, parseISO, addDays } from 'date-fns';
 import { DAY_NAMES, defaultTimes, fmtClock, todayStr, untilTimes, nagStart, PRIORITIES, ONE_TIME, forIds, stepsOf, andList } from '@/lib/reminders';
 import { isPet } from '@/utils/memberColors';
+import { GrowingInput } from '@/components/ui/growing-input';
 
 const NOBODY = '__nobody__';
 // "Remind me at 12" (one push) or "until it's done" (keeps reminding by
@@ -206,7 +207,7 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
           <DialogDescription className="sr-only">What to remind about, and when</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 mt-1">
-          <div><Label>What *</Label><Input value={form.medication_name} onChange={(e) => set('medication_name', e.target.value)} placeholder="Water the plants" className="mt-1" /></div>
+          <div><Label>What *</Label><GrowingInput value={form.medication_name} onChange={(e) => set('medication_name', e.target.value)} placeholder="Water the plants" className="mt-1" /></div>
 
           {/* Steps, like a checklist (Anna, Nov 14 2026): anyone can tick them, and the last one marks it done. */}
           <div>
@@ -222,8 +223,8 @@ export default function ReminderDialog({ open, onOpenChange, med, members = [], 
                 ))}
               </ul>
             )}
-            <div className="flex items-center gap-2 mt-1.5">
-              <Input value={stepText} onChange={(e) => setStepText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addStep(); } }}
+            <div className="flex items-start gap-2 mt-1.5 big-stack">
+              <GrowingInput value={stepText} onChange={(e) => setStepText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addStep(); } }}
                 placeholder="Add a step…" enterKeyHint="enter" aria-label="Add a step" />
               <Button type="button" variant="outline" onClick={addStep} className="flex-shrink-0 gap-1"><Plus className="w-4 h-4" /> Add step</Button>
             </div>

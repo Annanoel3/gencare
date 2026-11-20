@@ -19,6 +19,7 @@ import ShareNotesDialog, { sharingLabel } from "@/components/notes/ShareNotesDia
 import { withFamily, useFamily } from "@/lib/family";
 import { plugin } from "@/lib/phone";
 import { isRecordable } from "@/components/calendar/EventRow";
+import { GrowingInput } from "@/components/ui/growing-input";
 
 // ── Record Notes: record an appointment, meeting or class; get clear notes ──
 // The same setup as ADHDone's Notes page, pointed at GenCare's calendar.
@@ -777,7 +778,7 @@ export default function Notes() {
   const card = "rounded-2xl border border-border/50 bg-card p-4";
   const heading = "text-foreground";
   const soft = "text-muted-foreground";
-  const inputCls = "w-full rounded-lg border border-border bg-background px-2.5 py-2 text-[0.9375rem] outline-none";
+  const growCls = "min-h-10 py-2 px-2.5 rounded-lg border-border bg-background text-[0.9375rem] shadow-none";
   const open = records.find((r) => r.id === openId) || null;
   const mine = (r) => !r?.user_id || r.user_id === me?.id;
 
@@ -1011,7 +1012,7 @@ export default function Notes() {
           {(notes || (open.transcript_parts || []).length > 0) && !working && (
             <div className={`${card} space-y-2`}>
               <div className="flex gap-2">
-                <input value={askOneText} onChange={(e) => setAskOneText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") askAboutThis(open); }} placeholder="Ask this recording" disabled={!!askOne?.loading} className={inputCls} />
+                <GrowingInput value={askOneText} onChange={(e) => setAskOneText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); askAboutThis(open); } }} placeholder="Ask this recording" disabled={!!askOne?.loading} className={growCls} />
                 <Button onClick={() => askAboutThis(open)} disabled={!!askOne?.loading || askOneText.trim().length < 3} className="shrink-0">
                   {askOne?.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask"}
                 </Button>
@@ -1061,7 +1062,7 @@ export default function Notes() {
               {mine(open) && (
                 <div className={`${card} space-y-2`}>
                   <div className="flex gap-2">
-                    <input value={changeText} onChange={(e) => setChangeText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitChange(open); }} placeholder="Change your notes" disabled={changing} className={inputCls} />
+                    <GrowingInput value={changeText} onChange={(e) => setChangeText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitChange(open); } }} placeholder="Change your notes" disabled={changing} className={growCls} />
                     <Button onClick={() => submitChange(open)} disabled={changing || !changeText.trim()} className="shrink-0">
                       {changing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Update"}
                     </Button>
@@ -1228,8 +1229,8 @@ export default function Notes() {
             <h2 className="text-lg font-bold">Things to bring up</h2>
             <p className={`text-sm ${soft}`}>Questions you don't want to forget. They stay on screen while you record, and your notes say which got answered. Anyone in the family can add one.</p>
             <PrepPointsList points={qs} onChange={(next) => saveQuestions(prepAppt, next)} />
-            <form onSubmit={(e) => { e.preventDefault(); addQuestion(); }} className="flex gap-2">
-              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="A question to bring up" className="flex-1 min-w-0 h-12 rounded-xl border border-border bg-background px-3 text-[0.9375rem] outline-none" />
+            <form onSubmit={(e) => { e.preventDefault(); addQuestion(); }} className="flex items-start gap-2 big-stack">
+              <GrowingInput value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="A question to bring up" enterKeyHint="done" className="flex-1 min-w-0 min-h-12 py-3 rounded-xl border-border bg-background text-[0.9375rem] shadow-none" />
               <Button type="submit" disabled={!draft.trim()} className="h-12 px-4 rounded-xl shrink-0"><Plus className="w-4 h-4 mr-1" />Add</Button>
             </form>
           </div>
@@ -1257,7 +1258,7 @@ export default function Notes() {
         </div>
 
         <div className={`${card} space-y-3`}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What is it? (optional)" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[0.9375rem] outline-none" />
+          <GrowingInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What is it? (optional)" className="min-h-11 py-2.5 rounded-xl border-border bg-background text-[0.9375rem] shadow-none" />
           <Button onClick={() => startRecording()} disabled={busy || !!progress} className="w-full h-14 rounded-2xl text-base bg-red-600 hover:bg-red-700 text-white">
             {busy ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Mic className="w-5 h-5 mr-2" />} Record
           </Button>
@@ -1294,7 +1295,7 @@ export default function Notes() {
           <div className="space-y-2">
             <h2 className="text-lg font-bold">Your family's recordings</h2>
             <div className="flex gap-2">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") askNotes(); }} placeholder="Search or ask the notes" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[0.9375rem] outline-none" />
+              <GrowingInput value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); askNotes(); } }} placeholder="Search or ask the notes" className="min-h-11 py-2.5 rounded-xl border-border bg-background text-[0.9375rem] shadow-none" />
               {search.trim().length >= 3 && (
                 <Button onClick={askNotes} disabled={!!asked?.loading} className="shrink-0 h-auto rounded-xl">{asked?.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask"}</Button>
               )}
