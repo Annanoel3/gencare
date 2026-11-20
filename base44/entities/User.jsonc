@@ -1,6 +1,19 @@
 {
   "name": "User",
   "properties": {
+    "ai_consent": {
+      "description": "May GenCare send this person's things to OpenAI for its AI features (Apple guideline 5.1.2(i); src/lib/aiConsent.js): yes, no (asked, said Not now), unset = never asked. The backend functions refuse AI work without yes",
+      "enum": [
+        "yes",
+        "no"
+      ],
+      "type": "string"
+    },
+    "ai_consent_at": {
+      "description": "When they last answered the OpenAI question",
+      "format": "date-time",
+      "type": "string"
+    },
     "announcements_done": {
       "description": "Announcements this person tapped Got it on (hidden from their Home)",
       "items": {
@@ -104,6 +117,14 @@
         "owner",
         "member"
       ],
+      "type": "string"
+    },
+    "help_chat_count": {
+      "description": "Help chat questions asked on help_chat_day",
+      "type": "number"
+    },
+    "help_chat_day": {
+      "description": "YYYY-MM-DD of their last Help chat question (functions/helpChat daily limit)",
       "type": "string"
     },
     "help_zip": {
