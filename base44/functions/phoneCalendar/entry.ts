@@ -97,6 +97,26 @@ function isHolidayFeed(name: string) { return /^holidays? in /i.test(String(name
 // The last line of every event GenCare writes to a phone. A row ending in it
 // is GenCare's own, never something to bring in or to call "already there".
 const MARK = 'Added from GenCare';
+
+// One-time reminders go on the phone too, the way the family calendar shows
+// them (src/lib/reminders.js reminderEvents; Anna, Nov 21 2026: "Wheres my
+// export to calendar"). As an event: its key is "reminder-<id>". "Until it's
+// done", daily and weekly ones aren't on the calendar, so they don't go.
+// TWIN of reminderEvents (title, day, time, end, who, who sees it).
+function reminderAsEvent(m: any, accounts: any[]) {
+  const time = (Array.isArray(m.times) ? m.times : [])[0] || '';
+  const end = /^\d{2}:\d{2}$/.test(m.end_time || '') && time && m.end_time > time ? m.end_time : '';
+  const by = m.owner_user_id || m.created_by_id || '';
+  const poster = accounts.find((u: any) => u.id === by);
+  const ids = Array.isArray(m.family_member_ids) && m.family_member_ids.length ? m.family_member_ids : m.family_member_id ? [m.family_member_id] : [];
+  return {
+    id: `reminder-${m.id}`, reminder: true, title: `\u{1F514} ${m.medication_name || 'Reminder'}`,
+    date: m.once_date, time, end_time: end, all_day: !time,
+    family_member_id: ids[0] || '', family_member_ids: ids, family_member_name: m.family_member_name || '',
+    visibility: m.visibility === 'private' ? 'private' : 'family', notes: m.notes || '', category: 'Other',
+    created_by_user_id: by, created_by_name: poster?.display_name || poster?.full_name || '',
+  };
+}
 function isGenCareRow(row: any) {
   return String(row?.description || '').trim().split(/\r?\n/).pop()?.trim() === MARK;
 }
@@ -734,10 +754,11 @@ Deno.serve(async (req) => {
       const from = addDays(today, -DAYS_BACK);
       const to = addDays(today, DAYS_AHEAD);
       const nowMs = Date.now();
-      const all = (await db.Appointment.filter({ family_id: familyId })) || [];
-      const byId = new Map(all.map((a: any) => [a.id, a]));
       const members = (await db.FamilyMember.filter({ family_id: familyId })) || [];
       const accounts = (await db.User.filter({ family_id: familyId })) || [];
+      const oneTime = ((await db.Medication.filter({ family_id: familyId })) || []).filter((m: any) => m.frequency === 'One time' && m.once_date);
+      const all = [...((await db.Appointment.filter({ family_id: familyId })) || []), ...oneTime.map((m: any) => reminderAsEvent(m, accounts))];
+      const byId = new Map(all.map((a: any) => [a.id, a]));
       const tzOf = new Map(accounts.map((u: any) => [u.id, u.timezone ? safeTz(u.timezone) : '']));
       const names = nameSet([...members.map((m: any) => m.name), ...accounts.map((u: any) => u.display_name || u.full_name)]);
       // The zone an event's day and time are in: a phone import's are its
@@ -753,7 +774,9 @@ Deno.serve(async (req) => {
         if (a.away_of && a.away_of === user.id) return false;
         // A "Mom: doctor" stand-in for a private event they can see themselves.
         if (a.cover_of) { const real = byId.get(a.cover_of); if (real && canSee(real, user.id)) return false; }
-        if (only.length && !only.includes(whoseEvent(a, members))) return false;
+        // A reminder for several people goes when any of them is picked.
+        const whose = a.reminder && a.family_member_ids.length ? a.family_member_ids.map((id: string) => whoseEvent({ ...a, family_member_id: id }, members)) : [whoseEvent(a, members)];
+        if (only.length && !whose.some((w: string) => only.includes(w))) return false;
         return true;
       };
       // A repeating event counts while it still happens in the window, however long ago it started.

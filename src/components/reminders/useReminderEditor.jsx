@@ -8,6 +8,7 @@ import { toast } from '@/components/ui/use-toast';
 import ReminderDialog from '@/components/reminders/ReminderDialog';
 import { REMINDERS_KEY, listReminders, cleanMed, adherence } from '@/lib/reminders';
 import { plainError } from '@/lib/errors';
+import { exportSoon } from '@/lib/calendarSync';
 
 /**
  * Repeating reminders, for the To-do page: the list, the last 14 days of
@@ -31,7 +32,7 @@ export default function useReminderEditor(members = []) {
       if (dialog.med?.id) return base44.entities.Medication.update(dialog.med.id, data);
       return base44.entities.Medication.create(withFamily(data));
     },
-    onSuccess: (_r, form) => { track('action', dialog.med?.id ? 'edit:reminder' : 'add:reminder', `${form.how || form.frequency || ''} ${form.visibility === 'private' ? 'just me' : 'everyone'}`); refresh(); close(); },
+    onSuccess: (_r, form) => { track('action', dialog.med?.id ? 'edit:reminder' : 'add:reminder', `${form.how || form.frequency || ''} ${form.visibility === 'private' ? 'just me' : 'everyone'}`); refresh(); close(); exportSoon(); },
     onError: (e) => toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }),
   });
   const remove = useMutation({
@@ -40,7 +41,8 @@ export default function useReminderEditor(members = []) {
       for (const l of mine) await base44.entities.MedicationLog.delete(l.id);
       return base44.entities.Medication.delete(med.id);
     },
-    onSuccess: () => { track('action', 'delete:reminder'); refresh(); close(); },
+    // One-time reminders are on the phone's calendar too (functions/phoneCalendar export).
+    onSuccess: () => { track('action', 'delete:reminder'); refresh(); close(); exportSoon(); },
   });
 
   const editor = (

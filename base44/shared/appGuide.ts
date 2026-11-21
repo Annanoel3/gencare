@@ -55,7 +55,7 @@ Calendar
 - Notifications: about an hour before an event that has a time, GenCare sends a notification to the people in the family who can see it (or only to the person who took it).
 - The More button at the top of the Calendar has: Add events from a photo; Get events from my phone; Check my phone for changes now.
 - Add events from a photo: tap Take a photo, or Choose a photo or screenshot, of an appointment card, a schedule or a flyer. GenCare finds the dates, and you check them before anything is added. The photo isn't saved. (Also on the green +: Events from a photo.)
-- Phone calendar: More, then Get events from my phone. Pick which of your phone's calendars to bring in. It can also put family events on your phone's calendar. This works in the GenCare app on your phone. The same settings are in Settings, then My Family, then Phone calendar.
+- Phone calendar: More, then Get events from my phone. Pick which of your phone's calendars to bring in. It can also put family events and one-time reminders on your phone's calendar ("Send to my phone calendar"). This works in the GenCare app on your phone. The same settings are in Settings, then My Family, then Phone calendar.
 - Who sees the events you add: Settings, then My Family, then "Who sees the events you add". The choices are Let GenCare decide, Everyone in the family, or Only me. Any one event can still be changed on the event.
 
 Reminders

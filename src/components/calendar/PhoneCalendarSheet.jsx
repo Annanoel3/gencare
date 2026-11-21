@@ -290,7 +290,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
               <div className="flex items-center justify-between rounded-xl border border-border p-3">
                 <div>
                   <p className="text-sm font-medium">Send to my phone calendar</p>
-                  <p className="text-xs text-muted-foreground">Family events show up in your phone's calendar app.</p>
+                  <p className="text-xs text-muted-foreground">Family events and one-time reminders show up in your phone's calendar app.</p>
                 </div>
                 <Switch
                   checked={!!settings.export_enabled}
