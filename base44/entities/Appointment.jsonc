@@ -216,7 +216,7 @@
       "type": "boolean"
     },
     "reminder_sent_for": {
-      "description": "For a repeating event: the day (YYYY-MM-DD) whose occurrence was last reminded about, so each day's reminder goes once",
+      "description": "The start (\"YYYY-MM-DD HH:MM\"; older rows: a repeating event's day) whose hour-before push went out, so it goes once per start time and again if the event moves",
       "type": "string"
     },
     "shared_with": {
@@ -225,6 +225,10 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "soon_sent_for": {
+      "description": "The start (\"YYYY-MM-DD HH:MM\") whose 10-minutes-before push went out (functions/cronReminders, Anna Nov 21 2026), so it goes once per start time",
+      "type": "string"
     },
     "source": {
       "default": "app",
