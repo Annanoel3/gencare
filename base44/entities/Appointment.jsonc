@@ -202,6 +202,25 @@
       "description": "The day (YYYY-MM-DD) GenCare's push offering to record this visit went out (functions/cronReminders, Anna Nov 18 2026), so each visit, or each day of a repeating one, is offered once",
       "type": "string"
     },
+    "recording_now": {
+      "description": "Who started recording this visit and when (src/pages/Notes.jsx): the offer to record goes to everyone (Anna, Nov 21 2026), so anyone else who opens it that day is told it's being recorded",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "day": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "user_id": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "recurrence": {
       "description": "RRULE for repeating events",
       "type": "string"
