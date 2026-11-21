@@ -190,6 +190,15 @@ function searchMatch(r, query) {
   return { ok: true, snippet: { where: first.where, text: `${from > 0 ? "…" : ""}${t.slice(from, to)}${to < t.length ? "…" : ""}` } };
 }
 
+// Someone else started recording this visit (Appointment.recording_now),
+// on its day, in the last 3 hours: who and when, else null.
+function othersRecording(appt, me, day) {
+  const r = appt?.recording_now;
+  if (!r || !r.user_id || r.user_id === me?.id || (day && r.day && r.day !== day)) return null;
+  const at = Date.parse(r.at || "");
+  return at && Date.now() - at < 3 * 3600e3 ? r : null;
+}
+
 export default function Notes() {
   const { me, access, members: accounts = [] } = useFamily();
   const location = useLocation();
@@ -515,6 +524,13 @@ export default function Notes() {
   const startRecording = async (link = null) => {
     const R = recorder();
     if (!R || busy) return;
+    // Someone else in the family already recording this visit? (The offer to
+    // record goes to everyone; Anna, Nov 21 2026.) Say so first; "Record
+    // anyway" goes ahead.
+    if (link?.appt && !link.anyway) {
+      const fresh = (await base44.entities.Appointment.filter({ id: link.appt.id }).catch(() => []))?.[0];
+      if (othersRecording(fresh, me, link.appt.date)) { setPrepAppt({ ...link.appt, recording_now: fresh.recording_now }); return; }
+    }
     // The recording goes to OpenAI to be written up (lib/aiConsent).
     if (!(await askAi("To write up notes from a recording, GenCare sends the recording to OpenAI."))) return;
     const name = (link?.moreOf?.title || link?.moreOf?.notes?.title || link?.appt?.title || title).trim();
@@ -543,6 +559,12 @@ export default function Notes() {
             : {};
         sessionLinks.set(res.sessionId, linkFields);
         setLiveQuestions(linkFields.questions || []);
+        // So anyone else in the family who opens the offer to record sees this visit is being recorded.
+        if (link?.appt?.id) {
+          base44.entities.Appointment.update(link.appt.id, {
+            recording_now: { user_id: me?.id || '', name: String(me?.display_name || me?.full_name || '').split(' ')[0], day: link.appt.date || '', at: new Date().toISOString() },
+          }).catch(() => {});
+        }
         base44.entities.NoteRecording.create(withFamily({
           user_id: me?.id,
           title: name,
@@ -1241,8 +1263,13 @@ export default function Notes() {
               <Button type="submit" disabled={!draft.trim()} className="h-12 px-4 rounded-xl shrink-0"><Plus className="w-4 h-4 mr-1" />Add</Button>
             </form>
           </div>
-          <Button onClick={() => startRecording({ appt: prepAppt })} disabled={busy || !!progress} className="w-full h-14 rounded-2xl text-base bg-red-600 hover:bg-red-700 text-white">
-            {busy ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Mic className="w-5 h-5 mr-2" />} Start recording
+          {othersRecording(prepAppt, me, prepAppt.date) && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/40 p-4 text-base">
+              <b>{prepAppt.recording_now.name || "Someone in the family"}</b> started recording this visit at {new Date(prepAppt.recording_now.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. You don't need to record it too.
+            </div>
+          )}
+          <Button onClick={() => startRecording({ appt: prepAppt, anyway: othersRecording(prepAppt, me, prepAppt.date) })} disabled={busy || !!progress} className="w-full h-14 rounded-2xl text-base bg-red-600 hover:bg-red-700 text-white">
+            {busy ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Mic className="w-5 h-5 mr-2" />} {othersRecording(prepAppt, me, prepAppt.date) ? "Record anyway" : "Start recording"}
           </Button>
           <p className={`text-xs ${soft}`}>{usageLine(usage)} Afterward, this page has your notes and the full transcript.</p>
           <ConsentNote />

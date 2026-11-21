@@ -21,8 +21,8 @@ import { fetchRevenueCat } from '../../shared/revenuecat.ts';
 //      (reminder_sent_for / soon_sent_for = "YYYY-MM-DD HH:MM"), so an event
 //      moved to another time is reminded again at the new one.
 //  1b. A push offering to record a doctor-type visit, 10 minutes before it
-//      starts, to whoever is going (see below). For them it takes the place
-//      of the 10-minute reminder.
+//      starts, to everyone who'd get its reminders (see below). It takes the
+//      place of their 10-minute reminder.
 //  1c. A heads-up the day before a store free trial turns into a charge, to
 //      the person who started it (see below).
 //   2. Task due-time pushes: a task with a due date AND time, at that time.
@@ -256,10 +256,15 @@ const MISSED_AFTER_MS = 90 * 60_000;
       //     the push lands 5 to 19 minutes before: about 15 for a visit on the
       //     quarter hour. A tap opens the visit's Record Notes page, Start
       //     recording ready for when the visit begins (starting on the tap would
-      //     record the waiting room). It goes to whoever is going: the one who
-      //     said "I'll take it", else the person it's for (their own account),
-      //     else whoever added it. Not for a visit already recorded or checked
-      //     off; once per visit (record_offer_for: the day it was offered).
+      //     record the waiting room). It goes to everyone who'd get the
+      //     visit's reminders (Anna, Nov 21 2026: "the person listed as going
+      //     to the appointment might be the one being cared for and may not be
+      //     in charge of the recording. The person who drove them there might
+      //     be instead"): the one who said "I'll take it", else everyone who
+      //     can see it. Whoever opens it after someone else started recording
+      //     is told so on the Record Notes page (Appointment.recording_now).
+      //     Not for a visit already recorded or checked off; once per visit
+      //     (record_offer_for: the day it was offered).
       const people = ((await db.FamilyMember.filter({ family_id: fam.id })) || []) as any[];
       const offered: { a: any; to: string }[] = [];
       try {
@@ -284,26 +289,28 @@ const MISSED_AFTER_MS = 90 * 60_000;
           if (checked || recorded) continue;
           const claim = claimOn(a, dayKey) || (dayKey ? null : appts.filter((b: any) => b !== a && b.date === a.date && sameEvent(a, b)).map((b: any) => claimOn(b, '')).find(Boolean)) || null;
           const person = people.find((p: any) => p.id === a.family_member_id);
-          const goerId = claim?.user_id || person?.linked_user_id || a.created_by_user_id || a.created_by_id || '';
-          const goer = users.find((u: any) => u.id === goerId && canSee(a, u.id));
-          if (!goer || !wantsPush(goer, 'reminders')) continue;
-          // The same visit on two calendars is offered once.
-          if (offered.some((o) => o.to === goer.id && o.a.date === a.date && sameEvent(a, o.a))) continue;
-          offered.push({ a, to: goer.id });
-          // "for Pam" unless it's Pam's own phone, or the title already says ("Kiri vet").
-          const first = String(a.family_member_name || '').split(' ')[0];
-          const forWhom = first && person?.linked_user_id !== goer.id && !String(a.title || '').toLowerCase().includes(first.toLowerCase()) ? ` for ${first}` : '';
+          const taker = claim ? users.find((u: any) => u.id === claim.user_id && canSee(a, u.id)) : null;
+          const targets = taker ? [taker] : users.filter((u: any) => canSee(a, u.id));
           const q = new URLSearchParams({ appointment: rowId });
           if (a.occurrence_of) q.set('on', a.date);
-          await sendPush({
-            email: goer.email,
-            title: `${a.title}${forWhom} at ${fmtClock(a.time)}`,
-            message: 'Tap to record the visit. GenCare will write up notes for the family.',
-            data: { type: 'record_offer', appointmentId: rowId, date: a.date, screen: `/notes?${q}` },
-            priority: 'high',
-            sendAt: startMs - SOON_MINUTES * 60_000,
-          });
-          out.record_offers = (out.record_offers || 0) + 1;
+          const first = String(a.family_member_name || '').split(' ')[0];
+          for (const u of targets) {
+            if (!wantsPush(u, 'reminders')) continue;
+            // The same visit on two calendars is offered once.
+            if (offered.some((o) => o.to === u.id && o.a.date === a.date && sameEvent(a, o.a))) continue;
+            offered.push({ a, to: u.id });
+            // "for Pam" unless it's Pam's own phone, or the title already says ("Kiri vet").
+            const forWhom = first && person?.linked_user_id !== u.id && !String(a.title || '').toLowerCase().includes(first.toLowerCase()) ? ` for ${first}` : '';
+            await sendPush({
+              email: u.email,
+              title: `${a.title}${forWhom} at ${fmtClock(a.time)}`,
+              message: 'Tap to record the visit. GenCare will write up notes for the family.',
+              data: { type: 'record_offer', appointmentId: rowId, date: a.date, screen: `/notes?${q}` },
+              priority: 'high',
+              sendAt: startMs - SOON_MINUTES * 60_000,
+            });
+            out.record_offers = (out.record_offers || 0) + 1;
+          }
         }
       } catch (e) { console.warn('[cronReminders] record offers:', (e as Error).message); }
 
