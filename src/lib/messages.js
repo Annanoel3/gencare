@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { withFamily } from '@/lib/family';
@@ -139,15 +140,36 @@ export function countUnread(messages, me) {
   return (messages || []).filter((m) => m.author_user_id !== me.id && !isScheduled(m, now) && serverMs(postedAt(m)) > since).length;
 }
 
-/** For the sidebar badge: polls the feed every minute. */
+/**
+ * For the Feed button's count: polls the feed every minute. Read on another
+ * phone (or the website) since this one opened? Picked up when GenCare comes
+ * back on screen.
+ */
 export function useUnreadMessages(me) {
   const q = useQuery({ queryKey: MESSAGES_KEY, queryFn: listMessages, refetchInterval: 60_000, enabled: !!me });
-  return countUnread(q.data, me);
+  const [elsewhere, setElsewhere] = useState('');
+  useEffect(() => {
+    if (!me?.id) return undefined;
+    const check = () => {
+      if (document.visibilityState !== 'visible') return;
+      base44.auth.me().then((u) => setElsewhere(u?.messages_seen_at || '')).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', check);
+    return () => document.removeEventListener('visibilitychange', check);
+  }, [me?.id]);
+  if (!me) return 0;
+  const since = Math.max(serverMs(me.messages_seen_at), serverMs(elsewhere));
+  return countUnread(q.data, { ...me, messages_seen_at: since ? new Date(since).toISOString() : '' });
+}
+
+/** When the newest post by someone else went up (to see if one came in while the Feed was open). */
+export function newestFromOthers(messages, me, now = new Date()) {
+  return Math.max(0, ...(messages || []).filter((m) => m.author_user_id !== me?.id && !isScheduled(m, now)).map((m) => serverMs(postedAt(m))));
 }
 
 /** Mark the feed read now; the badge clears on the next render. */
-export async function markMessagesSeen(me, queryClient, refreshFamily) {
-  const now = new Date().toISOString();
+export async function markMessagesSeen(me, queryClient, refreshFamily, at = '') {
+  const now = at || new Date().toISOString();
   try { await base44.auth.updateMe({ messages_seen_at: now }); } catch { /* badge just stays */ }
   if (refreshFamily) refreshFamily();
   if (queryClient) queryClient.invalidateQueries({ queryKey: ['me'] });

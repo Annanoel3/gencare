@@ -81,6 +81,13 @@ function publicUser(u: any) {
     export_reminder_minutes: typeof u.export_reminder_minutes === 'number' ? u.export_reminder_minutes : 30,
     event_sharing_default: ['auto', 'family', 'private'].includes(u.event_sharing_default) ? u.event_sharing_default : '',
     app_build: u.app_build || 0,
+    // The app reads these from here too (src/lib/messages.js, pages/Wellness.jsx).
+    // Left out, the Feed's count started over at every launch (Anna, Nov 21 2026:
+    // "Feed keeps on have a count of things I have already seen"), "Got it"
+    // announcements came back, and the wellness reminder showed Off.
+    messages_seen_at: u.messages_seen_at || '',
+    announcements_done: Array.isArray(u.announcements_done) ? u.announcements_done : [],
+    wellness_reminder_hour: typeof u.wellness_reminder_hour === 'number' ? u.wellness_reminder_hour : null,
   };
 }
 

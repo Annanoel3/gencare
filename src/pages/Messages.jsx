@@ -20,7 +20,7 @@ import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import PrivateImage from '@/components/journal/PrivateImage';
 import { uploadPhoto } from '@/lib/journal';
-import { POST_TOPICS, categoryLabel, categoryColor, MESSAGES_KEY, listMessages, postMessage, editMessage, deleteMessage, togglePin, markMessagesSeen, shownMessages, postedAt, isScheduled } from '@/lib/messages';
+import { POST_TOPICS, categoryLabel, categoryColor, MESSAGES_KEY, listMessages, postMessage, editMessage, deleteMessage, togglePin, markMessagesSeen, newestFromOthers, shownMessages, postedAt, isScheduled } from '@/lib/messages';
 import { serverMs } from '@/lib/serverTime';
 import { plainError } from '@/lib/errors';
 
@@ -49,12 +49,19 @@ export default function Messages() {
   const { data: members = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list() });
   const aboutNames = shortNames(members);
 
-  // Opening the page clears the unread badge.
+  // Opening the page clears the unread badge, and so does a post that comes in
+  // while it's open (it's on screen, so it's been seen).
+  const newest = newestFromOthers(all, me);
+  const seenOnce = useRef(false);
   useEffect(() => {
     if (!me) return;
-    markMessagesSeen(me, queryClient);
-    if (family) apply({ family, me: { ...me, messages_seen_at: new Date().toISOString() } });
-  }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (newest && newest <= serverMs(me.messages_seen_at) && seenOnce.current) return;
+    seenOnce.current = true;
+    // Never earlier than the newest post, in case this phone's clock runs a little behind.
+    const at = new Date(Math.max(Date.now(), newest + 1)).toISOString();
+    markMessagesSeen(me, queryClient, null, at);
+    if (family) apply({ family, me: { ...me, messages_seen_at: at } });
+  }, [me?.id, newest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // From Home's "Who did what" (?post=<id>): the Feed opens on that post,
   // glowing for a moment.

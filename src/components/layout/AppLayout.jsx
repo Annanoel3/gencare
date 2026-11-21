@@ -160,7 +160,9 @@ function AppShell() {
     queryFn: () => base44.entities.FamilyMember.list('-created_date'),
   });
 
-  const unread = useUnreadMessages(me);
+  // Nothing counts as unread while the Feed is on screen.
+  const unreadCount = useUnreadMessages(me);
+  const unread = location.pathname === '/messages' ? 0 : unreadCount;
   const navStructure = useMemo(() => buildNavStructure(members, canRecord, unread), [members, canRecord, unread]);
 
   useEffect(() => { base44.auth.me().then(u => setCurrentUser(u)).catch(() => {}); }, []);
