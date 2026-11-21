@@ -52,7 +52,7 @@ Calendar
   - Tap Add.
 - To change an event, tap it. Changes save on their own; tap Done when finished. An open event also has: Delete; Copy to another day; Stop repeating (on a repeating event); a "Show in color" switch; and "Record notes at this visit" on phones that can record.
 - "I'll take it" on an event says you'll handle it (for a repeating event, just that day). Everyone sees who took it, and its reminder goes to them.
-- Notifications: about an hour before an event that has a time, GenCare sends a notification to the people in the family who can see it (or only to the person who took it).
+- Notifications: an hour before and 10 minutes before an event that has a time, GenCare sends a notification to the people in the family who can see it (or only to the person who took it). For an appointment, whoever is going gets an offer to record it instead of the 10-minute one.
 - The More button at the top of the Calendar has: Add events from a photo; Get events from my phone; Check my phone for changes now.
 - Add events from a photo: tap Take a photo, or Choose a photo or screenshot, of an appointment card, a schedule or a flyer. GenCare finds the dates, and you check them before anything is added. The photo isn't saved. (Also on the green +: Events from a photo.)
 - Phone calendar: More, then Get events from my phone. Pick which of your phone's calendars to bring in. It can also put family events and one-time reminders on your phone's calendar ("Send to my phone calendar"). This works in the GenCare app on your phone. The same settings are in Settings, then My Family, then Phone calendar.

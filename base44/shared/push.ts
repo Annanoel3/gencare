@@ -8,7 +8,9 @@
 
 export type PushData = Record<string, unknown>;
 
-export async function sendPush(opts: { email: string; title: string; message: string; data?: PushData; priority?: 'high' | 'normal' }) {
+// sendAt: when to deliver it (OneSignal holds it until then); left out, or
+// less than a minute away, it goes now.
+export async function sendPush(opts: { email: string; title: string; message: string; data?: PushData; priority?: 'high' | 'normal'; sendAt?: number }) {
   const appId = (Deno.env.get('ONESIGNAL_APP_ID') || '').trim();
   const rest = (Deno.env.get('ONESIGNAL_REST_API_KEY') || '').trim();
   if (!appId || !rest) return { ok: false, recipients: 0, error: 'OneSignal secrets missing' };
@@ -23,6 +25,7 @@ export async function sendPush(opts: { email: string; title: string; message: st
     small_icon: 'ic_stat_onesignal_default',
   };
   if (opts.priority === 'high') payload.priority = 10;
+  if (opts.sendAt && opts.sendAt > Date.now() + 60_000) payload.send_after = new Date(opts.sendAt).toISOString();
   try {
     const res = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',

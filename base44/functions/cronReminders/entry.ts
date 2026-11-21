@@ -11,12 +11,18 @@ import { fetchRevenueCat } from '../../shared/revenuecat.ts';
 // each in the family's own time (the owner's timezone, else the first
 // member's, else America/Chicago):
 //
-//   1. Appointment reminders: `reminder_minutes` before an event (default 60),
-//      pushed to every family member who wants reminders — or only the person
-//      who added it when the event is private. Marked reminder_sent so it
-//      goes once.
-//  1b. A push offering to record a doctor-type visit, shortly before it
-//      starts, to whoever is going (see below).
+//   1. Appointment reminders, an hour before an event (`reminder_minutes`,
+//      default 60) and 10 minutes before (Anna, Nov 21 2026: "I think it
+//      should be an hour before and 10 minutes until"), pushed to every family
+//      member who wants reminders — or only the person who added it when the
+//      event is private. This job runs every 15 minutes, so each push is
+//      handed to OneSignal in the run before its time, set to arrive on the
+//      minute (sendPush sendAt). Each goes once per start time
+//      (reminder_sent_for / soon_sent_for = "YYYY-MM-DD HH:MM"), so an event
+//      moved to another time is reminded again at the new one.
+//  1b. A push offering to record a doctor-type visit, 10 minutes before it
+//      starts, to whoever is going (see below). For them it takes the place
+//      of the 10-minute reminder.
 //  1c. A heads-up the day before a store free trial turns into a charge, to
 //      the person who started it (see below).
 //   2. Task due-time pushes: a task with a due date AND time, at that time.
@@ -45,6 +51,9 @@ import { fetchRevenueCat } from '../../shared/revenuecat.ts';
 // app to every user at 13:00 UTC.
 
 const WINDOW_MS = 15 * 60_000;
+const SOON_MINUTES = 10;
+// "in 1 hour", "in 10 min"
+const leadText = (min: number) => (min >= 60 ? `in ${Math.round(min / 60)} hour${min >= 90 ? 's' : ''}` : `in ${Math.max(1, Math.round(min))} min`);
 const DIGEST_HOUR = 7;
 
 function partsIn(tz: string, when: Date) {
@@ -193,23 +202,27 @@ const MISSED_AFTER_MS = 90 * 60_000;
       const pushedFor: { a: any; to: string[] }[] = [];
       for (const a of appts) {
         const isSeries = !!a.occurrence_of;
-        if (isSeries ? a.reminder_sent_for === a.date : a.reminder_sent) continue;
+        const rowId = a.occurrence_of || a.id;
+        const at = `${a.date} ${a.time}`;
+        // Sent for this start time (older rows: a series kept just the day, a one-off just reminder_sent).
+        if (a.reminder_sent_for === at || (isSeries ? a.reminder_sent_for === a.date : a.reminder_sent && !a.reminder_sent_for)) continue;
         if (a.all_day || !a.time) continue;
         const minutes = typeof a.reminder_minutes === 'number' ? a.reminder_minutes : 60;
         if (minutes < 0) continue;
         const startMs = localToMs(a.date, a.time, a.timezone ? safeTz(a.timezone) : tz);
         if (!startMs) continue;
         const fireAt = startMs - minutes * 60_000;
-        if (now < fireAt || now >= fireAt + WINDOW_MS) continue;
+        // Handed over in the run before its time (or now, for one added late, while it's still well ahead).
+        if (now < fireAt - WINDOW_MS || startMs - now <= (SOON_MINUTES + 5) * 60_000) continue;
         const forWhom = a.family_member_name ? ` for ${a.family_member_name}` : '';
-        const inText = minutes >= 60 ? `in ${Math.round(minutes / 60)} hour${minutes >= 120 ? 's' : ''}` : `in ${minutes} min`;
+        const inText = leadText(now >= fireAt ? (startMs - now) / 60_000 : minutes);
+        const sent = { reminder_sent: true, reminder_sent_for: at };
         // Already checked off on To-do (this copy or the same event from
         // someone else's calendar): no reminder.
         const dayKey = claimDayFor('event', a, a.date);
         const checkedOn = (b: any) => (Array.isArray(b?.checks) ? b.checks : []).some((c: any) => c && c.user_id && String(c.day || '') === dayKey);
         if (checkedOn(a) || (!dayKey && appts.some((b: any) => b !== a && b.date === a.date && sameEvent(a, b) && checkedOn(b)))) {
-          if (isSeries) await db.Appointment.update(a.occurrence_of, { reminder_sent_for: a.date });
-          else await db.Appointment.update(a.id, { reminder_sent: true });
+          await db.Appointment.update(rowId, isSeries ? { reminder_sent_for: at } : sent);
           continue;
         }
         // "I'll take it": the reminder goes to whoever took it (on this row or
@@ -230,11 +243,11 @@ const MISSED_AFTER_MS = 90 * 60_000;
             message: `${whenText(a.date, a.time, tz)}${a.location ? ` · ${a.location}` : ''}`,
             data: { type: 'appointment_reminder', appointmentId: a.id, screen: '/calendar', date: a.date },
             priority: 'high',
+            sendAt: fireAt,
           });
           out.appointment_reminders++;
         }
-        if (isSeries) await db.Appointment.update(a.occurrence_of, { reminder_sent_for: a.date });
-        else await db.Appointment.update(a.id, { reminder_sent: true });
+        await db.Appointment.update(rowId, isSeries ? { reminder_sent_for: at } : sent);
       }
 
       // 1b. Offer to record a doctor-type visit (Anna, Nov 18 2026: "a
@@ -247,16 +260,16 @@ const MISSED_AFTER_MS = 90 * 60_000;
       //     said "I'll take it", else the person it's for (their own account),
       //     else whoever added it. Not for a visit already recorded or checked
       //     off; once per visit (record_offer_for: the day it was offered).
+      const people = ((await db.FamilyMember.filter({ family_id: fam.id })) || []) as any[];
+      const offered: { a: any; to: string }[] = [];
       try {
-        const people = ((await db.FamilyMember.filter({ family_id: fam.id })) || []) as any[];
-        const offered: { a: any; to: string }[] = [];
         for (const a of appts) {
           // Reminders turned off for the event (None): no push about it at all.
           if (a.cover_of || a.all_day || !a.time || a.record_offer_for === a.date || a.reminder_minutes < 0) continue;
           if (!['Appointment', 'Doctor', 'Therapy'].includes(String(a.category || 'Appointment')) || !isCareEvent(a, people)) continue;
           const startMs = localToMs(a.date, a.time, a.timezone ? safeTz(a.timezone) : tz);
           const ahead = startMs - now;
-          if (!startMs || ahead <= 4 * 60_000 || ahead > 19 * 60_000) continue;
+          if (!startMs || ahead <= 60_000 || ahead > (SOON_MINUTES * 60_000 + WINDOW_MS)) continue;
           const rowId = a.occurrence_of || a.id;
           const dayKey = claimDayFor('event', a, a.date);
           // Checked off on this row, or on the same visit from someone else's calendar.
@@ -288,10 +301,52 @@ const MISSED_AFTER_MS = 90 * 60_000;
             message: 'Tap to record the visit. GenCare will write up notes for the family.',
             data: { type: 'record_offer', appointmentId: rowId, date: a.date, screen: `/notes?${q}` },
             priority: 'high',
+            sendAt: startMs - SOON_MINUTES * 60_000,
           });
           out.record_offers = (out.record_offers || 0) + 1;
         }
       } catch (e) { console.warn('[cronReminders] record offers:', (e as Error).message); }
+
+      // 1c. Ten minutes before: the same people as the hour-before reminder,
+      //     except whoever just got the offer to record it (that push is their
+      //     10-minute one).
+      try {
+        const soonFor: { a: any; to: string[] }[] = [];
+        for (const a of appts) {
+          if (a.all_day || !a.time || a.reminder_minutes < 0) continue;
+          const rowId = a.occurrence_of || a.id;
+          const at = `${a.date} ${a.time}`;
+          if (a.soon_sent_for === at) continue;
+          const startMs = localToMs(a.date, a.time, a.timezone ? safeTz(a.timezone) : tz);
+          const ahead = startMs - now;
+          if (!startMs || ahead <= 60_000 || ahead > SOON_MINUTES * 60_000 + WINDOW_MS) continue;
+          await db.Appointment.update(rowId, { soon_sent_for: at });
+          const dayKey = claimDayFor('event', a, a.date);
+          const checkedOn = (b: any) => (Array.isArray(b?.checks) ? b.checks : []).some((c: any) => c && c.user_id && String(c.day || '') === dayKey);
+          if (checkedOn(a) || (!dayKey && appts.some((b: any) => b !== a && b.date === a.date && sameEvent(a, b) && checkedOn(b)))) continue;
+          const claim = claimOn(a, dayKey) || (dayKey ? null : appts.filter((b: any) => b !== a && b.date === a.date && sameEvent(a, b)).map((b: any) => claimOn(b, '')).find(Boolean)) || null;
+          const taker = claim ? users.find((u: any) => u.id === claim.user_id && canSee(a, u.id)) : null;
+          const targets = taker ? [taker] : users.filter((u: any) => canSee(a, u.id));
+          const twins = soonFor.filter((p) => p.a.date === a.date && sameEvent(a, p.a));
+          const sentTo = new Set(twins.flatMap((p) => p.to));
+          soonFor.push({ a, to: targets.map((u: any) => u.id) });
+          const forWhom = a.family_member_name ? ` for ${a.family_member_name}` : '';
+          const sendAt = startMs - SOON_MINUTES * 60_000;
+          for (const u of targets) {
+            if (!wantsPush(u, 'reminders') || sentTo.has(u.id)) continue;
+            if (offered.some((o) => o.to === u.id && o.a.date === a.date && (o.a === a || sameEvent(a, o.a)))) continue;
+            await sendPush({
+              email: u.email,
+              title: `${a.title}${forWhom} ${leadText(now >= sendAt ? ahead / 60_000 : SOON_MINUTES)}`,
+              message: `${whenText(a.date, a.time, tz)}${a.location ? ` · ${a.location}` : ''}`,
+              data: { type: 'appointment_reminder', appointmentId: a.id, screen: '/calendar', date: a.date },
+              priority: 'high',
+              sendAt,
+            });
+            out.soon_reminders = (out.soon_reminders || 0) + 1;
+          }
+        }
+      } catch (e) { console.warn('[cronReminders] 10-minute reminders:', (e as Error).message); }
 
       // 2. Tasks at their due time.
       const dueTasks = (await db.CareTask.filter({ family_id: fam.id, due_date: today })) || [];
