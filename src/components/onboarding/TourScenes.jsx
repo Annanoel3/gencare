@@ -152,7 +152,7 @@ function HomePage() {
     <div className="px-2 pt-2 space-y-1.5">
       <div>
         <div className="flex items-center gap-1"><Sun className="w-2.5 h-2.5 text-accent" /><span className="font-heading text-[10px] font-bold">Good morning</span></div>
-        <p className="text-[6px] text-muted-foreground pl-3.5">{format(today, 'EEEE, MMMM d')}. Here's what needs your attention today.</p>
+        <p className="text-[6px] text-muted-foreground pl-3.5">{format(today, 'EEEE, MMMM d, yyyy')}</p>
       </div>
       <div className="flex items-center justify-between pt-1">
         <span className="font-heading text-[8px] font-semibold">Today Across the Family</span>
