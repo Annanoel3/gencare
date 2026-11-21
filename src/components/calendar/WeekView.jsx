@@ -38,7 +38,7 @@ export default function WeekView({ selectedDate, setSelectedDate, onPrev, onNext
           const selected = isSameDay(day, selectedDate);
           const today = isToday(day);
           return (
-            <div key={day.toISOString()} className="flex gap-2 py-2">
+            <div key={day.toISOString()} id={selected ? 'calendar-week-day' : undefined} className="flex gap-2 py-2 scroll-mt-20">
               <button
                 type="button"
                 onClick={() => setSelectedDate(day)}

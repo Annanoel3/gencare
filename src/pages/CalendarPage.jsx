@@ -154,6 +154,26 @@ export default function CalendarPage() {
     const fade = setTimeout(() => setFocus(''), 6000);
     return () => { clearTimeout(show); clearTimeout(fade); };
   }, [focus, isFetched]);
+  // A day tapped on a home-screen widget (or a notification about a day) opens
+  // already scrolled down to that day's list (Anna, Nov 21 2026: "If someone
+  // presses a day on the calendar, I want the app to open on the day, already
+  // scrolled down to the day view"). Week and Day show that day the same way.
+  // Once there, the date comes off the address, so tapping the same day on the
+  // widget again lands there again. An event (?event=) or its editor (?open=)
+  // has its own landing above.
+  const wantsDay = () => !!params.get('date') && !params.get('event') && !params.get('open');
+  const [landOn, setLandOn] = useState(wantsDay);
+  useEffect(() => { if (wantsDay()) setLandOn(true); }, [dateParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!landOn || !isFetched) return undefined;
+    const t = setTimeout(() => {
+      const id = view === 'week' ? 'calendar-week-day' : view === 'day' ? 'calendar-dayview' : 'calendar-day';
+      document.getElementById(id)?.scrollIntoView({ block: 'start' });
+      setLandOn(false);
+      setParams((p) => { if (!p.get('date')) return p; const next = new URLSearchParams(p); next.delete('date'); return next; }, { replace: true });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [landOn, isFetched]); // eslint-disable-line react-hooks/exhaustive-deps
   // The same event can show under another copy's id (two calendars, or what the family sees).
   const isFocus = (a) => !!focus && (a.id === focus || rowIdOf(a) === focus || a.own?.id === focus || (a.merged_ids || []).includes(focus));
 
@@ -474,6 +494,7 @@ export default function CalendarPage() {
         </TabsContent>
 
         <TabsContent value="day">
+          <div id="calendar-dayview" className="scroll-mt-20">
           <DayView
             selectedDate={selectedDate}
             onPrev={() => setSelectedDate(subDays(selectedDate, 1))}
@@ -485,6 +506,7 @@ export default function CalendarPage() {
             onOpen={openEdit}
             isFocus={isFocus}
           />
+          </div>
           {colorNote}
         </TabsContent>
       </Tabs>
