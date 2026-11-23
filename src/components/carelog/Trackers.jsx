@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
-import { LineChart, Lock, Plus } from 'lucide-react';
+import { LineChart, Lock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,11 @@ import { trackerKey } from '@/lib/carePrivacy';
 // the numbers, response = the reading as typed).
 // On your own profile, each tracker is Only you or Family (privacy, from
 // lib/carePrivacy.js's useCarePrivacy; null for anyone else).
+// Nov 23 2026 (Anna: "Keep track of something else is too hard to find and
+// its not clear what it is"): no card of its own under the buttons any more.
+// Each tracker is a button in the Care Log's "Tap when it happens" grid (tap
+// it to add a reading, with its chart one tap further), and a "Track a
+// number" button starts a new one. Rendered inside that grid by CareLogPage.
 
 const LINE_COLORS = ['#2f855a', '#c05621', '#2b6cb0'];
 export const numbersIn = (text) => (String(text || '').match(/-?\d+(?:\.\d+)?/g) || []).slice(0, 3).map(Number);
@@ -125,42 +130,41 @@ export default function Trackers({ person, logs, me, onChanged, privacy = null }
   };
 
   const viewing = trackers.find((t) => t.name === view);
+  const adding = open?.name ? trackers.find((t) => t.name === open.name) : null;
 
+  // In the Care Log's button grid: one button per tracker, then "Track a number".
   return (
-    <section className="rounded-2xl border border-border/50 bg-card p-4">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="font-heading text-base font-semibold flex items-center gap-2"><LineChart className="w-4 h-4 text-primary" /> Keep track of something else</h2>
-        <Button size="sm" variant="ghost" className="h-8 gap-1 rounded-full" onClick={() => start('')}><Plus className="w-4 h-4" /> New</Button>
-      </div>
-      {trackers.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{privacy ? 'Anything you want to keep an eye on for yourself.' : `Anything the family wants to keep an eye on for ${first(person.name)}.`} Name it whatever you like, then add a reading whenever you check.</p>
-      ) : (
-        <ul className="divide-y divide-border/40">
-          {trackers.map((t) => {
-            const last = t.readings[0];
-            const d = last?.timestamp ? parseISO(last.timestamp) : null;
-            return (
-              <li key={t.name} className="flex items-center gap-3 py-2">
-                <button type="button" className="flex-1 min-w-0 text-left" onClick={() => setView(t.name)}>
-                  <span className="block text-sm font-medium truncate">{t.name}{priv(t.name) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only me" />}</span>
-                  <span className="block text-xs text-muted-foreground truncate">{last?.response}{d && isValid(d) ? ` · ${format(d, 'MMM d, h:mm a')}` : ''}{last?.logged_by_name ? ` · ${first(last.logged_by_name)}` : ''}</span>
-                </button>
-                <Button size="sm" variant="secondary" className="h-8 rounded-full" onClick={() => start(t.name)}>Add</Button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+    <>
+      {trackers.map((t) => {
+        const last = t.readings[0];
+        const d = last?.timestamp ? parseISO(last.timestamp) : null;
+        return (
+          <button key={t.name} type="button" onClick={() => start(t.name)} aria-label={`${t.name}: add a reading`}
+            className="rounded-2xl border border-border/60 bg-card p-2.5 min-h-[76px] flex flex-col items-center justify-center gap-1 text-center transition-all active:scale-95">
+            <LineChart className="w-6 h-6 text-primary" aria-hidden="true" />
+            <span className="text-xs font-medium leading-tight line-clamp-2">{t.name}{priv(t.name) && <Lock className="inline w-3 h-3 ml-1 -mt-0.5 text-muted-foreground" aria-label="Only me" />}</span>
+            {last && <span className="text-[0.625rem] leading-tight text-muted-foreground line-clamp-1">{last.response}{d && isValid(d) ? ` · ${format(d, 'MMM d')}` : ''}</span>}
+          </button>
+        );
+      })}
+      <button type="button" onClick={() => start('')}
+        className="rounded-2xl border border-dashed border-border p-2.5 min-h-[76px] flex flex-col items-center justify-center gap-1 text-muted-foreground">
+        <LineChart className="w-5 h-5" aria-hidden="true" />
+        <span className="text-xs font-medium leading-tight">Track a number</span>
+      </button>
 
       <Dialog open={!!open} onOpenChange={(o) => { if (!o && !saving) setOpen(null); }}>
         <DialogContent className="max-w-md w-[calc(100vw-2rem)]">
           <DialogHeader>
-            <DialogTitle>{open?.name ? open.name : 'Keep track of something new'}</DialogTitle>
-            <DialogDescription>{privacy ? (open?.name ? (priv(open.name) ? 'Only you can see it.' : 'Everyone in the family can see it.') : 'Just for you, or for the family to see too.') : `For ${first(person.name)}. Everyone in the family can see it.`}</DialogDescription>
+            <DialogTitle>{open?.name ? open.name : 'Track a number'}</DialogTitle>
+            <DialogDescription>
+              {!open?.name && <>A number you check now and then, like weight or hours of sleep. Name it once, and it gets its own button here. Tap it each time you check, and GenCare keeps a chart. </>}
+              {privacy ? (open?.name ? (priv(open.name) ? 'Only you can see it.' : 'Everyone in the family can see it.') : 'Just for you, or for the family to see too.') : `For ${first(person.name)}. Everyone in the family can see it.`}
+            </DialogDescription>
           </DialogHeader>
           {!open?.name && (
             <div>
-              <Label>What are you tracking?</Label>
+              <Label>What is it?</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Name it anything" className="mt-1" />
             </div>
           )}
@@ -186,6 +190,11 @@ export default function Trackers({ person, logs, me, onChanged, privacy = null }
             <Input type="datetime-local" value={form.when} onChange={(e) => setForm({ ...form, when: e.target.value })} className="mt-1" />
           </div>
           <Button className="w-full h-11 rounded-xl" disabled={saving || !form.name.trim() || !form.reading.trim()} onClick={save}>Save reading</Button>
+          {adding && (
+            <Button variant="ghost" className="w-full h-11 rounded-xl gap-2" onClick={() => { const n = adding.name; setOpen(null); setView(n); }}>
+              <LineChart className="w-4 h-4" /> See the chart and past readings ({adding.readings.length})
+            </Button>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -223,6 +232,6 @@ export default function Trackers({ person, logs, me, onChanged, privacy = null }
           {viewing && <Button variant="secondary" className="w-full rounded-xl" onClick={() => { const n = viewing.name; setView(null); start(n); }}>Add a reading</Button>}
         </DialogContent>
       </Dialog>
-    </section>
+    </>
   );
 }

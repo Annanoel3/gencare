@@ -92,6 +92,8 @@ Care Log
 - In the menu, tap Care Log (or the green +, then Log care). It shows who did what today, so nobody has to ask.
 - It shows the people the family helps take care of. To add someone, open their profile on the Family page and turn on "The family helps take care of them." Babies, kids and pets show up on their own.
 - Tap a button when it happens, and it shows with who did it. "Choose buttons" picks which buttons show. Only you see what you log with a locked button.
+- Track a number: among the buttons, tap Track a number, name it (like weight or hours of sleep) and type the first reading. It then has its own button: tap it each time you check to add a reading. "See the chart and past readings" in it shows them all, with a chart.
+- Something else (the last button) writes down anything that doesn't have a button.
 
 Record Notes (appointments and meetings)
 - In the menu, tap Record Notes. It's for an appointment, a meeting or a class. GenCare writes short, clear notes the whole family can read: to-dos first, then the details.

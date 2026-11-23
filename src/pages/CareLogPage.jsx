@@ -257,6 +257,8 @@ export default function CareLogPage() {
                       </button>
                     );
                   })}
+                  {/* Numbers the family checks, each as its own button, then "Track a number" (Nov 23 2026). */}
+                  <Trackers person={person} logs={logs} me={me} onChanged={refresh} privacy={mine ? privacy : null} />
                   <button type="button" onClick={() => setDialog({ open: true, entry: null, type: null, preset: null })}
                     className="rounded-2xl border border-dashed border-border p-2.5 min-h-[76px] flex flex-col items-center justify-center gap-1 text-muted-foreground">
                     <Plus className="w-5 h-5" />
@@ -266,9 +268,6 @@ export default function CareLogPage() {
                 {mine && <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1"><Lock className="w-3 h-3 flex-shrink-0" /> Only you see what you log with a locked button. To share one with the family, open Choose buttons.</p>}
                 <button type="button" onClick={() => setChoosing(true)} className="text-xs text-primary font-medium mt-2">Choose buttons</button>
               </section>
-
-              {/* Right under the buttons (Anna, Nov 13 2026: "put the track something higher up"). */}
-              <Trackers person={person} logs={logs} me={me} onChanged={refresh} privacy={mine ? privacy : null} />
 
               <section className="rounded-2xl border border-border/50 bg-card p-2 md:p-4">
                 <h2 className="font-heading text-base font-semibold px-2 pt-1">Today {todays.length > 0 && <span className="text-muted-foreground font-normal text-sm">({todays.length})</span>}</h2>
