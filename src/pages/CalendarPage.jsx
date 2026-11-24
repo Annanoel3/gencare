@@ -7,7 +7,7 @@ import { withFamily } from '@/lib/family';
 import { exportSoon, syncNow, syncOnOpen } from '@/lib/calendarSync';
 import { format, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isValid, startOfMonth, endOfMonth, min as minDate, max as maxDate } from 'date-fns';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
-import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine } from '@/lib/events';
+import { listEvents, sharingDefaultOf, sortNewEvent, sortedLine, refreshStandIns } from '@/lib/events';
 import { realEvent } from '@/lib/sameEvent';
 import { snapshotEvent, notifyEvent } from '@/lib/eventChanges';
 import SharingChoiceDialog from '@/components/calendar/SharingChoice';
@@ -250,6 +250,8 @@ export default function CalendarPage() {
     if (!(s.startVisibility === 'private' && s.visibility === 'private')) {
       notify(s.visibility === 'private' ? 'removed' : s.startVisibility === 'private' ? 'added' : 'changed', s.id, s.before);
     }
+    // Private before or after: the family's "<name>: busy" stand-in follows.
+    if (s.startVisibility === 'private' || s.visibility === 'private') refreshStandIns();
     afterChange();
   };
 
@@ -261,7 +263,7 @@ export default function CalendarPage() {
       }
       return base44.entities.Appointment.delete(appt.id);
     },
-    onSuccess: () => { track('action', 'delete:event'); editSession.current = null; afterChange(); setDialogOpen(false); setEditing(null); },
+    onSuccess: (_r, appt) => { track('action', 'delete:event'); editSession.current = null; if (appt?.visibility === 'private') refreshStandIns(); afterChange(); setDialogOpen(false); setEditing(null); },
     onError: (e) => toast({ title: 'Could not delete', description: plainError(e), variant: 'destructive' }),
   });
 

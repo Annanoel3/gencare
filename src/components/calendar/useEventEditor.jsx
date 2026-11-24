@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useFamily } from '@/lib/family';
 import { exportSoon } from '@/lib/calendarSync';
-import { sharingDefaultOf, sortNewEvent } from '@/lib/events';
+import { sharingDefaultOf, sortNewEvent, refreshStandIns } from '@/lib/events';
 import { realEvent } from '@/lib/sameEvent';
 import { snapshotEvent, notifyEvent } from '@/lib/eventChanges';
 import { withFamily } from '@/lib/family';
@@ -63,6 +63,8 @@ export default function useEventEditor(members = []) {
     if (!(s.startVisibility === 'private' && s.visibility === 'private')) {
       notify(s.visibility === 'private' ? 'removed' : s.startVisibility === 'private' ? 'added' : 'changed', s.id, s.before);
     }
+    // Private before or after: the family's "<name>: busy" stand-in follows.
+    if (s.startVisibility === 'private' || s.visibility === 'private') refreshStandIns();
     afterChange();
   };
 
@@ -89,7 +91,7 @@ export default function useEventEditor(members = []) {
       if (appt.visibility !== 'private') await notify('removed', appt.id);
       return base44.entities.Appointment.delete(appt.id);
     },
-    onSuccess: () => { track('action', 'delete:event'); session.current = null; setOpen(false); afterChange(); },
+    onSuccess: (_r, appt) => { track('action', 'delete:event'); session.current = null; setOpen(false); if (appt?.visibility === 'private') refreshStandIns(); afterChange(); },
     onError: (e) => toast({ title: 'Could not delete', description: plainError(e), variant: 'destructive' }),
   });
 

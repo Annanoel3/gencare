@@ -295,6 +295,11 @@ async function sortRows(db: any, user: any, familyId: string, rows: any[], given
 //   "<Name>: doctor": for a private appointment the family would still want
 //     to know is happening (ai_cover), the time and that plain label only;
 //     overlapping ones on a day become one (cover_of = the private event).
+//   "<Name>: busy" (or "work"): with "Let GenCare decide", any other event of
+//     theirs GenCare kept private that still takes their time (ai_busy), so
+//     the family can plan around it (Anna, Nov 23 2026: "anything that
+//     affects someones schedule should show"). Not when they picked Only me
+//     on the event themselves, and not their trips ("traveling" covers those).
 // Kept in step every time events are sorted or imported: times follow, one
 // that no longer matches is removed, and an event the person shares itself
 // needs no stand-in.
@@ -333,9 +338,17 @@ async function syncAway(db: any, user: any, familyId: string) {
   }
   for (const m of awayMarkers) if (!usedAway.has(m.id)) { try { await db.Appointment.delete(m.id); } catch (_) { /* gone */ } }
 
-  // Private appointments the family should know are happening
+  // Private appointments the family should know are happening, and anything
+  // else GenCare kept private that takes their time.
+  const decides = sharingMode(user) === 'auto';
+  const coverOf = (a: any) => {
+    const c = String(a.ai_cover || '').trim();
+    if (c) return c;
+    if (decides && a.ai_busy === true && !a.ai_trip && autoSetOf(a).includes('visibility')) return a.category === 'Work' || looksLikeWork(a) ? 'work' : 'busy';
+    return '';
+  };
   const covered = real
-    .filter((a: any) => a.visibility === 'private' && String(a.ai_cover || '').trim() && !a.recurrence && own(a))
+    .filter((a: any) => a.visibility === 'private' && coverOf(a) && !a.recurrence && own(a))
     .sort((x: any, y: any) => String(x.date).localeCompare(String(y.date)) || String(x.time || '').localeCompare(String(y.time || '')));
   const groups: { ids: string[]; date: string; s: string; e: string; allDay: boolean; labels: Set<string> }[] = [];
   for (const a of covered) {
@@ -344,17 +357,18 @@ async function syncAway(db: any, user: any, familyId: string) {
     const e0 = allDay ? '' : String(a.end_time || a.time);
     const g = groups.find((x) => x.date === a.date && (x.allDay || allDay || (s0 <= x.e && e0 >= x.s)));
     if (g) {
-      g.ids.push(a.id); g.labels.add(String(a.ai_cover).trim().toLowerCase());
+      g.ids.push(a.id); g.labels.add(coverOf(a).toLowerCase());
       if (allDay) g.allDay = true;
       if (s0 && (!g.s || s0 < g.s)) g.s = s0;
       if (e0 > g.e) g.e = e0;
-    } else groups.push({ ids: [a.id], date: a.date, s: s0, e: e0, allDay, labels: new Set([String(a.ai_cover).trim().toLowerCase()]) });
+    } else groups.push({ ids: [a.id], date: a.date, s: s0, e: e0, allDay, labels: new Set([coverOf(a).toLowerCase()]) });
   }
   const coverMarkers = mine.filter((a: any) => a.cover_of);
   const usedCover = new Set<string>();
   for (const g of groups) {
-    const label = g.labels.size === 1 ? [...g.labels][0] : 'appointment';
-    const f = { title: `${first}: ${label}`, date: g.date, end_date: '', all_day: g.allDay, time: g.allDay ? '' : g.s, end_time: g.allDay ? '' : (g.e > g.s ? g.e : ''), category: 'Appointment', family_member_id: base.family_member_id };
+    // Two at once with different labels: "busy" says enough (an appointment among them: "appointment").
+    const label = g.labels.size === 1 ? [...g.labels][0] : [...g.labels].every((l) => l === 'busy' || l === 'work') ? 'busy' : 'appointment';
+    const f = { title: `${first}: ${label}`, date: g.date, end_date: '', all_day: g.allDay, time: g.allDay ? '' : g.s, end_time: g.allDay ? '' : (g.e > g.s ? g.e : ''), category: label === 'work' ? 'Work' : label === 'busy' ? 'Other' : 'Appointment', colored: true, family_member_id: base.family_member_id };
     const m = coverMarkers.find((x: any) => !usedCover.has(x.id) && g.ids.includes(String(x.cover_of)))
       || coverMarkers.find((x: any) => !usedCover.has(x.id) && x.date === g.date);
     if (m) { usedCover.add(m.id); if (differs(m, { ...f, cover_of: g.ids[0] })) await db.Appointment.update(m.id, { ...f, cover_of: g.ids[0] }); }

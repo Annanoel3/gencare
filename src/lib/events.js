@@ -97,8 +97,9 @@ export async function sortNewEvent(created, left = {}, mode = '', opts = {}) {
   // Part of a trip, or a private appointment the family still sees as
   // "<name>: doctor": the family's stand-in follows (opts.away === false:
   // the caller does that once for several events).
-  const needsAway = !!(r.trip || r.cover);
-  if (needsAway && opts.away !== false) await base44.functions.invoke('phoneCalendar', { mode: 'away' }).catch(() => {});
+  // Kept private but it takes their time: the family sees "<name>: busy" (Nov 23 2026).
+  const needsAway = !!(r.trip || r.cover || (wantShare && !r.share && r.busy === true));
+  if (needsAway && opts.away !== false) await refreshStandIns();
   return { patch, becameShared, shared: wantShare ? !!r.share : null, memberName: patch.family_member_name || '', needsAway };
 }
 
@@ -110,4 +111,14 @@ export function sortedLine(result) {
   if (result.shared === false) parts.push('Kept just for you');
   if (result.memberName) parts.push(`for ${result.memberName.split(' ')[0]}`);
   return parts.length ? `${parts.join(', ')}. Tap the event to change it.` : '';
+}
+
+/**
+ * The family's stand-ins for a person's private events ("Anna: busy",
+ * "Anna: doctor", "Anna traveling") follow that person's events: call after
+ * one of their private events is changed or deleted (functions/phoneCalendar
+ * mode 'away'; no AI, just their own events).
+ */
+export function refreshStandIns() {
+  return base44.functions.invoke('phoneCalendar', { mode: 'away' }).catch(() => {});
 }
