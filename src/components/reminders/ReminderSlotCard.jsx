@@ -10,6 +10,22 @@ import { toast } from '@/components/ui/use-toast';
 import { getMemberColorByMemberId, getMemberLightColorByMemberId } from '@/utils/memberColors';
 import { markSlot, fmtClock, fmtRange, endOf, REMINDERS_KEY, stepsOf, stepSlot, ticksFor, tickStep, untickLast } from '@/lib/reminders';
 import { plainError } from '@/lib/errors';
+import { doneWithUndo } from '@/lib/undoToast';
+
+// Undo from the "Done" message, after the card has left the list: the saved
+// log goes back to waiting (an "until it's done" one comes back on), and the
+// step whose tick finished it comes off.
+async function putBack(s, saved, me, queryClient, byStep) {
+  try {
+    if (byStep) { try { await untickLast(s); } catch { /* the reminder still comes back */ } }
+    await markSlot({ ...s, log: saved || s.log, med: { ...s.med, is_active: s.med.frequency === 'Once' ? false : s.med.is_active } }, 'due', me);
+    track('action', 'undo:reminder', 'from message');
+  } catch (e) {
+    toast({ title: "Couldn't undo", description: plainError(e), variant: 'destructive' });
+  }
+  queryClient.invalidateQueries({ queryKey: ['reminderLogs'] });
+  queryClient.invalidateQueries({ queryKey: REMINDERS_KEY });
+}
 
 /**
  * One of today's reminders on the Reminders page, between the day's events
@@ -34,9 +50,15 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
   const color = s.med.family_member_id ? getMemberColorByMemberId(s.med.family_member_id, members) : null;
   const tint = s.med.family_member_id ? getMemberLightColorByMemberId(s.med.family_member_id, members) : 'bg-card';
 
-  const mark = async (status) => {
+  // byStep: the last step's tick finished it (Undo takes that tick off too).
+  const mark = async (status, byStep = false) => {
     setBusy(true);
-    try { await markSlot(s, status, me); track('action', status === 'taken' ? 'done:reminder' : status === 'skipped' ? 'skip:reminder' : 'undo:reminder', s.med.frequency === 'Once' ? 'until done' : ''); } catch (e) { toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }); }
+    try {
+      const saved = await markSlot(s, status, me);
+      track('action', status === 'taken' ? 'done:reminder' : status === 'skipped' ? 'skip:reminder' : 'undo:reminder', s.med.frequency === 'Once' ? 'until done' : '');
+      // Done takes it off today's lists (Anna, Nov 23 2026), so Undo is right there.
+      if (status === 'taken') doneWithUndo(s.med.medication_name, () => putBack(s, saved, me, queryClient, byStep));
+    } catch (e) { toast({ title: "Couldn't save", description: plainError(e), variant: 'destructive' }); }
     finally { setBusy(false); }
     queryClient.invalidateQueries({ queryKey: ['reminderLogs'] });
     if (s.med.frequency === 'Once') queryClient.invalidateQueries({ queryKey: REMINDERS_KEY });
@@ -66,7 +88,7 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
       track('action', on ? 'tick:step' : 'untick:step');
       const all = steps.every((x) => next.includes(x));
       // The last step marks it done; unticking one brings a done one back.
-      if (all && s.status !== 'taken') await mark('taken');
+      if (all && s.status !== 'taken') await mark('taken', true);
       else if (!all && s.status === 'taken') await mark('due');
     } catch (e) {
       setLocal(null);
@@ -97,8 +119,9 @@ export default function ReminderSlotCard({ slot, members = [], onOpen, focus = f
         </div>
         <div className="flex-1 min-w-0">
           <button type="button" onClick={() => onOpen?.(s.med)} className="w-full text-left">
-            {/* Done or skipped: crossed out (Anna, Nov 21 2026: "If you press skip it needs to be crossed out for that day"). */}
-            <p className={`font-medium text-sm leading-snug ${done ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</p>
+            {/* Skipped: crossed out for the day (Anna, Nov 21 2026). Done ones leave
+                the day's lists (Nov 23 2026: "Only skipped things should be crossed off"). */}
+            <p className={`font-medium text-sm leading-snug ${s.status === 'skipped' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</p>
             <p className={`text-xs mt-1 ${late && !done ? 'text-destructive' : 'text-muted-foreground'}`}>
               {[s.med.family_member_name, when, next ? `next reminder ${fmtClock(next)}` : '', carried ? `due ${format(parseISO(s.med.once_date), 'EEE, MMM d')}` : ''].filter(Boolean).join(' · ')}
               {s.status === 'taken' && s.log?.taken_by_name ? ` · done by ${s.log.taken_by_name.split(' ')[0]}` : ''}

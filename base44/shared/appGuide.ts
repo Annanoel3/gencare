@@ -34,7 +34,7 @@ Getting around
 
 Home
 - At the top: a greeting and today's date.
-- "Today Across the Family": announcements first, then the family's day in order: today's events and reminders by time (each reminder has Done and Skip). Under "Still to do" are reminders that keep going until they're done and to-dos with no time. What's over or done is faded at the bottom, then what was logged today. The Announce button there sends an announcement, and "Reminders page" opens the Reminders page.
+- "Today Across the Family": announcements first, then the family's day in order: today's events and reminders by time (each reminder has Done and Skip). Under "Still to do" are reminders that keep going until they're done and to-dos with no time. What's over is faded at the bottom, and a skipped reminder is crossed out there; done ones are gone. Then what was logged today. The Announce button there sends an announcement, and "Reminders page" opens the Reminders page.
 - "Next appointment": on phones that can record, an upcoming appointment in the next two weeks, with a red Record button.
 - "Recordings": once the family has recordings, the two newest, and "See all recordings".
 - "Who did what": what people in the family did lately.
@@ -74,9 +74,10 @@ Reminders
   - Who gets reminded: Everyone, or Only me.
   - For: who needs to do it. Tap as many people as you need. Whole family means anyone can.
   - Tap Add.
-- On a reminder: tap Done when it's finished. Skip skips that time. Tapped one by mistake? Tap Undo.
+- On a reminder: tap Done when it's finished, and it goes off the list. Skip skips that time: it stays on the day's list, crossed out. Tapped one by mistake? Tap Undo on the skipped one, or on the "Done" message that pops up. Today's done reminders are also on the Done tab, each with Undo.
+- An event ticked off as done goes off the Reminders page and Home too (it stays on the Calendar).
 - To change or delete a reminder, tap its words to open it.
-- Finished ones are on the Done tab.
+- Finished to-dos and today's done reminders are on the Done tab.
 
 Feed
 - Tap Feed at the bottom (the page is called Family Feed). It has updates, announcements, visit summaries and photos, and everyone in the family sees them.

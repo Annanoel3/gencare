@@ -14,6 +14,7 @@ import useReminderEditor from '@/components/reminders/useReminderEditor';
 import useEventEditor from '@/components/calendar/useEventEditor';
 import { SECTIONS, sectionOf, sortTasks, isOpen, isStep } from '@/lib/tasks';
 import { slotsForDay, todayStr, isFinishedOnce, isEnded } from '@/lib/reminders';
+import { checkOn } from '@/lib/claims';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import { expandAppointments, rowIdOf } from '@/lib/occurrences';
 import { startOfDay, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
@@ -26,6 +27,8 @@ function eventsBySection(rows) {
   const out = { today: [], tomorrow: [], week: [] };
   const seenInWeek = new Set();
   for (const o of expandAppointments(rows, today, addDays(today, 6))) {
+    // Checked off: gone (Anna, Nov 23 2026: "Done things should be gone").
+    if (checkOn(o, o.date)) continue;
     const diff = differenceInCalendarDays(parseISO(o.date), today);
     const key = diff <= 0 ? 'today' : diff === 1 ? 'tomorrow' : 'week';
     if (key === 'week') {
@@ -113,10 +116,11 @@ export default function Tasks() {
   useEffect(() => {
     if (!highlight || !isFetched || isLoading) return;
     const next = new URLSearchParams(params); next.delete('highlight'); setParams(next, { replace: true });
-    const inToday = slots.some((sl) => sl.med.id === highlight);
+    const inToday = slots.some((sl) => sl.med.id === highlight && sl.status !== 'taken');
     const reminder = reminders.find((m) => m.id === highlight);
     const task = rows.find((t) => t.id === highlight);
-    setTab(task?.status === 'completed' && !inToday && !reminder ? 'done' : 'open');
+    const doneToday = !inToday && slots.some((sl) => sl.med.id === highlight && sl.status === 'taken');
+    setTab(doneToday || (task?.status === 'completed' && !inToday && !reminder) ? 'done' : 'open');
     setFocusId(highlight);
   }, [highlight, isFetched, isLoading]);  
   useEffect(() => {
@@ -140,11 +144,14 @@ export default function Tasks() {
   const completed = tasks.filter((t) => t.status === 'completed').sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || '')).slice(0, 60);
   const today = todayStr();
   const slotsLeft = slots.filter((s) => s.status !== 'taken' && s.status !== 'skipped').length;
+  // Done today: off the day's list, on the Done tab (with Undo). Skipped ones
+  // stay on the list, crossed out (Anna, Nov 23 2026).
+  const doneSlots = slots.filter((s) => s.status === 'taken');
 
   const bySection = SECTIONS.map((s) => {
     const entries = [
       ...(events[s.key] || []).map((ev) => ({ kind: 'event', key: `ev-${ev.id}-${ev.date}`, date: ev.date, time: ev.all_day ? '' : ev.time || '', allDay: !!ev.all_day || !ev.time, ev })),
-      ...(s.key === 'today' ? slots.map((sl) => ({ kind: 'slot', key: `rm-${sl.key}`, date: today, time: sl.time, slot: sl })) : []),
+      ...(s.key === 'today' ? slots.filter((sl) => sl.status !== 'taken').map((sl) => ({ kind: 'slot', key: `rm-${sl.key}`, date: today, time: sl.time, slot: sl })) : []),
       ...open.filter((t) => sectionOf(t) === s.key).map((t) => ({ kind: 'task', key: t.id, date: t.due_date || '', time: t.due_time || '', task: t })),
     ];
     return { ...s, entries: orderDay(entries) };
@@ -194,7 +201,7 @@ export default function Tasks() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-muted rounded-xl mb-5 w-full grid grid-cols-2 h-auto p-1">
           <TabsTrigger value="open" className="rounded-lg py-1.5">Reminders ({open.length + slotsLeft})</TabsTrigger>
-          <TabsTrigger value="done" className="rounded-lg py-1.5">Done ({completed.length})</TabsTrigger>
+          <TabsTrigger value="done" className="rounded-lg py-1.5">Done ({completed.length + doneSlots.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="open" className="space-y-6" data-guide="rem-list">
@@ -242,10 +249,11 @@ export default function Tasks() {
         </TabsContent>
 
         <TabsContent value="done">
-          {completed.length === 0 ? (
+          {completed.length === 0 && doneSlots.length === 0 ? (
             <p className="text-muted-foreground text-center py-10 text-sm">Nothing finished yet.</p>
           ) : (
             <div className="space-y-2">
+              {doneSlots.map((sl) => <ReminderSlotCard key={`done-${sl.key}`} slot={sl} members={members} onOpen={openReminder} focus={!!focusId && sl.med.id === focusId} />)}
               {completed.map((t) => <TaskCard key={t.id} task={t} members={members} onOpen={openTask} stepsPreloaded={stepsByParent[t.id] || []} focus={!!focusId && t.id === focusId} />)}
             </div>
           )}

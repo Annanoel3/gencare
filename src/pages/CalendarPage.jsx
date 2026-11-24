@@ -316,9 +316,11 @@ export default function CalendarPage() {
   // (Anna, Nov 20 2026: one dated ahead showed on every day after it, as if
   // it would still be waiting); an earlier day can't say what was waiting then.
   const selectedKey = format(selectedDate, 'yyyy-MM-dd');
-  // One finished (done or skipped) on this day stays at the end, greyed, with Undo.
+  // One skipped on this day stays at the end, crossed out, with Undo; one done
+  // is gone (Anna, Nov 23 2026: "Done things should be gone").
   const finishedSlot = (sl) => sl.status === 'taken' || sl.status === 'skipped';
   const stillToDo = useMemo(() => (selectedKey < todayStr() ? [] : slotsForDay(reminders.filter((m) => m.frequency === 'Once' && (selectedKey === todayStr() || m.once_date === selectedKey)), reminderLogs, selectedKey)
+    .filter((sl) => sl.status !== 'taken')
     .sort((a, b) => Number(finishedSlot(a)) - Number(finishedSlot(b)))
     .filter((sl) => showsFor({ family_member_id: sl.med.family_member_id, family_member_name: sl.med.family_member_name, visibility: sl.med.visibility, created_by_user_id: sl.med.owner_user_id }))),
   [reminders, reminderLogs, selectedKey, shown, members]); // eslint-disable-line react-hooks/exhaustive-deps

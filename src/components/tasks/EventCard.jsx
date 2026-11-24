@@ -8,6 +8,7 @@ import DoneButton from '@/components/shared/DoneButton';
 import { toast } from '@/components/ui/use-toast';
 import { track } from '@/lib/activity';
 import { checkOn, setCheck, firstName } from '@/lib/claims';
+import { doneWithUndo } from '@/lib/undoToast';
 import { getMemberColorByMemberId, getEventColorClass, getEventLightColorClass, takesTime } from '@/utils/memberColors';
 import { useFamily } from '@/lib/family';
 import { rowIdOf, repeatLabelOn } from '@/lib/occurrences';
@@ -54,6 +55,14 @@ export default function EventCard({ appt, members = [], showDay = false, onOpen 
     try {
       await setCheck(appt, appt.date, next);
       track('action', next ? 'done:event' : 'undo:event');
+      // Done takes it off the list (Anna, Nov 23 2026), so Undo is on the message.
+      if (next) {
+        doneWithUndo(appt.title, async () => {
+          try { await setCheck(appt, appt.date, false); track('action', 'undo:event', 'from message'); }
+          catch (err) { toast({ title: "Couldn't undo", description: plainError(err), variant: 'destructive' }); }
+          qc.invalidateQueries({ queryKey: ['appointments'] });
+        });
+      }
     } catch (err) {
       setLocal(undefined);
       toast({ title: "Couldn't save", description: plainError(err), variant: 'destructive' });

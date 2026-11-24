@@ -58,7 +58,7 @@ export default function PersonToday({ person, members = [] }) {
               return (
                 <li key={s.key} className={`flex items-center gap-3 ${done ? 'opacity-60' : ''}`}>
                   <span className="text-xs text-muted-foreground w-16 flex-shrink-0">{fmtClock(s.time)}</span>
-                  <span className={`text-sm flex-1 min-w-0 truncate ${s.status === 'taken' || s.status === 'skipped' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</span>
+                  <span className={`text-sm flex-1 min-w-0 truncate ${s.status === 'skipped' ? 'line-through' : ''}`}>{s.med.medication_name}{s.med.dosage ? ` · ${s.med.dosage}` : ''}</span>
                   {done ? (
                     <button type="button" className="text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1 flex-shrink-0" disabled={busy === s.key} onClick={() => mark(s, 'due')} aria-label="Undo">
                       <Check className="w-3.5 h-3.5" /> {s.status === 'skipped' ? 'Skipped' : firstName(s.log?.taken_by_name) || 'Done'}

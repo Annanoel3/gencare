@@ -25,7 +25,10 @@ import TaskCard from '@/components/tasks/TaskCard';
  *   2. "Still to do": reminders that keep going until they're done, and open
  *      to-dos due today, overdue or with no date (like the bottom of a day on
  *      the Calendar);
- *   3. what's over, checked off or done, faded, at the bottom (Undo still there).
+ *   3. what's over or skipped, faded, at the bottom (a skipped one crossed out,
+ *      with Undo). Done things are gone (Anna, Nov 23 2026: "Only skipped
+ *      things should be crossed off. Done things should be gone"); Done's
+ *      message has Undo.
  * A busy day shows its first few, then "See more" (closed again on the next visit).
  */
 const ALL_UP_TO = 8;
@@ -63,14 +66,15 @@ export default function TodayList({ tasks = [], members = [] }) {
         timing: eventTiming(a, now),
         done: !!checkOn(a, a.date),
       };
-      (item.done || item.timing === 'past' ? over : coming).push(item);
+      if (item.done) continue;
+      (item.timing === 'past' ? over : coming).push(item);
     }
 
     // Today's reminders: at a time, or "until it's done".
     for (const s of slotsForDay(reminders, logs, today)) {
-      const finished = s.status === 'taken' || s.status === 'skipped';
+      if (s.status === 'taken') continue;
       const item = { kind: 'slot', key: `rm-${s.key}`, s, at: minutes(s.time) };
-      if (finished) over.push(item);
+      if (s.status === 'skipped') over.push(item);
       else if (Array.isArray(s.nags)) still.push(item);
       else coming.push(item);
     }
