@@ -12,6 +12,7 @@ import ClaimProfilePrompt from '@/components/family/ClaimProfilePrompt';
 import { AnnouncementList, AnnounceDialog } from '@/components/dashboard/Announcements';
 import CareLogToday from '@/components/dashboard/CareLogToday';
 import RecordVisitsCard from '@/components/dashboard/RecordVisitsCard';
+import RecentRecordings from '@/components/notes/RecentRecordings';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -70,6 +71,8 @@ export default function Dashboard() {
           next appointment with its Record button (on phones that can record). */}
       <div data-guide="home-todo"><TodoCard tasks={tasks} members={members} /></div>
       <RecordVisitsCard appointments={appointments} members={members} />
+      {/* The newest recordings and a way to all of them (Anna, Nov 23 2026). */}
+      <RecentRecordings className="mb-6" />
 
       {/* Family members live on the Family page (Anna: "there's already a whole page for that"). */}
       <ActivityFeed members={members} />

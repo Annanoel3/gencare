@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { track } from '@/lib/activity';
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { listEvents } from "@/lib/events";
 import { expandAppointments } from "@/lib/occurrences";
@@ -17,10 +17,12 @@ import PrepPointsList from "@/components/notes/PrepPointsList";
 import ConsentNote from "@/components/notes/ConsentNote";
 import ShareNotesDialog, { sharingLabel } from "@/components/notes/ShareNotesDialog";
 import { withFamily, useFamily } from "@/lib/family";
-import { plugin, isNativeApp, isAndroidApp } from "@/lib/phone";
+import { plugin } from "@/lib/phone";
 import { askAi } from "@/lib/aiConsent";
 import { isRecordable } from "@/components/calendar/EventRow";
 import { GrowingInput } from "@/components/ui/growing-input";
+import RecordingRow from "@/components/notes/RecordingRow";
+import { clock, unhi, whenText, STATUS_TEXT, followUpsOf, withFollowUpText, topLevel } from "@/lib/recordings";
 
 // ── Record Notes: record an appointment, meeting or class; get clear notes ──
 // The same setup as ADHDone's Notes page, pointed at GenCare's calendar.
@@ -94,14 +96,6 @@ function nextMonthStart() {
   return n.toLocaleDateString(undefined, { month: "long", day: "numeric" });
 }
 
-function clock(ms) {
-  const total = Math.max(0, Math.round((Number(ms) || 0) / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${h > 0 ? `${h}:` : ""}${h > 0 ? String(m).padStart(2, "0") : m}:${String(s).padStart(2, "0")}`;
-}
-
 // ==double equals== → a highlighter mark.
 function hi(text) {
   const s = String(text || "");
@@ -118,76 +112,11 @@ function hi(text) {
   if (last < s.length) out.push(s.slice(last));
   return out;
 }
-function unhi(text) {
-  return String(text || "").replace(/==([^=]{1,80}?)==/g, "$1");
-}
-
-function whenText(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
-}
-
 function paragraphs(text) {
   const sentences = String(text || "").match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [];
   const out = [];
   for (let i = 0; i < sentences.length; i += 4) out.push(sentences.slice(i, i + 4).join("").trim());
   return out.filter(Boolean);
-}
-
-const STATUS_TEXT = {
-  recording: "Recording",
-  transcribing: "Making your notes…",
-  notes_failed: "Notes not made yet",
-  over_limit: "Stopped at this month's minutes",
-  ready: "",
-  merged: "",
-};
-
-const followUpsOf = (rows, id) => (rows || [])
-  .filter((r) => r && r.parent_record_id === id)
-  .sort((a, b) => new Date(a.started_at || 0) - new Date(b.started_at || 0));
-const withFollowUpText = (r, rows) => {
-  const more = followUpsOf(rows, r?.id);
-  if (!more.length) return r;
-  const parts = [...(r.transcript_parts || [])];
-  let offset = 100000;
-  for (const f of more) {
-    for (const p of (f.transcript_parts || [])) parts.push({ ...p, index: offset + (p.index || 0) });
-    offset += 100000;
-  }
-  return { ...r, transcript_parts: parts };
-};
-
-function searchLines(r) {
-  const n = r?.notes || {};
-  const out = [];
-  const add = (where, text) => { const s = String(text || "").trim(); if (s) out.push({ where, text: s }); };
-  add("title", r?.title || n.title);
-  add("about", r?.family_member_name);
-  (n.gist || []).forEach((g) => add("gist", g));
-  (n.todos || []).forEach((t) => add("to-do", t?.text));
-  (n.details || []).forEach((d) => add("details", typeof d === "string" ? d : [d?.label, d?.value].filter(Boolean).join(": ")));
-  (n.sections || []).forEach((s) => { add("topic", s?.heading); (s?.points || []).forEach((p) => add(s?.heading || "topic", p)); });
-  (n.decisions || []).forEach((d) => add("decided", d?.text));
-  (n.questions || []).forEach((q) => add("open question", q?.text));
-  (r?.transcript_parts || []).slice().sort((a, b) => (a?.index || 0) - (b?.index || 0)).forEach((p) => add("transcript", p?.text));
-  return out;
-}
-
-function searchMatch(r, query) {
-  const words = String(query || "").toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
-  if (words.length === 0) return { ok: true, snippet: null };
-  const lines = searchLines(r);
-  const all = lines.map((l) => l.text.toLowerCase()).join("\n");
-  if (!words.every((w) => all.includes(w))) return { ok: false, snippet: null };
-  const first = lines.find((l) => l.text.toLowerCase().includes(words[0]));
-  if (!first) return { ok: true, snippet: null };
-  const t = first.text;
-  const i = t.toLowerCase().indexOf(words[0]);
-  const from = Math.max(0, i - 50);
-  const to = Math.min(t.length, i + words[0].length + 70);
-  return { ok: true, snippet: { where: first.where, text: `${from > 0 ? "…" : ""}${t.slice(from, to)}${to < t.length ? "…" : ""}` } };
 }
 
 // Someone else started recording this visit (Appointment.recording_now),
@@ -212,6 +141,8 @@ export default function Notes() {
   const [records, setRecords] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [openId, setOpenId] = useState(null);
+  // A link with ?open=ID is finding that recording.
+  const [opening, setOpening] = useState(() => !!new URLSearchParams(location.search).get("open"));
   const [tab, setTab] = useState("notes");
   const [title, setTitle] = useState("");
   const [live, setLive] = useState(null); // { sessionId, paused, baseMs, baseAt }
@@ -221,7 +152,6 @@ export default function Notes() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [upcoming, setUpcoming] = useState([]);
   const [events, setEvents] = useState([]);
-  const [search, setSearch] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
   const [linking, setLinking] = useState(false);
   const [linkingId, setLinkingId] = useState(null);
@@ -232,7 +162,6 @@ export default function Notes() {
   const [changeText, setChangeText] = useState("");
   const [changing, setChanging] = useState(false);
   const [changeSaid, setChangeSaid] = useState("");
-  const [asked, setAsked] = useState(null);
   const [askOneText, setAskOneText] = useState("");
   const [askOne, setAskOne] = useState(null);
   const [filling, setFilling] = useState(false);
@@ -701,21 +630,6 @@ export default function Notes() {
     }
   };
 
-  const askNotes = async () => {
-    const question = search.trim();
-    if (question.length < 3 || asked?.loading) return;
-    if (!(await askAi("To answer from the notes, GenCare sends your question and the notes to OpenAI."))) return;
-    setAsked({ question, loading: true, answer: "", sources: [] });
-    try {
-      const res = await base44.functions.invoke("transcribeAudioNew", { mode: "notes_ask", question });
-      const data = res?.data || res || {};
-      if (!data.ok) throw new Error(data.error || "ask_failed");
-      setAsked({ question, loading: false, answer: data.answer || "", sources: Array.isArray(data.sources) ? data.sources : [] });
-    } catch (e) {
-      setAsked({ question, loading: false, answer: "Couldn't get an answer just now. Try again in a moment.", sources: [] });
-    }
-  };
-
   // Questions for an appointment, saved on it as they're typed in.
   const saveQuestions = (appt, next) => {
     const questions = cleanQuestions(next);
@@ -922,47 +836,38 @@ export default function Notes() {
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("open");
     if (!id || !loaded) return;
-    navigate("/notes", { replace: true });
+    navigate("/notes", { replace: true, state: location.state });
+    setOpening(true);
     (async () => {
       let rows = recordsRef.current;
       if (!rows.some((r) => r.id === id)) rows = await loadRecords();
       const found = rows.find((r) => r.id === id);
       if (found) { setOpenId(found.parent_record_id || found.id); setTab("notes"); }
       else toast({ title: "Those notes aren't shared with you", description: "Whoever recorded them may have stopped sharing them." });
+      setOpening(false);
     })();
   }, [location.search, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pagePad = "pb-28 lg:pb-8";
 
+  // Back from a recording's notes: to the Recordings page (Anna, Nov 23 2026),
+  // the way it came when it came from there.
+  const toAllRecordings = () => {
+    if (location.state?.from === "recordings") navigate(-1);
+    else navigate("/recordings");
+  };
+
   if (!supported) {
     if (open) {
       return (
         <div className={pagePad}>
-          <div className="max-w-2xl mx-auto"><NotesReadOnly open={open} onBack={() => setOpenId(null)} /></div>
+          <div className="max-w-2xl mx-auto"><NotesReadOnly open={open} onBack={toAllRecordings} /></div>
         </div>
       );
     }
-    return (
-      <div className={pagePad}>
-        <div className="max-w-2xl mx-auto space-y-4">
-          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Notes</h1>
-          <div className={card}>
-            <p className={soft}>Recording works in the GenCare app on your phone{isNativeApp() ? `. Update it from ${isAndroidApp() ? 'Google Play' : 'the App Store'} to get it` : ''}. Notes the family recorded are listed here.</p>
-          </div>
-          {loaded && records.length > 0 && (
-            <div className="space-y-2">
-              <h2 className="text-lg font-bold">Your family's recordings</h2>
-              {records.filter((r) => !r.parent_record_id).map((r) => (
-                <button key={r.id} type="button" onClick={() => setOpenId(r.id)} className={`${card} w-full text-left`}>
-                  <div className="font-semibold truncate">{r.title || r.notes?.title || "Recording"}</div>
-                  <div className={`text-sm ${soft}`}>{whenText(r.started_at)}</div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    // The family's recordings are listed on the Recordings page.
+    if (opening) return <div className={`${pagePad} flex items-center gap-2 text-muted-foreground`}><Loader2 className="w-5 h-5 animate-spin" /> Opening the notes…</div>;
+    return <Navigate to="/recordings" replace />;
   }
 
   // ── One recording's notes and transcript ──
@@ -970,7 +875,7 @@ export default function Notes() {
     const notes = open.notes || null;
     const followUps = followUpsOf(records, open.id);
     const mergedFollowUps = followUps.filter((f) => f.status === "merged");
-    const parts = withFollowUpText(open, records).transcript_parts.slice().sort((a, b) => a.index - b.index);
+    const parts = (withFollowUpText(open, records).transcript_parts || []).slice().sort((a, b) => a.index - b.index);
     const followUpStarts = new Map(followUps.map((f, i) => [100000 * (i + 1), f]));
     const canRecordMore = !!recorder() && !live && !busy && !progress && open.status === "ready" && mine(open);
     const myTodos = (notes?.todos || []).map((t, i) => ({ ...t, i })).filter((t) => (t.who || "you").toLowerCase() === "you");
@@ -985,8 +890,8 @@ export default function Notes() {
         {linkDialog}
         {shareDialog}
         <div className="max-w-2xl mx-auto space-y-4">
-          <button type="button" onClick={() => { setOpenId(null); setChangeText(""); setChangeSaid(""); }} className={`flex items-center gap-1 text-sm ${soft}`}>
-            <ChevronLeft className="w-4 h-4" /> All notes
+          <button type="button" onClick={() => { setChangeText(""); setChangeSaid(""); toAllRecordings(); }} data-guide="notes-back" className={`flex items-center gap-1 text-sm py-1 ${soft}`}>
+            <ChevronLeft className="w-4 h-4" /> All recordings
           </button>
           <div>
             <h1 className="font-heading text-2xl font-bold">{open.title || notes?.title || "Recording"}</h1>
@@ -1249,7 +1154,7 @@ export default function Notes() {
       <div className={pagePad}>
         {capDialog}
         <div className="max-w-2xl mx-auto space-y-4">
-          <button type="button" onClick={() => { setPrepAppt(null); setDraft(""); }} className={`flex items-center gap-1 text-sm ${soft}`}><ChevronLeft className="w-4 h-4" /> All notes</button>
+          <button type="button" onClick={() => { setPrepAppt(null); setDraft(""); }} className={`flex items-center gap-1 text-sm ${soft}`}><ChevronLeft className="w-4 h-4" /> Back</button>
           <div>
             <h1 className="font-heading text-2xl font-bold">{prepAppt.family_member_name ? `${prepAppt.family_member_name}: ` : ""}{prepAppt.title}</h1>
             {s !== null && <p className={`text-sm ${soft}`}>{whenText(new Date(s).toISOString())} · Not recorded yet</p>}
@@ -1300,6 +1205,19 @@ export default function Notes() {
           <ConsentNote />
         </div>
 
+        {/* Right under Record, so they're easy to find (Anna, Nov 23 2026). */}
+        {loaded && topLevel(records).length > 0 && (
+          <div className="space-y-2" data-guide="notes-recent">
+            <h2 className="text-lg font-bold">Your family's recordings</h2>
+            {topLevel(records).slice(0, 3).map((r) => (
+              <RecordingRow key={r.id} r={r} me={me} accounts={accounts} events={events} compact onOpen={(x) => { setOpenId(x.id); setTab("notes"); setChangeText(""); setChangeSaid(""); setAskOne(null); setAskOneText(""); }} />
+            ))}
+            <Link to="/recordings" data-guide="notes-all" className="flex items-center justify-center gap-2 w-full h-12 rounded-2xl border border-border bg-card text-base font-semibold text-primary hover:bg-muted">
+              See all {topLevel(records).length} recordings <ChevronRight className="w-5 h-5" />
+            </Link>
+          </div>
+        )}
+
         {upcomingCards.length > 0 && (
           <div className="space-y-2">
             <h2 className="text-lg font-bold">Coming up</h2>
@@ -1325,62 +1243,6 @@ export default function Notes() {
           </div>
         )}
 
-        {loaded && records.length > 0 && (
-          <div className="space-y-2">
-            <h2 className="text-lg font-bold">Your family's recordings</h2>
-            <div className="flex gap-2">
-              <GrowingInput value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); askNotes(); } }} placeholder="Search or ask the notes" className="min-h-11 py-2.5 rounded-xl border-border bg-background text-[0.9375rem] shadow-none" />
-              {search.trim().length >= 3 && (
-                <Button onClick={askNotes} disabled={!!asked?.loading} className="shrink-0 h-auto rounded-xl">{asked?.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ask"}</Button>
-              )}
-            </div>
-            {asked && asked.question === search.trim() && (
-              <div className={`${card} space-y-2`}>
-                {asked.loading ? (
-                  <div className={`flex items-center gap-2 ${soft}`}><Loader2 className="w-4 h-4 animate-spin" />Looking through the recordings…</div>
-                ) : (
-                  <>
-                    <p className="whitespace-pre-wrap">{asked.answer}</p>
-                    {asked.sources.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {asked.sources.map((src) => (
-                          <button key={src.id} type="button" onClick={() => { setOpenId(src.id); setTab("notes"); setChangeText(""); setChangeSaid(""); setAskOne(null); setAskOneText(""); }} className="text-sm font-semibold text-primary">
-                            From: {src.title} · {whenText(src.started_at)} ›
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-            {(() => {
-              const hits = records.filter((r) => !r.parent_record_id).map((r) => ({ r, m: searchMatch(withFollowUpText(r, records), search) })).filter((h) => h.m.ok);
-              if (search.trim().length >= 2 && hits.length === 0) {
-                if (asked && asked.question === search.trim()) return null;
-                return <p className={`text-sm ${soft}`}>Nothing in the notes or transcripts has "{search.trim()}". Tap Ask to ask it as a question.</p>;
-              }
-              return hits.map(({ r, m }) => {
-                const ev = r.appointment_id ? events.find((a) => a.id === r.appointment_id) : null;
-                const evLabel = ev && ev.title !== (r.title || r.notes?.title) ? ` · ${ev.title}` : "";
-                return (
-                  <button key={r.id} type="button" onClick={() => { setOpenId(r.id); setTab("notes"); setChangeText(""); setChangeSaid(""); setAskOne(null); setAskOneText(""); }} className={`${card} w-full text-left flex items-center gap-3`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold truncate">{r.family_member_name ? `${r.family_member_name}: ` : ""}{r.title || r.notes?.title || "Recording"}</div>
-                      <div className={`text-sm ${soft}`}>
-                        {whenText(r.started_at)}{r.duration_ms ? ` · ${clock(r.duration_ms)}` : ""}{evLabel}
-                        {STATUS_TEXT[r.status] ? ` · ${progress?.recordId === r.id ? "Working on it…" : STATUS_TEXT[r.status]}` : ""}
-                        {mine(r) && sharingLabel(r, accounts) === "Only me" ? " · only me" : ""}
-                      </div>
-                      {m.snippet && <div className={`text-xs mt-1 ${soft}`}><span className="font-semibold">{m.snippet.where}:</span> {m.snippet.text}</div>}
-                    </div>
-                    <span className={`text-sm flex items-center shrink-0 ${soft}`}>Details<ChevronRight className="w-4 h-4" /></span>
-                  </button>
-                );
-              });
-            })()}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1392,7 +1254,7 @@ function NotesReadOnly({ open, onBack }) {
   const card = "rounded-2xl border border-border/50 bg-card p-4";
   return (
     <div className="space-y-4">
-      <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground"><ChevronLeft className="w-4 h-4" /> All notes</button>
+      <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm py-1 text-muted-foreground"><ChevronLeft className="w-4 h-4" /> All recordings</button>
       <h2 className="font-heading text-2xl font-bold">{open.title || notes?.title || "Recording"}</h2>
       {!notes && <p className="text-muted-foreground">These notes haven't been made yet.</p>}
       {notes?.gist?.length > 0 && <div className={card}><h3 className="text-lg font-bold mb-2">The gist</h3><ul className="space-y-1.5">{notes.gist.map((g, i) => <li key={i}>• {hi(g)}</li>)}</ul></div>}

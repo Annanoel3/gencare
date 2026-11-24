@@ -30,6 +30,7 @@ import Settings from '@/pages/Settings';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import AccountManagement from '@/pages/AccountManagement';
 import Notes from '@/pages/Notes';
+import Recordings from '@/pages/Recordings';
 import Subscribe from '@/pages/Subscribe';
 import FamilySettings from '@/pages/FamilySettings';
 import Terms from '@/pages/Terms';
@@ -100,6 +101,7 @@ const AuthenticatedApp = () => {
           <Route path="/help" element={<Help />} />
           <Route path="/help/ask" element={<HelpChat />} />
           <Route path="/notes" element={<Notes />} />
+          <Route path="/recordings" element={<Recordings />} />
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/family-settings" element={<FamilySettings />} />
           <Route path="/settings" element={<Settings />} />

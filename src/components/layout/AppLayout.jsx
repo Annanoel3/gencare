@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CalendarDays,
   BellRing, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, LifeBuoy, HeartHandshake, CircleHelp,
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, FileAudio, LifeBuoy, HeartHandshake, CircleHelp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -43,8 +43,11 @@ function buildNavStructure(members, canRecord, unread = 0) {
       { path: '/tasks', icon: BellRing, label: 'Reminders' },
       // Back Nov 10 2026, for the people the family takes care of.
       { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
-      { path: '/notes', icon: Mic, label: canRecord ? 'Record Notes' : 'Notes' },
-    ]},
+      // Recording is in the app on a phone; the website lists what the family recorded.
+      canRecord && { path: '/notes', icon: Mic, label: 'Record Notes' },
+      // Every recording in one place (Anna, Nov 23 2026: "waaay easier to find").
+      { path: '/recordings', icon: FileAudio, label: 'Recordings' },
+    ].filter(Boolean)},
     // Wellness and Care Log hidden Oct 30 2026 (Anna: not worth using yet);
     // their pages are kept in the code. Legal & financial moved to each
     // person's profile (Info).

@@ -31,7 +31,7 @@ function stepsFor(canRecord) {
     { scene: CalendarScene, title: 'The family calendar', body: <>Tap <b>Calendar</b> at the bottom. Tap a day to see everything on it. Tap someone's name to see only their events.</> },
     { scene: ReminderScene, title: 'Reminders', body: <>Reminders are to-do items like "Call the pharmacy." Tap <b>Reminders</b> at the bottom, type it in the box and tap <b>+</b>. Under <b>For</b>, tap who it's for.</> },
     { add: true, title: 'Adding something' },
-    canRecord && { icon: Mic, title: 'Appointments and meetings', body: <>Going to an appointment or a meeting? Tap the red <b>Record</b> button. GenCare writes up notes for the family, so nobody has to remember it all.<br /><br />It's on <b>Home</b> next to the next appointment. You can also open the menu and tap <b>Record Notes</b>.</> },
+    canRecord && { icon: Mic, title: 'Appointments and meetings', body: <>Going to an appointment or a meeting? Tap the red <b>Record</b> button. GenCare writes up notes for the family, so nobody has to remember it all.<br /><br />It's on <b>Home</b> next to the next appointment. You can also open the menu and tap <b>Record Notes</b>. To find a recording later, tap <b>Recordings</b> in the menu.</> },
     { scene: HelpScene, title: 'If you get stuck', body: <>Tap the menu at the top right, then <b>Help</b>. Help can show you how to do things right on the screen, and answer your questions.<br /><br />Words too small? In the menu, tap <b>Settings</b>, then turn on <b>Big text mode</b>.</> },
   ].filter(Boolean);
 }

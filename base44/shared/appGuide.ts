@@ -13,6 +13,7 @@ export const GUIDE_IDS: Record<string, string> = {
   day: "See what's on a day",
   person: "See one person's events",
   record: 'Record an appointment or meeting',
+  recordings: 'Find a recording',
   invite: 'Invite someone to the family',
   bigger: 'Make the words bigger',
   photo: 'Add events from a photo',
@@ -27,7 +28,7 @@ What GenCare is
 
 Getting around
 - The bar at the bottom of the screen has five buttons: Home, Reminders, Calendar, Feed, Family.
-- The menu button is at the top right (three lines). The menu has: Home; Family (Feed, Calendar, Family Members); Tools (Reminders, Care Log, Record Notes); Resources; Help; Settings; and Sign Out at the bottom. On the website, Record Notes is called Notes.
+- The menu button is at the top right (three lines). The menu has: Home; Family (Feed, Calendar, Family Members); Tools (Reminders, Care Log, Record Notes, Recordings); Resources; Help; Settings; and Sign Out at the bottom. On the website there's no Record Notes (recording works in the app on a phone), but Recordings is there.
 - Tapping the GenCare name at the top left goes to Home.
 - The round green + in the bottom right corner is on every page. Tapping it shows: Event, Events from a photo, Reminder, Announcement, Log care.
 
@@ -36,6 +37,7 @@ Home
 - "Today Across the Family": announcements first, then what's going on for the family today, and what was logged today. The Announce button there sends an announcement.
 - "To-do": today's reminders and to-dos, each with a Done button. It has a link to the Reminders page.
 - "Next appointment": on phones that can record, an upcoming appointment in the next two weeks, with a red Record button.
+- "Recordings": once the family has recordings, the two newest, and "See all recordings".
 - "Who did what": what people in the family did lately.
 
 Calendar
@@ -101,9 +103,17 @@ Record Notes (appointments and meetings)
 - Ask everyone there before you record. In 12 states everyone has to agree before you record them; "Which states?" on that page shows the list.
 - On Home, the red Record button next to "Next appointment" starts a recording for that appointment.
 - "Coming up" lists upcoming appointments. Open one to add "Things to bring up": questions you don't want to forget, which stay on screen while you record.
-- The box "Search or ask the notes" searches your family's recordings. Tap Ask to ask it a question.
+- "Your family's recordings" shows the three newest. "See all recordings" opens the Recordings page.
 - How many recording minutes a family gets each month depends on its plan; the page shows what's left.
 - Recording works in the GenCare app on your phone, not on the website.
+
+Recordings
+- Every recording the family shared, newest first, by month. In the menu, tap Recordings. It's also on Home ("See all recordings"), on the Record Notes page, and on a person's profile (Overview: "Recordings about" them).
+- Each one shows what it was, who it was about, the day and time, how long it was, who recorded it (when it was someone else), and the first line of its notes. Tap one to read its notes. To go back, tap All recordings at the top.
+- The box "Search or ask the recordings" finds the recordings with those words in their notes or what was said. Tap Ask to ask it a question, like "What did the doctor say about her knee?", and GenCare answers from the notes.
+- The names under the box (Everyone, then each person) show only the recordings about that person.
+- On a phone that can record, "Record something new" opens Record Notes.
+- Only the recordings shared with you are there. Whoever recorded something picks who sees it.
 
 Resources
 - In the menu, tap Resources: free and low-cost help for families caring for each other. Tap a number to call.
@@ -127,4 +137,4 @@ The plan
 - Settings, then My Family, then Plan shows the family's plan. "See the plan" (or "Manage plan") opens it. This guide doesn't have prices; the plan page shows them.
 
 AI features
-- Some features use OpenAI, an AI company, to do their work: Record Notes (recordings and questions about notes), Events from a photo, the calendar's sorting of who an event is for and who sees it, Help near you on Resources (the ZIP code), and this Help chat (the questions). GenCare asks before any of them send anything, and the AI features switch in Settings changes it.`;
+- Some features use OpenAI, an AI company, to do their work: Record Notes and Recordings (recordings and questions about notes), Events from a photo, the calendar's sorting of who an event is for and who sees it, Help near you on Resources (the ZIP code), and this Help chat (the questions). GenCare asks before any of them send anything, and the AI features switch in Settings changes it.`;

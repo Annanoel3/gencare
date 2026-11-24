@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CareFeed from '@/components/dashboard/CareFeed';
+import RecentRecordings from '@/components/notes/RecentRecordings';
 import VaultSection from '@/components/carelog/VaultSection';
 import PhoneActions from '@/components/shared/PhoneActions';
 import MemberColorPicker from '@/components/family/MemberColorPicker';
@@ -223,6 +224,7 @@ export default function FamilyMemberDetail() {
         </TabsList>
 
         <TabsContent value="overview">
+          <RecentRecordings memberId={id} memberName={member.name} className="mb-4" />
           <Card className="border-border/50">
             <CardHeader>
               <CardTitle className="font-heading flex items-center gap-2"><LayoutDashboard className="w-5 h-5 text-primary" /> {member.name}'s Care Dashboard</CardTitle>
