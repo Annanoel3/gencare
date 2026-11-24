@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { track } from '@/lib/activity';
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { listEvents } from "@/lib/events";
 import { expandAppointments } from "@/lib/occurrences";
@@ -10,18 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import {
-  Mic, Pause, Play, Square, ChevronLeft, ChevronRight, Trash2, Plus, Check, Loader2, RotateCcw, FileDown, Lock, Users,
+  Mic, FileCheck2, Pause, Play, Square, ChevronLeft, ChevronRight, Trash2, Plus, Check, Loader2, RotateCcw, FileDown, Lock, Users,
 } from "lucide-react";
 import { downloadNotesPdf } from "@/components/notes/notesPdf";
 import PrepPointsList from "@/components/notes/PrepPointsList";
 import ConsentNote from "@/components/notes/ConsentNote";
 import ShareNotesDialog, { sharingLabel } from "@/components/notes/ShareNotesDialog";
 import { withFamily, useFamily } from "@/lib/family";
-import { plugin } from "@/lib/phone";
+import { plugin, isNativeApp, isAndroidApp } from "@/lib/phone";
 import { askAi } from "@/lib/aiConsent";
 import { isRecordable } from "@/components/calendar/EventRow";
 import { GrowingInput } from "@/components/ui/growing-input";
-import RecordingRow from "@/components/notes/RecordingRow";
+import RecordingsList from "@/components/notes/RecordingsList";
+import { ToRecordMark } from "@/components/notes/RecordingRow";
 import { clock, unhi, whenText, STATUS_TEXT, followUpsOf, withFollowUpText, topLevel } from "@/lib/recordings";
 
 // ── Record Notes: record an appointment, meeting or class; get clear notes ──
@@ -141,6 +142,7 @@ export default function Notes() {
   const [records, setRecords] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [openId, setOpenId] = useState(null);
+  const [moreComing, setMoreComing] = useState(false);
   // A link with ?open=ID is finding that recording.
   const [opening, setOpening] = useState(() => !!new URLSearchParams(location.search).get("open"));
   const [tab, setTab] = useState("notes");
@@ -172,7 +174,7 @@ export default function Notes() {
 
   const loadRecords = useCallback(async () => {
     try {
-      const rows = await base44.entities.NoteRecording.filter({}, "-started_at", 100);
+      const rows = await base44.entities.NoteRecording.filter({}, "-started_at", 200);
       recordsRef.current = rows || [];
       setRecords(rows || []);
       return rows || [];
@@ -270,7 +272,7 @@ export default function Notes() {
       track("error", "record notes: notes not made", String(e?.message || e).slice(0, 200));
       toast({
         title: "Your notes aren't finished yet",
-        description: "Nothing's lost. They'll pick up where they left off the next time you open Record Notes.",
+        description: "Nothing's lost. They'll pick up where they left off the next time you open Recordings.",
       });
       await loadRecords();
     } finally {
@@ -836,7 +838,7 @@ export default function Notes() {
   useEffect(() => {
     const id = new URLSearchParams(location.search).get("open");
     if (!id || !loaded) return;
-    navigate("/notes", { replace: true, state: location.state });
+    navigate(location.pathname, { replace: true });
     setOpening(true);
     (async () => {
       let rows = recordsRef.current;
@@ -850,12 +852,44 @@ export default function Notes() {
 
   const pagePad = "pb-28 lg:pb-8";
 
-  // Back from a recording's notes: to the Recordings page (Anna, Nov 23 2026),
-  // the way it came when it came from there.
-  const toAllRecordings = () => {
-    if (location.state?.from === "recordings") navigate(-1);
-    else navigate("/recordings");
+  // Open one recording's notes (from the list, Home, a push, the Feed).
+  const openOne = (id) => {
+    setOpenId(id); setTab("notes"); setChangeText(""); setChangeSaid(""); setAskOne(null); setAskOneText("");
+    window.scrollTo(0, 0);
   };
+  // Back from a recording's notes: "Already recorded", where the list is.
+  const toRecorded = useRef(false);
+  const toAllRecordings = () => { toRecorded.current = true; setOpenId(null); };
+  useEffect(() => {
+    if (openId || !toRecorded.current) return;
+    toRecorded.current = false;
+    requestAnimationFrame(() => document.getElementById("recorded")?.scrollIntoView({ block: "start" }));
+  }, [openId]);
+  // Home's "See all recordings" (?show=recorded) lands on "Already recorded".
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    if (p.get("show") !== "recorded" || !loaded) return;
+    p.delete("show");
+    navigate(`${location.pathname}${p.toString() ? `?${p}` : ""}`, { replace: true });
+    setTimeout(() => document.getElementById("recorded")?.scrollIntoView({ block: "start" }), 50);
+  }, [location.search, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The two halves of the page, told apart at a glance (Anna, Nov 23 2026:
+  // "making the difference between something to be recorded vs something
+  // already recorded really apparent"): red with a microphone to record,
+  // green with a notes mark for what's recorded.
+  const recordedSection = (
+    <section id="recorded" className="space-y-3 scroll-mt-20" data-guide="recorded">
+      <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-4 py-3">
+        <FileCheck2 className="w-6 h-6 text-emerald-700 dark:text-emerald-300 shrink-0" />
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Already recorded{loaded && topLevel(records).length ? ` (${topLevel(records).length})` : ""}</h2>
+          <p className="text-sm text-emerald-900/80 dark:text-emerald-100/80">Notes the family can read. Tap one to open it.</p>
+        </div>
+      </div>
+      <RecordingsList rows={records} loaded={loaded} onOpen={(x) => openOne(x.parent_record_id || x.id)} canRecord={supported} />
+    </section>
+  );
 
   if (!supported) {
     if (open) {
@@ -865,9 +899,21 @@ export default function Notes() {
         </div>
       );
     }
-    // The family's recordings are listed on the Recordings page.
     if (opening) return <div className={`${pagePad} flex items-center gap-2 text-muted-foreground`}><Loader2 className="w-5 h-5 animate-spin" /> Opening the notes…</div>;
-    return <Navigate to="/recordings" replace />;
+    // No recorder here (the website, or an app from before it): what the family recorded.
+    return (
+      <div className={pagePad}>
+        <div className="max-w-2xl mx-auto space-y-5">
+          <div>
+            <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Recordings</h1>
+            <p className={soft}>
+              {isNativeApp() ? `To record, update GenCare from ${isAndroidApp() ? "Google Play" : "the App Store"}.` : "Recording works in the GenCare app on your phone."}
+            </p>
+          </div>
+          {recordedSection}
+        </div>
+      </div>
+    );
   }
 
   // ── One recording's notes and transcript ──
@@ -1192,49 +1238,53 @@ export default function Notes() {
       {shareDialog}
       <div className="max-w-2xl mx-auto space-y-5">
         <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Record Notes</h1>
-          <p className={soft}>Record an appointment, meeting or class. GenCare writes short, clear notes the whole family can read: to-dos first, then the details you'll need.</p>
+          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><Mic className="w-7 h-7 text-primary" /> Recordings</h1>
+          <p className={soft}>Record an appointment, meeting or class, and GenCare writes short, clear notes the whole family can read. What's already recorded is further down.</p>
         </div>
 
-        <div className={`${card} space-y-3`} data-guide="notes-start">
-          <GrowingInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What is it? (optional)" className="min-h-11 py-2.5 rounded-xl border-border bg-background text-[0.9375rem] shadow-none" />
-          <Button onClick={() => startRecording()} disabled={busy || !!progress} data-guide="notes-record" className="w-full h-14 rounded-2xl text-base bg-red-600 hover:bg-red-700 text-white">
-            {busy ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Mic className="w-5 h-5 mr-2" />} Record
-          </Button>
-          <p className={`text-xs ${soft}`}>{usageLine(usage)}</p>
-          <ConsentNote />
-        </div>
-
-        {/* Right under Record, so they're easy to find (Anna, Nov 23 2026). */}
-        {loaded && topLevel(records).length > 0 && (
-          <div className="space-y-2" data-guide="notes-recent">
-            <h2 className="text-lg font-bold">Your family's recordings</h2>
-            {topLevel(records).slice(0, 3).map((r) => (
-              <RecordingRow key={r.id} r={r} me={me} accounts={accounts} events={events} compact onOpen={(x) => { setOpenId(x.id); setTab("notes"); setChangeText(""); setChangeSaid(""); setAskOne(null); setAskOneText(""); }} />
-            ))}
-            <Link to="/recordings" data-guide="notes-all" className="flex items-center justify-center gap-2 w-full h-12 rounded-2xl border border-border bg-card text-base font-semibold text-primary hover:bg-muted">
-              See all {topLevel(records).length} recordings <ChevronRight className="w-5 h-5" />
-            </Link>
+        <section className="space-y-3" data-guide="to-record">
+          <div className="flex items-center gap-3 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 px-4 py-3">
+            <Mic className="w-6 h-6 text-red-600 dark:text-red-300 shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-red-900 dark:text-red-100">To record</h2>
+              <p className="text-sm text-red-900/80 dark:text-red-100/80">Start one now, or get ready for one coming up.</p>
+            </div>
           </div>
-        )}
+          <div className={`${card} space-y-3`} data-guide="notes-start">
+            <GrowingInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What is it? (optional)" className="min-h-11 py-2.5 rounded-xl border-border bg-background text-[0.9375rem] shadow-none" />
+            <Button onClick={() => startRecording()} disabled={busy || !!progress} data-guide="notes-record" className="w-full h-14 rounded-2xl text-base bg-red-600 hover:bg-red-700 text-white">
+              {busy ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Mic className="w-5 h-5 mr-2" />} Record
+            </Button>
+            <p className={`text-xs ${soft}`}>{usageLine(usage)}</p>
+            <ConsentNote />
+          </div>
 
-        {upcomingCards.length > 0 && (
-          <div className="space-y-2">
-            <h2 className="text-lg font-bold">Coming up</h2>
-            {upcomingCards.map((a) => {
-              const n = cleanQuestions(a.prep_questions).length;
-              return (
-                <button key={a.visit_key || a.id} type="button" onClick={() => setPrepAppt(a)} className="w-full min-w-0 text-left rounded-2xl border-2 border-dashed border-border bg-card/60 p-4 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{a.family_member_name ? `${a.family_member_name}: ` : ""}{a.title}</div>
-                    <div className={`text-sm ${soft}`}>{whenText(new Date(startOf(a)).toISOString())} · Not recorded yet{n ? ` · ${n} thing${n === 1 ? "" : "s"} to bring up` : ""}</div>
-                  </div>
-                  <span className={`text-sm flex items-center shrink-0 ${soft}`}>Details<ChevronRight className="w-4 h-4" /></span>
+          {upcomingCards.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-red-700 dark:text-red-300 pt-1">Coming up · not recorded yet</h3>
+              {(moreComing ? upcomingCards : upcomingCards.slice(0, 3)).map((a) => {
+                const n = cleanQuestions(a.prep_questions).length;
+                return (
+                  <button key={a.visit_key || a.id} type="button" onClick={() => setPrepAppt(a)} className="w-full min-w-0 text-left rounded-2xl border-2 border-dashed border-red-200 dark:border-red-500/30 bg-card p-4 flex items-center gap-3">
+                    <ToRecordMark />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold title-fit">{a.family_member_name ? `${a.family_member_name}: ` : ""}{a.title}</div>
+                      <div className={`text-sm ${soft}`}>{whenText(new Date(startOf(a)).toISOString())}{n ? ` · ${n} thing${n === 1 ? "" : "s"} to bring up` : ""}</div>
+                      <div className="text-sm font-semibold text-red-700 dark:text-red-300">Not recorded yet</div>
+                    </div>
+                    <span className={`text-sm flex items-center shrink-0 ${soft}`}>Details<ChevronRight className="w-4 h-4" /></span>
+                  </button>
+                );
+              })}
+              {/* Three, so "Already recorded" isn't pushed far down by a weekly visit. */}
+              {!moreComing && upcomingCards.length > 3 && (
+                <button type="button" onClick={() => setMoreComing(true)} className="w-full h-11 rounded-xl text-base font-semibold text-primary hover:bg-muted">
+                  Show {upcomingCards.length - 3} more coming up
                 </button>
-              );
-            })}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </section>
 
         {progress && !open && (
           <div className={`${card} flex items-center gap-2`}>
@@ -1242,6 +1292,8 @@ export default function Notes() {
             <span className={soft}>{progress.step === "notes" ? "Writing your notes…" : `Turning your recording into text: ${progress.done} of ${progress.total}`}</span>
           </div>
         )}
+
+        {recordedSection}
 
       </div>
     </div>

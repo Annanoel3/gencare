@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, CalendarDays,
   BellRing, MessageCircle, Menu, X,
-  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, FileAudio, LifeBuoy, HeartHandshake, CircleHelp,
+  Heart, LogOut, Settings as SettingsIcon, ChevronDown, Wrench, Mic, LifeBuoy, HeartHandshake, CircleHelp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -43,11 +43,10 @@ function buildNavStructure(members, canRecord, unread = 0) {
       { path: '/tasks', icon: BellRing, label: 'Reminders' },
       // Back Nov 10 2026, for the people the family takes care of.
       { path: '/care-log', icon: HeartHandshake, label: 'Care Log' },
-      // Recording is in the app on a phone; the website lists what the family recorded.
-      canRecord && { path: '/notes', icon: Mic, label: 'Record Notes' },
-      // Every recording in one place (Anna, Nov 23 2026: "waaay easier to find").
-      { path: '/recordings', icon: FileAudio, label: 'Recordings' },
-    ].filter(Boolean)},
+      // Recording and what's recorded, in one place (Anna, Nov 23 2026: one
+      // item, not Record Notes and Recordings). The page is /notes too.
+      { path: '/recordings', icon: Mic, label: 'Recordings' },
+    ]},
     // Wellness and Care Log hidden Oct 30 2026 (Anna: not worth using yet);
     // their pages are kept in the code. Legal & financial moved to each
     // person's profile (Info).
@@ -111,7 +110,8 @@ function NavList({ items, expandedGroups, toggleGroup, onNavigate }) {
         {isExpanded && (
           <div className="ml-4 mt-1 mb-1 space-y-0.5 border-l border-border pl-2">
             {item.children.map(child => {
-              const isActive = location.pathname === child.path || location.pathname.startsWith(child.path + '/');
+              const isActive = location.pathname === child.path || location.pathname.startsWith(child.path + '/')
+                || (child.path === '/recordings' && location.pathname === '/notes');
               return (
                 <Link
                   key={child.path}

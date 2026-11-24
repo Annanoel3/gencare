@@ -1,23 +1,28 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { FileAudio, Mic, Loader2, Search } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { GrowingInput } from '@/components/ui/growing-input';
 import RecordingRow from '@/components/notes/RecordingRow';
-import { usePluginPresent } from '@/components/shared/usePluginPresent';
 import { useFamily } from '@/lib/family';
 import { askAi } from '@/lib/aiConsent';
 import { track } from '@/lib/activity';
-import { isNativeApp, isAndroidApp } from '@/lib/phone';
-import { listRecordings, RECORDINGS_KEY, topLevel, withFollowUpText, searchMatch, whenText } from '@/lib/recordings';
+import { topLevel, withFollowUpText, searchMatch, whenText } from '@/lib/recordings';
 
-// Every recording the family made, in one place (Anna, Nov 23 2026: "it needs
-// to be waaay easier to find recordings. Make a whole recordings page"). In
-// the menu (Recordings), on Home, and on each person's profile
-// (?for=<FamilyMember id> picks that person). A recording opens on Record
-// Notes (?open=ID), whose back button comes back here.
+// "Already recorded" on the Recordings page (Notes): every recording the
+// family shared, newest first by month, with search, Ask, and a button per
+// person (?for=<FamilyMember id> picks one). Anna, Nov 23 2026: "it needs to
+// be waaay easier to find recordings", then one page for recording and
+// reading, with what's still to record and what's already recorded told apart.
+//   rows     the family's recordings (follow-ups too, for their words)
+//   loaded   whether rows has come back yet
+//   onOpen   open one's notes
+// The search and the person picked last until the app closes, so coming back
+// from a recording's notes finds the list as it was.
+
+const kept = { search: '', asked: null };
 
 const firstName = (n) => String(n || '').trim().split(/\s+/)[0] || '';
 const monthOf = (iso) => {
@@ -25,16 +30,18 @@ const monthOf = (iso) => {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 };
 
-export default function Recordings() {
-  const navigate = useNavigate();
+export default function RecordingsList({ rows = [], loaded = true, failed = false, onRetry, onOpen, canRecord = false }) {
   const [params, setParams] = useSearchParams();
   const { me, members: accounts = [] } = useFamily();
-  const canRecord = usePluginPresent('RecorderBridge');
-  const [search, setSearch] = useState('');
-  const [asked, setAsked] = useState(null);
+  const [search, setSearchNow] = useState(kept.search);
+  const [asked, setAskedNow] = useState(kept.asked);
+  const setSearch = (v) => { kept.search = v; setSearchNow(v); };
+  const setAsked = (v) => { kept.asked = v; setAskedNow(v); };
   const who = params.get('for') || '';
+  const isLoading = !loaded;
+  const isError = failed;
+  const refetch = () => onRetry?.();
 
-  const { data: rows = [], isLoading, isError, refetch } = useQuery({ queryKey: RECORDINGS_KEY, queryFn: listRecordings });
   const { data: people = [] } = useQuery({ queryKey: ['familyMembers'], queryFn: () => base44.entities.FamilyMember.list('-created_date') });
 
   const all = useMemo(() => topLevel(rows), [rows]);
@@ -73,7 +80,7 @@ export default function Recordings() {
     return out;
   }, [shown]);
 
-  const open = (r) => { track('action', 'recordings: opened', ''); navigate(`/notes?open=${r.id}`, { state: { from: 'recordings' } }); };
+  const open = (r) => { track('action', 'recordings: opened', ''); onOpen?.(r); };
 
   const ask = async () => {
     if (q.length < 3 || asked?.loading) return;
@@ -94,23 +101,7 @@ export default function Recordings() {
   const chip = (active) => `shrink-0 h-10 px-4 rounded-full border text-sm font-medium ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border hover:bg-muted'}`;
 
   return (
-    <div className="pb-28 lg:pb-8">
-      <div className="max-w-2xl mx-auto space-y-4">
-        <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-bold flex items-center gap-3"><FileAudio className="w-7 h-7 text-primary" /> Recordings</h1>
-          <p className="text-muted-foreground">The notes from every appointment, meeting and class the family recorded. Tap one to read it.</p>
-        </div>
-
-        {canRecord ? (
-          <Link to="/notes" data-guide="recordings-record" className="flex items-center justify-center gap-2 w-full h-14 rounded-2xl text-base font-semibold bg-red-600 hover:bg-red-700 text-white">
-            <Mic className="w-5 h-5" /> Record something new
-          </Link>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {isNativeApp() ? `To record, update GenCare from ${isAndroidApp() ? 'Google Play' : 'the App Store'}.` : 'Recording works in the GenCare app on your phone.'}
-          </p>
-        )}
-
+    <>
         {all.length > 0 && (
           <div className="space-y-3" data-guide="recordings-search">
             <div className="flex gap-2">
@@ -164,10 +155,10 @@ export default function Recordings() {
           </div>
         ) : all.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-border bg-card/60 p-5 space-y-2">
-            <p className="font-semibold">No recordings yet</p>
+            <p className="font-semibold">Nothing recorded yet</p>
             <p className="text-muted-foreground">
               {canRecord
-                ? <>At an appointment or a meeting, tap <b>Record something new</b>. When it's over, tap <b>Stop</b>, and the notes show up here.</>
+                ? <>At an appointment or a meeting, tap <b>Record</b> above. When it's over, tap <b>Stop</b>, and the notes show up here.</>
                 : <>When someone in the family records an appointment or a meeting in the GenCare app on their phone and shares it, the notes show up here.</>}
             </p>
           </div>
@@ -187,7 +178,6 @@ export default function Recordings() {
             ))}
           </div>
         )}
-      </div>
-    </div>
+    </>
   );
 }

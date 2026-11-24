@@ -1,10 +1,13 @@
 import React from 'react';
-import { ChevronRight, Lock } from 'lucide-react';
+import { ChevronRight, Lock, FileCheck2, Hourglass, Mic as MicIcon } from 'lucide-react';
 import { sharingLabel } from '@/components/notes/ShareNotesDialog';
 import { clock, whenText, STATUS_TEXT, titleOf, firstLine } from '@/lib/recordings';
 
 // One recording in a list (the Recordings page, Home, a person's profile).
-// Tapping it opens its notes on Record Notes (?open=ID).
+// Tapping it opens its notes (?open=ID). Already recorded, so it looks it
+// (Anna, Nov 23 2026: "making the difference between something to be recorded
+// vs something already recorded really apparent"): a green notes mark, where
+// what's still to record has a red microphone (ToRecordMark).
 //   snippet  where a search found the words, shown instead of the first line
 //   compact  one line of details, for Home and profiles
 
@@ -27,6 +30,7 @@ export default function RecordingRow({ r, me, accounts = [], events = [], snippe
       data-guide="recording-row"
       className={`w-full min-w-0 text-left rounded-2xl border border-border/50 bg-card ${compact ? 'p-3' : 'p-4'} flex items-center gap-3 hover:bg-muted/50`}
     >
+      <RecordedMark working={r.status === 'transcribing' || r.status === 'recording'} />
       <div className="flex-1 min-w-0">
         <div className="font-semibold title-fit">{r.family_member_name ? `${firstName(r.family_member_name)}: ` : ''}{titleOf(r)}</div>
         <div className="text-sm text-muted-foreground">
@@ -42,4 +46,18 @@ export default function RecordingRow({ r, me, accounts = [], events = [], snippe
       <ChevronRight className="w-5 h-5 shrink-0 text-muted-foreground" />
     </button>
   );
+}
+
+/** Already recorded: notes ready (green), or still being made (amber). */
+export function RecordedMark({ working = false }) {
+  return working ? (
+    <span className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 flex items-center justify-center shrink-0" aria-hidden="true"><Hourglass className="w-5 h-5" /></span>
+  ) : (
+    <span className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 flex items-center justify-center shrink-0" aria-hidden="true"><FileCheck2 className="w-5 h-5" /></span>
+  );
+}
+
+/** Still to record: a red microphone. */
+export function ToRecordMark() {
+  return <span className="w-10 h-10 rounded-full bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300 flex items-center justify-center shrink-0" aria-hidden="true"><MicIcon /></span>;
 }

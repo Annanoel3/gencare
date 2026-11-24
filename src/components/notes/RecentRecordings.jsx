@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { FileAudio, ChevronRight } from 'lucide-react';
+import { FileCheck2, ChevronRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import RecordingRow from '@/components/notes/RecordingRow';
 import { useFamily } from '@/lib/family';
@@ -22,12 +22,12 @@ export default function RecentRecordings({ memberId = '', memberName = '', class
   const latest = topLevel(rows).slice(0, 2);
   if (!latest.length) return null;
   const first = String(memberName || '').trim().split(/\s+/)[0];
-  const all = memberId ? `/recordings?for=${memberId}` : '/recordings';
+  const all = memberId ? `/recordings?for=${memberId}&show=recorded` : '/recordings?show=recorded';
 
   return (
-    <div className={`bg-card rounded-2xl border border-border/50 p-4 md:px-6 ${className}`} data-guide="home-recordings">
+    <div className={`bg-card rounded-2xl border border-border/50 p-4 md:px-6 ${className}`} data-guide="profile-recordings">
       <div className="flex items-center gap-2 mb-2">
-        <FileAudio className="w-5 h-5 text-primary flex-shrink-0" />
+        <FileCheck2 className="w-5 h-5 text-emerald-700 dark:text-emerald-300 flex-shrink-0" />
         <h2 className="font-heading text-lg font-semibold min-w-0 flex-1">{first ? `Recordings about ${first}` : 'Recordings'}</h2>
       </div>
       <div className="space-y-2">
@@ -35,7 +35,7 @@ export default function RecentRecordings({ memberId = '', memberName = '', class
           <RecordingRow key={r.id} r={r} me={me} accounts={accounts} compact onOpen={(x) => navigate(`/notes?open=${x.id}`)} />
         ))}
       </div>
-      <Link to={all} data-guide="home-recordings-all" className="mt-3 flex items-center justify-center gap-1 h-11 rounded-xl border border-border text-base font-semibold text-primary hover:bg-muted">
+      <Link to={all} data-guide="profile-recordings-all" className="mt-3 flex items-center justify-center gap-1 h-11 rounded-xl border border-border text-base font-semibold text-primary hover:bg-muted">
         See all recordings <ChevronRight className="w-5 h-5" />
       </Link>
     </div>

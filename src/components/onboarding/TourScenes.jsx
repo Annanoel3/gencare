@@ -319,7 +319,7 @@ function ReminderFormMini({ s }) {
 // ── Menu and Help ──
 const MENU_ROWS = [
   ['Home', LayoutDashboard], ['Family', Users, 'group'], ['Feed', MessageCircle, 'sub'], ['Calendar', CalendarDays, 'sub'], ['Family Members', Users, 'sub'],
-  ['Tools', null, 'group'], ['Reminders', BellRing, 'sub'], ['Care Log', Heart, 'sub'], ['Record Notes', Mic, 'sub'], ['Resources', null], ['Help', CircleHelp], ['Settings', null],
+  ['Tools', null, 'group'], ['Reminders', BellRing, 'sub'], ['Care Log', Heart, 'sub'], ['Recordings', Mic, 'sub'], ['Resources', null], ['Help', CircleHelp], ['Settings', null],
 ];
 const MENU_ROW = 15;
 function MenuMini({ s }) {

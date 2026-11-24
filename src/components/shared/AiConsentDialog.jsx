@@ -13,7 +13,7 @@ import { AI_ASK_EVENT, aiConsentOf, saveAiConsent, setAiConsentKnown, aiConsentN
 // feature that needs it, until the person allows it. Settings can change it.
 // TWIN of the list in Settings (AiSetting) and the privacy policy's OpenAI part.
 export const AI_USES = [
-  { icon: Mic, name: 'Record Notes', sends: 'your recordings, and what you ask or change in the notes' },
+  { icon: Mic, name: 'Recordings', sends: 'your recordings, and what you ask or change in the notes' },
   { icon: Camera, name: 'Events from a photo', sends: 'the photo' },
   { icon: CalendarDays, name: 'Calendar', sends: "events you add or bring in from your phone, and your family's names, to work out who each one is for and who sees it" },
   { icon: MapPin, name: 'Help near you', sends: 'the ZIP code you type, on the Resources page' },

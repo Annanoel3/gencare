@@ -79,8 +79,8 @@ export const GUIDES = [
     id: 'record', title: 'Record an appointment or meeting',
     steps: [
       { target: 'menu', say: <>Tap the menu at the top right.</> },
-      { target: 'menu-notes', say: <>Tap <b>Record Notes</b>.</>, missing: <>Recording works in the GenCare app on your phone.</> },
-      { target: 'notes-start', tapOn: 'notes-record', say: <>Ask everyone there if it's OK to record. Then tap <b>Record</b>. You can type what it is in the box first.</>, missing: <>Recording works in the GenCare app on your phone.</> },
+      { target: 'menu-recordings', say: <>Tap <b>Recordings</b>.</> },
+      { target: 'notes-start', tapOn: 'notes-record', say: <>This is the red <b>To record</b> part. Ask everyone there if it's OK to record. Then tap <b>Record</b>. You can type what it is in the box first.</>, missing: <>Recording works in the GenCare app on your phone.</> },
     ],
     done: <>When it's over, tap <b>Stop</b>. GenCare writes up the notes for the family.</>,
   },
@@ -89,10 +89,10 @@ export const GUIDES = [
     steps: [
       { target: 'menu', say: <>Tap the menu at the top right.</> },
       { target: 'menu-recordings', say: <>Tap <b>Recordings</b>.</> },
-      { target: 'recordings-search', optional: true, next: true, say: <>Every recording the family shared is here, newest first. To find one, type a word in this box, like the doctor's name. Tap a name to see only that person's.</> },
+      { target: 'recordings-search', optional: true, next: true, say: <>The green <b>Already recorded</b> part has every recording the family shared, newest first. To find one, type a word in this box, like the doctor's name. Tap a name to see only that person's.</> },
       { target: 'recording-row', say: <>Tap a recording to read its notes.</>, missing: <>No recordings yet. When someone records an appointment or a meeting and shares it, it shows up here.</> },
     ],
-    done: <>To go back to the list, tap <b>All recordings</b> at the top. The newest recordings are on <b>Home</b> too.</>,
+    done: <>To go back to the list, tap <b>All recordings</b> at the top. The newest ones are on <b>Home</b> too, under <b>Recordings</b>.</>,
   },
   {
     id: 'invite', title: 'Invite someone to the family',
