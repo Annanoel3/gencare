@@ -638,6 +638,158 @@ Return JSON:
   return Response.json({ ok: true, changed: true, said: said || "Updated.", notes: cleaned, title: newTitle || rec.title });
 }
 
+// ── Words fixed in the transcript ──────────────────────────────────────────
+// Anna, Nov 24 2026: "Let users fix transcripts pieces. They can click a word
+// and replace it or delete. And then the notes can just redevelop that one
+// part. Not the whole thing again." The app saves the fixed transcript; this
+// changes only the lines of the notes those fixes touch. The notes go to the
+// model one line per id and come back as just the lines to change, remove or
+// add, so the rest stays word for word (and it costs little).
+
+/** The notes as "id: line", for the model. */
+function notesAsLines(notes: any, title: string): string {
+  const out: string[] = [];
+  const list = (v: any) => (Array.isArray(v) ? v : []);
+  out.push(`title: ${title}`);
+  list(notes?.gist).forEach((g: any, i: number) => out.push(`g${i + 1} (gist): ${g}`));
+  list(notes?.todos).forEach((t: any, i: number) => out.push(`t${i + 1} (to-do, who: ${t?.who || "you"}): ${t?.text || ""}`));
+  list(notes?.details).forEach((d: any, i: number) => out.push(`d${i + 1} (detail): ${d?.label || ""} | ${d?.value || ""}`));
+  list(notes?.sections).forEach((x: any, i: number) => {
+    out.push(`s${i + 1} (section heading): ${x?.heading || ""}`);
+    list(x?.points).forEach((p: any, j: number) => out.push(`s${i + 1}.${j + 1} (point under s${i + 1}): ${p}`));
+  });
+  list(notes?.decisions).forEach((d: any, i: number) => out.push(`c${i + 1} (decided): ${d?.text || ""}`));
+  list(notes?.questions).forEach((q: any, i: number) => out.push(`q${i + 1} (still open): ${q?.text || ""}`));
+  list(notes?.asked).forEach((a: any, i: number) => out.push(`a${i + 1} (answer to their question "${a?.question || ""}"): ${a?.answered ? a?.answer : "(not answered)"}`));
+  return out.join("\n");
+}
+
+/** Applies the model's line changes; returns the new notes and how many lines changed. */
+function applyLineChanges(notes: any, title: string, out: any) {
+  const str = (v: any, max = 400) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const next: any = JSON.parse(JSON.stringify(notes || {}));
+  for (const k of ["gist", "todos", "details", "sections", "decisions", "questions", "asked"]) if (!Array.isArray(next[k])) next[k] = [];
+  next.sections = next.sections.map((x: any) => ({ ...x, points: Array.isArray(x?.points) ? [...x.points] : [] }));
+  // Which to-dos were already put on the Reminders list, by position (kept through edits).
+  next.todos = next.todos.map((t: any) => (typeof t === "object" && t ? { ...t } : { text: str(t), who: "you" }));
+  let newTitle = title;
+  let count = 0;
+  const at = (id: string) => /^([a-z])(\d+)(?:\.(\d+))?$/.exec(String(id || "").trim());
+  for (const e of Array.isArray(out?.edits) ? out.edits.slice(0, 60) : []) {
+    const id = String(e?.id || "").trim();
+    const text = str(e?.text);
+    if (id === "title") { if (text) { newTitle = str(text, 120); count++; } continue; }
+    const m = at(id);
+    if (!m) continue;
+    const n = Number(m[2]) - 1;
+    const sub = m[3] ? Number(m[3]) - 1 : -1;
+    if (m[1] === "g" && n < next.gist.length && text) { next.gist[n] = text; count++; }
+    else if (m[1] === "t" && next.todos[n] && text) { next.todos[n].text = text; if (str(e?.who, 60)) next.todos[n].who = str(e.who, 60); count++; }
+    else if (m[1] === "d" && next.details[n]) {
+      const label = str(e?.label, 80); const value = str(e?.value);
+      if (label || value) { if (label) next.details[n].label = label; if (value) next.details[n].value = value; count++; }
+      else if (text) { next.details[n].value = text; count++; }
+    }
+    else if (m[1] === "s" && next.sections[n] && sub < 0 && text) { next.sections[n].heading = str(text, 80); count++; }
+    else if (m[1] === "s" && next.sections[n] && sub >= 0 && sub < next.sections[n].points.length && text) { next.sections[n].points[sub] = text; count++; }
+    else if (m[1] === "c" && next.decisions[n] && text) { next.decisions[n] = { ...next.decisions[n], text }; count++; }
+    else if (m[1] === "q" && next.questions[n] && text) { next.questions[n] = { ...next.questions[n], text }; count++; }
+    else if (m[1] === "a" && next.asked[n]) { next.asked[n] = { ...next.asked[n], answer: text, answered: !!text }; count++; }
+  }
+  // Removals by the same ids (the positions from before, so marked first, dropped after).
+  const gone = new Set<string>();
+  for (const id of Array.isArray(out?.remove) ? out.remove.slice(0, 60) : []) {
+    const m = at(String(id || ""));
+    if (!m || m[1] === "a") continue;
+    gone.add(`${m[1]}${m[2]}${m[3] ? `.${m[3]}` : ""}`);
+  }
+  const keep = (letter: string) => (_: any, i: number) => !gone.has(`${letter}${i + 1}`);
+  const before = next.gist.length + next.todos.length + next.details.length + next.decisions.length + next.questions.length
+    + next.sections.reduce((n: number, x: any) => n + 1 + x.points.length, 0);
+  next.gist = next.gist.filter(keep("g"));
+  next.todos = next.todos.filter(keep("t"));
+  next.details = next.details.filter(keep("d"));
+  next.decisions = next.decisions.filter(keep("c"));
+  next.questions = next.questions.filter(keep("q"));
+  next.sections = next.sections
+    .map((x: any, i: number) => ({ ...x, points: x.points.filter((_: any, j: number) => !gone.has(`s${i + 1}.${j + 1}`)) }))
+    .filter((_: any, i: number) => !gone.has(`s${i + 1}`));
+  const after = next.gist.length + next.todos.length + next.details.length + next.decisions.length + next.questions.length
+    + next.sections.reduce((n: number, x: any) => n + 1 + x.points.length, 0);
+  count += Math.max(0, before - after);
+  // Something the fixes made clear that the notes didn't have.
+  for (const a of Array.isArray(out?.add) ? out.add.slice(0, 20) : []) {
+    const to = String(a?.to || "").toLowerCase();
+    const text = str(a?.text);
+    if (to === "todos" && text) { next.todos.push({ text, who: str(a?.who, 60) || "you", at: "" }); count++; }
+    else if (to === "details" && (str(a?.label, 80) || str(a?.value))) { next.details.push({ label: str(a?.label, 80), value: str(a?.value), at: "" }); count++; }
+    else if (to === "decisions" && text) { next.decisions.push({ text, at: "" }); count++; }
+    else if (to === "questions" && text) { next.questions.push({ text, at: "" }); count++; }
+    else if (to === "gist" && text && next.gist.length < 3) { next.gist.push(text); count++; }
+    else if (to === "sections" && text) {
+      const heading = str(a?.heading, 80);
+      const sec = next.sections.find((x: any) => heading && String(x?.heading || "").toLowerCase() === heading.toLowerCase());
+      if (sec) sec.points.push(text); else next.sections.push({ heading: heading || "More", points: [text], at: "" });
+      count++;
+    }
+  }
+  return { next, newTitle, count };
+}
+
+async function notesFix(base44: any, user: any, body: any) {
+  const recordId = String(body?.record_id || "");
+  const clip = (v: any, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const fixes = (Array.isArray(body?.fixes) ? body.fixes : []).slice(0, 25)
+    .map((f: any) => ({ was: clip(f?.was, 200), now: clip(f?.now, 200), before: clip(f?.before, 500), after: clip(f?.after, 500) }))
+    .filter((f: any) => f.was && f.was !== f.now);
+  if (!fixes.length) return Response.json({ ok: false, error: "Nothing fixed" }, { status: 400 });
+  const rec = await getRecording(base44, recordId);
+  if (!rec) return Response.json({ ok: false, error: "No such recording" }, { status: 404 });
+  if (rec.user_id && rec.user_id !== user.id) return Response.json({ ok: false, error: "Only the person who recorded this can change its notes" }, { status: 403 });
+  if (!rec.notes) return Response.json({ ok: true, changed: false, said: "There are no notes yet. They'll use the fixed words when they're made." });
+  const asked = questionsOf(rec);
+  const title = String(rec.title || rec.notes.title || "").trim();
+  const openai = lean(new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY") }), { name: 'transcribeAudioNew' });
+  let out: any;
+  try {
+    out = await askJson(openai, NOTES_SYSTEM, `These are the notes from a recording, one line per id:
+${notesAsLines(rec.notes, title)}
+
+The transcript the notes were written from had words wrong, and they fixed them:
+${fixes.map((f: any, i: number) => `${i + 1}. ${f.now ? `"${f.was}" is really "${f.now}"` : `"${f.was}" was taken out (it wasn't said)`}.
+   Before: "${f.before}"
+   Fixed:  "${f.after}"`).join("\n")}
+
+Change the notes to match the fixed transcript, and only where these fixes matter.
+- Change a line only when it came from a fixed spot or has the wrong words in it (a misheard name, number, dose, date or word). Every other line stays as it is: leave it out of your answer.
+- A changed line is written like the rest: short and plain, with its ==highlights== on the key words.
+- When a fix makes clear something the notes left out because it was garbled, add it where it belongs.
+- When a fix shows a line was wrong and there's nothing true left to say, remove it.
+- The title changes only when it has the wrong words in it.
+- When no line needs to change, return empty lists.
+
+Return JSON:
+{
+  "edits": [{ "id": "s2.1", "text": "the whole new line" }, { "id": "d3", "label": "...", "value": "..." }, { "id": "t1", "text": "...", "who": "..." }],
+  "remove": ["q2"],
+  "add": [{ "to": "todos", "text": "...", "who": "you" }, { "to": "details", "label": "...", "value": "..." }, { "to": "sections", "heading": "...", "text": "..." }, { "to": "decisions", "text": "..." }, { "to": "questions", "text": "..." }],
+  "said": "one short plain line saying what you changed in the notes"
+}`, 4000);
+  } catch (_) {
+    return Response.json({ ok: false, error: "fix_failed" }, { status: 502 });
+  }
+  const { next, newTitle, count } = applyLineChanges(rec.notes, title, out);
+  if (!count) return Response.json({ ok: true, changed: false, said: "The notes didn't need changing.", notes: rec.notes, title: rec.title });
+  const cleaned: any = cleanNotes(next, asked);
+  // Keep which to-dos are already on the Reminders list (same order as next.todos).
+  if (cleaned.todos.length === next.todos.length) cleaned.todos = cleaned.todos.map((t: any, i: number) => (next.todos[i]?.added ? { ...t, added: true } : t));
+  cleaned.edited = true;
+  const titleChanged = newTitle && newTitle !== title;
+  await saveRecording(base44, recordId, { notes: cleaned, ...(titleChanged ? { title: newTitle } : {}) });
+  const said = String(out?.said || "").replace(/\s+/g, " ").trim().slice(0, 300);
+  return Response.json({ ok: true, changed: true, count, said: said || `Updated ${count} line${count === 1 ? "" : "s"} of the notes.`, notes: cleaned, title: titleChanged ? newTitle : rec.title });
+}
+
 // ── A question across the family's recordings ──────────────────────────────
 async function notesAsk(base44: any, user: any, body: any) {
   const question = String(body?.question || "").replace(/\s+/g, " ").trim().slice(0, 500);
@@ -877,6 +1029,7 @@ Deno.serve(async (req) => {
     if (body?.mode === "notes_part") return await notesPart(base44, user, body);
     if (body?.mode === "notes_make") return await notesMake(base44, user, body);
     if (body?.mode === "notes_change") return await notesChange(base44, user, body);
+    if (body?.mode === "notes_fix") return await notesFix(base44, user, body);
     if (body?.mode === "notes_ask") return await notesAsk(base44, user, body);
     if (body?.mode === "notes_ask_one") return await notesAskOne(base44, user, body);
     if (body?.mode === "notes_fill") return await notesFill(base44, user, body);

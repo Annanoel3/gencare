@@ -110,6 +110,7 @@ Recordings (record appointments and meetings, and read the notes)
 - Already recorded: every recording the family shared, newest first, by month. Each one shows what it was, who it was about, the day and time, how long it was, who recorded it (when it was someone else), and the first line of its notes. Tap one to read its notes. To go back, tap All recordings at the top.
 - The box "Search or ask the recordings" finds the recordings with those words in their notes or what was said. Tap Ask to ask it a question, like "What did the doctor say about her knee?", and GenCare answers from the notes.
 - The names under the box (Everyone, then each person) show only the recordings about that person.
+- Fixing the transcript: the person who recorded it can open it, tap Full transcript, then tap any word that was heard wrong. "+ Word before" and "Word after +" take in more words (for a name heard as two words). Type what was really said under "What was really said" and tap Save, or tap "Take this word out". The notes then change to match, just where those words were, a few seconds after the last fix ("Now" does it right away). Only the person who recorded it can fix it.
 - Only the recordings shared with you are there. Whoever recorded something picks who sees it.
 - The newest ones are also on Home ("See all recordings") and on a person's profile (Overview: "Recordings about" them).
 

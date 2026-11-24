@@ -18,12 +18,13 @@ import ConsentNote from "@/components/notes/ConsentNote";
 import ShareNotesDialog, { sharingLabel } from "@/components/notes/ShareNotesDialog";
 import { withFamily, useFamily } from "@/lib/family";
 import { plugin, isNativeApp, isAndroidApp } from "@/lib/phone";
-import { askAi } from "@/lib/aiConsent";
+import { askAi, aiRefused, setAiConsentKnown } from "@/lib/aiConsent";
 import { isRecordable } from "@/components/calendar/EventRow";
 import { GrowingInput } from "@/components/ui/growing-input";
 import RecordingsList from "@/components/notes/RecordingsList";
+import EditableTranscript from "@/components/notes/EditableTranscript";
 import { ToRecordMark } from "@/components/notes/RecordingRow";
-import { clock, unhi, whenText, STATUS_TEXT, followUpsOf, withFollowUpText, topLevel } from "@/lib/recordings";
+import { clock, unhi, whenText, STATUS_TEXT, followUpsOf, withFollowUpText, topLevel, paragraphsOf } from "@/lib/recordings";
 
 // ── Record Notes: record an appointment, meeting or class; get clear notes ──
 // The same setup as ADHDone's Notes page, pointed at GenCare's calendar.
@@ -113,12 +114,7 @@ function hi(text) {
   if (last < s.length) out.push(s.slice(last));
   return out;
 }
-function paragraphs(text) {
-  const sentences = String(text || "").match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [];
-  const out = [];
-  for (let i = 0; i < sentences.length; i += 4) out.push(sentences.slice(i, i + 4).join("").trim());
-  return out.filter(Boolean);
-}
+const paragraphs = paragraphsOf;
 
 // Someone else started recording this visit (Appointment.recording_now),
 // on its day, in the last 3 hours: who and when, else null.
@@ -577,6 +573,74 @@ export default function Notes() {
     }
   };
 
+  // ── Words fixed in the transcript (Anna, Nov 24 2026) ──
+  // A fix is saved to the transcript right away. The notes then change to
+  // match, just where those words were (notes_fix), a few seconds after the
+  // last fix, so several fixes in a row go together.
+  const [fixNote, setFixNote] = useState(null); // { id, state: waiting|working|done|failed|off, said, fixes }
+  const fixQueue = useRef({ id: null, fixes: [] });
+  const fixTimer = useRef(null);
+  const flushFixes = useCallback(async () => {
+    clearTimeout(fixTimer.current);
+    const { id, fixes } = fixQueue.current;
+    if (!id || !fixes.length) return;
+    fixQueue.current = { id: null, fixes: [] };
+    const rec = recordsRef.current.find((r) => r.id === id);
+    if (!rec?.notes) { setFixNote({ id, state: "done", said: "Fixed. The notes will use it when they're made." }); return; }
+    // Words taken out that the notes never mention: nothing for the notes to change.
+    const inNotes = unhi(JSON.stringify(rec.notes)).toLowerCase();
+    const matters = fixes.some((f) => f.now || String(f.was).toLowerCase().split(/[^\p{L}\p{N}']+/u).some((w) => w.length > 1 && inNotes.includes(w)));
+    if (!matters) { setFixNote({ id, state: "done", said: "Fixed. The notes didn't need changing." }); return; }
+    if (!(await askAi("To update the notes to match, GenCare sends them and your fixes to OpenAI."))) {
+      setFixNote({ id, state: "off", said: "Fixed in the transcript. The notes weren't changed, since AI features are off.", fixes });
+      return;
+    }
+    setFixNote({ id, state: "working" });
+    try {
+      const res = await base44.functions.invoke("transcribeAudioNew", { mode: "notes_fix", record_id: id, fixes });
+      const data = res?.data || res || {};
+      if (!data.ok) throw new Error(data.error || "fix_failed");
+      if (data.changed) setRecords((rows) => rows.map((r) => (r.id === id ? { ...r, notes: data.notes, ...(data.title ? { title: data.title } : {}) } : r)));
+      setFixNote({ id, state: "done", said: data.said || (data.changed ? "Updated the notes." : "The notes didn't need changing.") });
+      track("action", "notes: fixed transcript", String(fixes.length));
+    } catch (e) {
+      if (aiRefused(e)) setAiConsentKnown("");
+      setFixNote({ id, state: "failed", said: "Your fix is in the transcript, but the notes didn't update.", fixes });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const queueFix = (id, fix) => {
+    if (fixQueue.current.id && fixQueue.current.id !== id) flushFixes();
+    fixQueue.current = { id, fixes: [...(fixQueue.current.id === id ? fixQueue.current.fixes : []), fix] };
+    setFixNote({ id, state: "waiting" });
+    clearTimeout(fixTimer.current);
+    fixTimer.current = setTimeout(flushFixes, 3000);
+  };
+  const retryFixes = () => {
+    if (!fixNote?.fixes?.length) return;
+    fixQueue.current = { id: fixNote.id, fixes: fixNote.fixes };
+    flushFixes();
+  };
+  // Leaving the page: what's waiting goes now.
+  useEffect(() => () => { flushFixes(); }, [flushFixes]);
+
+  // Saves one fixed stretch of the transcript. Its index says whose it is:
+  // the recording's own, or a "Record more" one's (100000 × its place).
+  const savePart = async (open, followUps, p, text, fix) => {
+    const k = Math.floor((p.index || 0) / 100000);
+    const owner = k === 0 ? open : followUps[k - 1];
+    const raw = (p.index || 0) - 100000 * k;
+    if (!owner) return;
+    const parts = (owner.transcript_parts || []).map((x) => (x.index === raw ? { ...x, text, fixed_at: new Date().toISOString() } : x));
+    try {
+      await base44.entities.NoteRecording.update(owner.id, { transcript_parts: parts });
+    } catch (e) {
+      toast({ title: "That fix didn't save", description: "Check your connection and try again." });
+      throw e;
+    }
+    setRecords((rows) => rows.map((r) => (r.id === owner.id ? { ...r, transcript_parts: parts } : r)));
+    queueFix(open.id, fix);
+  };
+
   const submitChange = async (record) => {
     const request = changeText.trim();
     if (!request || changing || !record) return;
@@ -859,7 +923,7 @@ export default function Notes() {
   };
   // Back from a recording's notes: "Already recorded", where the list is.
   const toRecorded = useRef(false);
-  const toAllRecordings = () => { toRecorded.current = true; setOpenId(null); };
+  const toAllRecordings = () => { flushFixes(); toRecorded.current = true; setOpenId(null); };
   useEffect(() => {
     if (openId || !toRecorded.current) return;
     toRecorded.current = false;
@@ -927,6 +991,9 @@ export default function Notes() {
     const myTodos = (notes?.todos || []).map((t, i) => ({ ...t, i })).filter((t) => (t.who || "you").toLowerCase() === "you");
     const theirs = (notes?.todos || []).filter((t) => (t.who || "you").toLowerCase() !== "you");
     const working = progress?.recordId === open.id;
+    // Only the person who recorded it, once its words are all in.
+    const canFix = mine(open) && !working && ["ready", "notes_failed"].includes(open.status) && followUps.every((f) => f.status !== "transcribing");
+    const fixShown = fixNote && fixNote.id === open.id ? fixNote : null;
     const ev = open.appointment_id ? events.find((a) => a.id === open.appointment_id) : null;
 
     return (
@@ -981,9 +1048,25 @@ export default function Notes() {
             )}
           </div>
 
+          {fixShown && (
+            <div className={`${card} flex items-center gap-2`} role="status" data-guide="fix-status">
+              {fixShown.state === "waiting" || fixShown.state === "working"
+                ? <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                : fixShown.state === "done" ? <Check className="w-4 h-4 text-primary shrink-0" /> : null}
+              <span className="flex-1 text-sm">
+                {fixShown.state === "waiting" ? "Fixed. Updating the notes in a moment…" : fixShown.state === "working" ? "Updating the notes to match…" : fixShown.said}
+              </span>
+              {fixShown.state === "waiting" && <button type="button" onClick={flushFixes} className="text-sm font-semibold text-primary shrink-0">Now</button>}
+              {(fixShown.state === "failed" || fixShown.state === "off") && <button type="button" onClick={retryFixes} className="text-sm font-semibold text-primary shrink-0">Try again</button>}
+              {(fixShown.state === "done" || fixShown.state === "failed" || fixShown.state === "off") && (
+                <button type="button" onClick={() => setFixNote(null)} aria-label="Close" className={`text-sm shrink-0 px-1 ${soft}`}>✕</button>
+              )}
+            </div>
+          )}
+
           <div className="flex rounded-xl p-1 bg-muted">
             {["notes", "transcript"].map((t) => (
-              <button key={t} type="button" onClick={() => setTab(t)} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${tab === t ? "bg-card text-foreground shadow-sm" : soft}`}>
+              <button key={t} type="button" onClick={() => { if (t === "notes") flushFixes(); setTab(t); }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${tab === t ? "bg-card text-foreground shadow-sm" : soft}`}>
                 {t === "notes" ? "Notes" : "Full transcript"}
               </button>
             ))}
@@ -1125,11 +1208,16 @@ export default function Notes() {
           {tab === "transcript" && (
             <div className="space-y-4">
               {parts.length === 0 && <div className={card}><p className={soft}>No transcript yet.</p></div>}
+              {canFix && parts.length > 0 && (
+                <p className={`text-sm ${soft}`} data-guide="transcript-fix-hint">Something heard wrong? Tap a word to fix it or take it out. The notes change to match, just in that spot.</p>
+              )}
               {parts.map((p) => (
                 <div key={p.index} id={`notes-part-${p.index}`} className={card}>
                   {followUpStarts.has(p.index) && <p className="text-xs font-bold mb-2 text-primary">Added {whenText(followUpStarts.get(p.index).started_at)}</p>}
                   {parts.length > 1 && <p className={`text-xs font-semibold mb-2 ${soft}`}>{clock(p.index % 100000 === 0 ? 0 : p.start_ms)}</p>}
-                  {paragraphs(p.text).map((para, i) => <p key={i} className="mb-3 leading-relaxed">{para}</p>)}
+                  {canFix && String(p.text || "").trim()
+                    ? <EditableTranscript text={p.text} onSave={(text, fix) => savePart(open, followUps, p, text, fix)} />
+                    : paragraphs(p.text).map((para, i) => <p key={i} className="mb-3 leading-relaxed">{para}</p>)}
                   {!String(p.text || "").trim() && <p className={soft}>No speech picked up in this stretch.</p>}
                 </div>
               ))}

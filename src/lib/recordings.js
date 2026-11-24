@@ -104,3 +104,25 @@ export function searchMatch(r, query) {
 export const listRecordings = async () => (await base44.entities.NoteRecording.filter({}, "-started_at", 200)) || [];
 
 export const RECORDINGS_KEY = ["noteRecordings", "all"];
+
+// Sentences in a transcript, with where each starts. "Dr." and the like don't
+// end one (so "Dr. Lee" isn't split across two paragraphs).
+const SENTENCE = /[^.!?]+[.!?]+["')\]”’]*\s*|[^.!?]+$/g;
+const TITLE_DOT = /\b(?:Dr|Mr|Mrs|Ms|Mx|St|Jr|Sr|Prof|Rev|Gen|Sgt|Capt|Lt|No|vs|etc|approx|appt|dept|e\.g|i\.e)\.\s*$/i;
+export function sentencesOf(text) {
+  const out = [];
+  for (const m of String(text || "").matchAll(SENTENCE)) {
+    const last = out[out.length - 1];
+    if (last && TITLE_DOT.test(last.text)) last.text += m[0];
+    else out.push({ index: m.index, text: m[0] });
+  }
+  return out;
+}
+
+/** Four sentences to a paragraph. */
+export function paragraphsOf(text) {
+  const s = sentencesOf(text);
+  const out = [];
+  for (let i = 0; i < s.length; i += 4) out.push(s.slice(i, i + 4).map((x) => x.text).join("").trim());
+  return out.filter(Boolean);
+}
