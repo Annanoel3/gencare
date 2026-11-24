@@ -63,7 +63,7 @@ export default function useEventEditor(members = []) {
     if (!(s.startVisibility === 'private' && s.visibility === 'private')) {
       notify(s.visibility === 'private' ? 'removed' : s.startVisibility === 'private' ? 'added' : 'changed', s.id, s.before);
     }
-    // Private before or after: the family's "<name>: busy" stand-in follows.
+    // Private before or after: the family's "<name> traveling" follows.
     if (s.startVisibility === 'private' || s.visibility === 'private') refreshStandIns();
     afterChange();
   };

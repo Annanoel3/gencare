@@ -216,11 +216,23 @@ function sharingMode(u: any): SharingMode {
   const v = String(u?.event_sharing_default || '');
   return v === 'auto' || v === 'family' || v === 'private' ? v : '';
 }
-// No choice made yet = "Only me", as before the choice existed. Work stays
-// with the person whatever they picked; they can still share one by hand.
-function visibilityFor(mode: SharingMode, share: boolean, work = false) {
-  if (work) return 'private';
-  return mode === 'family' ? 'family' : mode === 'auto' && share ? 'family' : 'private';
+// "Let GenCare decide" (Anna, Nov 23 2026): the family sees anything that
+// takes the person's time ("anything that affects someones schedule should
+// show"), under its own name. GenCare never renames an event to hide what it
+// is ("Anna: busy", "Anna: doctor"): "Hiding is different than renaming
+// things." What takes nobody's time (a bill's due date, a birthday) it may
+// keep with them, and so the hotel and plans on their own trip, which the
+// family sees as "<name> traveling".
+function aiShows(r: { share?: boolean | null; busy?: boolean | null; cover?: string | null; trip?: boolean | null }) {
+  // Sorted before "busy" existed: a cover ("doctor") meant an appointment, which takes time.
+  return r.share === true || ((r.busy === true || !!String(r.cover || '').trim()) && r.trip !== true);
+}
+// No choice made yet = "Only me", as before the choice existed. With
+// "Everyone in the family", work stays with the person; they can still share
+// one by hand.
+function visibilityFor(mode: SharingMode, shows: boolean, work = false) {
+  if (mode === 'family') return work ? 'private' : 'family';
+  return mode === 'auto' && shows ? 'family' : 'private';
 }
 
 // Someone shared it, said who it's for, or changed its category: the family
@@ -254,7 +266,7 @@ function decisionPatch(a: any, r: { who: string; share: boolean; trip?: boolean;
   }
   if (r.category && categoryIsAuto(a, auto)) { patch.category = r.category; auto.add('category'); }
   const work = (r.category || a.category) === 'Work' || (!r.category && looksLikeWork(a));
-  if (visibilityIsAuto(a, auto)) { patch.visibility = visibilityFor(mode, !!r.share, work); auto.add('visibility'); }
+  if (visibilityIsAuto(a, auto)) { patch.visibility = visibilityFor(mode, aiShows(r), work); auto.add('visibility'); }
   patch.auto_set = [...auto];
   return patch;
 }
@@ -288,21 +300,12 @@ async function sortRows(db: any, user: any, familyId: string, rows: any[], given
   return counts.reduce((x, y) => x + y, 0);
 }
 
-// Stand-ins the family sees in place of a person's private events:
-//   "<Name> traveling": one all-day event per trip (from the first to the last
-//     day of their own trip events, a day's gap still one trip), never the
-//     hotels or plans while away (away_of = their user id).
-//   "<Name>: doctor": for a private appointment the family would still want
-//     to know is happening (ai_cover), the time and that plain label only;
-//     overlapping ones on a day become one (cover_of = the private event).
-//   "<Name>: busy" (or "work"): with "Let GenCare decide", any other event of
-//     theirs GenCare kept private that still takes their time (ai_busy), so
-//     the family can plan around it (Anna, Nov 23 2026: "anything that
-//     affects someones schedule should show"). Not when they picked Only me
-//     on the event themselves, and not their trips ("traveling" covers those).
-// Kept in step every time events are sorted or imported: times follow, one
-// that no longer matches is removed, and an event the person shares itself
-// needs no stand-in.
+// The family's "<Name> traveling": one all-day event per trip of theirs
+// (from the first to the last day of their own trip events, a day's gap still
+// one trip), never the hotels or plans while away (away_of = their user id).
+// Kept in step every time events are sorted or imported: dates follow, and
+// one that no longer matches is removed. The "<Name>: doctor" and
+// "<Name>: busy" stand-ins (cover_of) were dropped Nov 23 2026 (aiShows).
 async function syncAway(db: any, user: any, familyId: string) {
   const mine = (await db.Appointment.filter({ family_id: familyId, created_by_user_id: user.id })) || [];
   const real = mine.filter((a: any) => !a.away_of && !a.cover_of && a.date);
@@ -338,43 +341,10 @@ async function syncAway(db: any, user: any, familyId: string) {
   }
   for (const m of awayMarkers) if (!usedAway.has(m.id)) { try { await db.Appointment.delete(m.id); } catch (_) { /* gone */ } }
 
-  // Private appointments the family should know are happening, and anything
-  // else GenCare kept private that takes their time.
-  const decides = sharingMode(user) === 'auto';
-  const coverOf = (a: any) => {
-    const c = String(a.ai_cover || '').trim();
-    if (c) return c;
-    if (decides && a.ai_busy === true && !a.ai_trip && autoSetOf(a).includes('visibility')) return a.category === 'Work' || looksLikeWork(a) ? 'work' : 'busy';
-    return '';
-  };
-  const covered = real
-    .filter((a: any) => a.visibility === 'private' && coverOf(a) && !a.recurrence && own(a))
-    .sort((x: any, y: any) => String(x.date).localeCompare(String(y.date)) || String(x.time || '').localeCompare(String(y.time || '')));
-  const groups: { ids: string[]; date: string; s: string; e: string; allDay: boolean; labels: Set<string> }[] = [];
-  for (const a of covered) {
-    const allDay = !!a.all_day || !a.time;
-    const s0 = allDay ? '' : String(a.time);
-    const e0 = allDay ? '' : String(a.end_time || a.time);
-    const g = groups.find((x) => x.date === a.date && (x.allDay || allDay || (s0 <= x.e && e0 >= x.s)));
-    if (g) {
-      g.ids.push(a.id); g.labels.add(coverOf(a).toLowerCase());
-      if (allDay) g.allDay = true;
-      if (s0 && (!g.s || s0 < g.s)) g.s = s0;
-      if (e0 > g.e) g.e = e0;
-    } else groups.push({ ids: [a.id], date: a.date, s: s0, e: e0, allDay, labels: new Set([coverOf(a).toLowerCase()]) });
-  }
-  const coverMarkers = mine.filter((a: any) => a.cover_of);
-  const usedCover = new Set<string>();
-  for (const g of groups) {
-    // Two at once with different labels: "busy" says enough (an appointment among them: "appointment").
-    const label = g.labels.size === 1 ? [...g.labels][0] : [...g.labels].every((l) => l === 'busy' || l === 'work') ? 'busy' : 'appointment';
-    const f = { title: `${first}: ${label}`, date: g.date, end_date: '', all_day: g.allDay, time: g.allDay ? '' : g.s, end_time: g.allDay ? '' : (g.e > g.s ? g.e : ''), category: label === 'work' ? 'Work' : label === 'busy' ? 'Other' : 'Appointment', colored: true, family_member_id: base.family_member_id };
-    const m = coverMarkers.find((x: any) => !usedCover.has(x.id) && g.ids.includes(String(x.cover_of)))
-      || coverMarkers.find((x: any) => !usedCover.has(x.id) && x.date === g.date);
-    if (m) { usedCover.add(m.id); if (differs(m, { ...f, cover_of: g.ids[0] })) await db.Appointment.update(m.id, { ...f, cover_of: g.ids[0] }); }
-    else await make({ ...f, cover_of: g.ids[0] });
-  }
-  for (const m of coverMarkers) if (!usedCover.has(m.id)) { try { await db.Appointment.delete(m.id); } catch (_) { /* gone */ } }
+  // No more stand-ins that rename an event ("<Name>: busy", "<Name>: doctor";
+  // Anna, Nov 23 2026): what takes their time is shared under its own name
+  // (aiShows), so any left from before go.
+  for (const m of mine.filter((a: any) => a.cover_of)) { try { await db.Appointment.delete(m.id); } catch (_) { /* gone */ } }
 }
 
 // This person's events from a week ago through the next 60 days (and repeating ones).
@@ -417,9 +387,12 @@ async function applySharing(db: any, user: any, familyId: string, tz: string) {
   const mode = sharingMode(user);
   const from = addDays(todayIn(tz), -7);
   const mine = (await db.Appointment.filter({ family_id: familyId, source: 'phone', created_by_user_id: user.id })) || [];
-  // "Everyone" shares what the sorter has looked at, except work; one it
-  // hasn't looked at yet is shared unless it looks like work.
-  const want = (a: any) => visibilityFor(mode, a.ai_checked_at ? a.ai_share === true : !looksLikeWork(a), isWork(a) || (!a.ai_checked_at && looksLikeWork(a)));
+  // "Everyone" shares everything but work. "Let GenCare decide" shares what
+  // the sorter found takes their time (aiShows); one it hasn't looked at yet
+  // is shared unless it looks like work.
+  const want = (a: any) => visibilityFor(mode,
+    a.ai_checked_at ? aiShows({ share: a.ai_share, busy: a.ai_busy, cover: a.ai_cover, trip: a.ai_trip }) : !looksLikeWork(a),
+    isWork(a) || (!a.ai_checked_at && looksLikeWork(a)));
   const change = mine.filter((a: any) => {
     if (!a.recurrence && String(a.end_date || a.date || '') < from) return false;
     const auto = new Set(autoSetOf(a));

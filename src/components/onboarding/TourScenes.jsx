@@ -162,13 +162,12 @@ function HomePage() {
         <p className="text-[5.5px] text-muted-foreground">Announcement from Mia</p>
         <p className="text-[7px]">Dinner is at our house Sunday</p>
       </div>
-      <div className="rounded-md border border-border bg-card p-1 space-y-0.5">
-        <Row dot={PEOPLE.gpa.dot} title="Grandpa: Haircut" time="10:00 AM" />
-        <Row dot={PEOPLE.ben.dot} title="Ben: Soccer practice" time="5:00 PM" />
-      </div>
-      <p className="font-heading text-[8px] font-semibold pt-1">To-do</p>
+      {/* Events and to-dos in one list, in the day's order (Nov 23 2026). */}
       <div className="rounded-md border border-border bg-card p-1 space-y-1">
-        <Todo title="Call the pharmacy" />
+        <Row dot={PEOPLE.gpa.dot} title="Grandpa: Haircut" time="10:00 AM" />
+        <Todo title="Call the pharmacy" time="12:00 PM" />
+        <Row dot={PEOPLE.ben.dot} title="Ben: Soccer practice" time="5:00 PM" />
+        <p className="text-[5.5px] font-semibold text-muted-foreground pt-0.5">Still to do</p>
         <Todo title="Take out the trash" />
       </div>
       <div className="rounded-md border border-border bg-card p-1">
@@ -189,10 +188,11 @@ function HomePage() {
 const Row = ({ dot, title, time }) => (
   <div className="flex items-center gap-1"><span className={`w-0.5 h-3 rounded ${dot}`} /><span className="text-[6.5px] flex-1 truncate">{title}</span><span className="text-[5.5px] text-muted-foreground">{time}</span></div>
 );
-const Todo = ({ title, who }) => (
+const Todo = ({ title, who, time }) => (
   <div className="flex items-center gap-1">
     <div className="flex-1 min-w-0">
       <p className="text-[6.5px] truncate">{title}</p>
+      {time && <p className="text-[5.5px] text-muted-foreground">{time}</p>}
       {who && <p className="text-[5.5px] text-muted-foreground flex items-center gap-0.5"><span className={`w-1 h-1 rounded-full ${who.dot}`} />{who.name}</p>}
     </div>
     <span className="rounded bg-primary text-primary-foreground px-1 h-3 text-[6px] inline-flex items-center gap-px"><Check className="w-1.5 h-1.5" />Done</span>
@@ -378,7 +378,7 @@ export function HomeScene() {
   const m = useMonth();
   const ref = useRef(null);
   return (
-    <Phone ref={ref} label="A finger taps Home at the bottom, and the Home screen scrolls down past today's events, the to-do list and the next appointment.">
+    <Phone ref={ref} label="A finger taps Home at the bottom, and the Home screen scrolls down past today's events and to-dos and the next appointment.">
       <Header />
       <Screen s={s}>{s.page === 'home' ? <HomePage /> : <CalendarPageMini s={{}} m={m} />}</Screen>
       <Fab />

@@ -13,7 +13,7 @@ import { askAi } from '@/lib/aiConsent';
 export const SHARING_OPTIONS = [
   {
     value: 'auto', icon: Sparkles, label: 'Let GenCare decide',
-    desc: 'Appointments, school and family plans go to everyone. Things that look personal, like lunch with a friend, bills or work, stay with you.',
+    desc: 'Anything that takes up your time goes to everyone, so they can plan around it. Things that don\'t, like a bill\'s due date, stay with you.',
   },
   { value: 'family', icon: Users, label: 'Everyone in the family', desc: 'Everything you add is shared, except work meetings.' },
   { value: 'private', icon: Lock, label: 'Only me', desc: 'Nothing is shared until you share it.' },

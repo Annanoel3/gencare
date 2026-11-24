@@ -86,21 +86,22 @@ export async function sortNewEvent(created, left = {}, mode = '', opts = {}) {
   if (left.member && r.member_id) { patch.family_member_id = r.member_id; patch.family_member_name = r.member_name || ''; auto.add('member'); }
   if (left.category && r.category && r.category !== created.category) { patch.category = r.category; auto.add('category'); }
   let becameShared = false;
+  // Anything that takes their time is shared under its own name; GenCare never
+  // renames an event to hide what it is (Anna, Nov 23 2026; phoneCalendar aiShows).
+  const shows = r.share === true || ((r.busy === true || !!String(r.cover || '').trim()) && r.trip !== true);
   if (wantShare) {
-    patch.visibility = r.share ? 'family' : 'private';
+    patch.visibility = shows ? 'family' : 'private';
     patch.shared_with = [];
-    becameShared = r.share && created.visibility === 'private';
+    becameShared = shows && created.visibility === 'private';
     auto.add('visibility');
   }
   patch.auto_set = [...auto];
   await base44.entities.Appointment.update(created.id, patch);
-  // Part of a trip, or a private appointment the family still sees as
-  // "<name>: doctor": the family's stand-in follows (opts.away === false:
-  // the caller does that once for several events).
-  // Kept private but it takes their time: the family sees "<name>: busy" (Nov 23 2026).
-  const needsAway = !!(r.trip || r.cover || (wantShare && !r.share && r.busy === true));
+  // Part of a trip: the family's "<name> traveling" follows (opts.away ===
+  // false: the caller does that once for several events).
+  const needsAway = !!r.trip;
   if (needsAway && opts.away !== false) await refreshStandIns();
-  return { patch, becameShared, shared: wantShare ? !!r.share : null, memberName: patch.family_member_name || '', needsAway };
+  return { patch, becameShared, shared: wantShare ? shows : null, memberName: patch.family_member_name || '', needsAway };
 }
 
 /** One line telling the person what GenCare picked (for a toast). */
@@ -114,8 +115,8 @@ export function sortedLine(result) {
 }
 
 /**
- * The family's stand-ins for a person's private events ("Anna: busy",
- * "Anna: doctor", "Anna traveling") follow that person's events: call after
+ * The family's "Anna traveling" (and, until Nov 23 2026, "Anna: busy" and
+ * "Anna: doctor", which this now clears away) follows that person's events: call after
  * one of their private events is changed or deleted (functions/phoneCalendar
  * mode 'away'; no AI, just their own events).
  */

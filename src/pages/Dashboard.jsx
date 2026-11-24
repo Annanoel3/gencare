@@ -6,8 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { aroundKey, listEventsAround } from '@/lib/events';
 import WelcomeHeader from '@/components/dashboard/WelcomeHeader';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
-import CareFeed from '@/components/dashboard/CareFeed';
-import TodoCard from '@/components/dashboard/TodoCard';
+import TodayList from '@/components/dashboard/TodayList';
 import ClaimProfilePrompt from '@/components/family/ClaimProfilePrompt';
 import { AnnouncementList, AnnounceDialog } from '@/components/dashboard/Announcements';
 import CareLogToday from '@/components/dashboard/CareLogToday';
@@ -62,14 +61,13 @@ export default function Dashboard() {
         </div>
         {/* Announcements first (Anna, Nov 10 2026). */}
         <AnnouncementList />
-        <CareFeed members={members} scope="today" />
+        {/* With To-do in it (Anna, Nov 23 2026): events and reminders in one list, in the day's order. */}
+        <TodayList tasks={tasks} members={members} />
         <CareLogToday members={members} />
         <AnnounceDialog open={announcing} onClose={() => setAnnouncing(false)} />
       </div>
 
-      {/* Anna, Nov 18 2026: To-do right under what's going on today, then the
-          next appointment with its Record button (on phones that can record). */}
-      <div data-guide="home-todo"><TodoCard tasks={tasks} members={members} /></div>
+      {/* The next appointment with its Record button (on phones that can record). */}
       <RecordVisitsCard appointments={appointments} members={members} />
       {/* The newest recordings and a way to all of them (Anna, Nov 23 2026). */}
       <RecentRecordings className="mb-6" />

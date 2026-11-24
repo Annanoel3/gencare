@@ -405,7 +405,7 @@ export default function EventDialog({ open, onClose, appt, defaultDate, members,
                     : <Users className="w-4 h-4 flex-shrink-0 text-muted-foreground" />}
                   <span className="min-w-0">
                     <span className="block">{shareWords}</span>
-                    {form.visibility === 'auto' && <span className="block text-xs text-muted-foreground mt-0.5">Family plans go to everyone. Personal things stay with you.</span>}
+                    {form.visibility === 'auto' && <span className="block text-xs text-muted-foreground mt-0.5">Shared if it takes up your time. Kept with you if it doesn't.</span>}
                   </span>
                 </span>
                 <Button type="button" variant="outline" size="sm" onClick={() => setShareOpen(true)} className="flex-shrink-0 rounded-lg bg-card">Change</Button>

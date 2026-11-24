@@ -34,8 +34,7 @@ Getting around
 
 Home
 - At the top: a greeting and today's date.
-- "Today Across the Family": announcements first, then what's going on for the family today, and what was logged today. The Announce button there sends an announcement.
-- "To-do": today's reminders and to-dos, each with a Done button. It has a link to the Reminders page.
+- "Today Across the Family": announcements first, then the family's day in order: today's events and reminders by time (each reminder has Done and Skip). Under "Still to do" are reminders that keep going until they're done and to-dos with no time. What's over or done is faded at the bottom, then what was logged today. The Announce button there sends an announcement, and "Reminders page" opens the Reminders page.
 - "Next appointment": on phones that can record, an upcoming appointment in the next two weeks, with a red Record button.
 - "Recordings": once the family has recordings, the two newest, and "See all recordings".
 - "Who did what": what people in the family did lately.
@@ -59,6 +58,9 @@ Calendar
 - Add events from a photo: tap Take a photo, or Choose a photo or screenshot, of an appointment card, a schedule or a flyer. GenCare finds the dates, and you check them before anything is added. The photo isn't saved. (Also on the green +: Events from a photo.)
 - Phone calendar: More, then Get events from my phone. Pick which of your phone's calendars to bring in. It can also put family events and one-time reminders on your phone's calendar ("Send to my phone calendar"). This works in the GenCare app on your phone. The same settings are in Settings, then My Family, then Phone calendar.
 - Who sees the events you add: Settings, then My Family, then "Who sees the events you add". The choices are Let GenCare decide, Everyone in the family, or Only me. Any one event can still be changed on the event.
+  - Let GenCare decide: anything that takes up your time goes to everyone, under its own name, so they can plan around it. Things that don't take anyone's time, like a bill's due date, stay with you. On your own trip, the family sees "<your name> traveling" for the days you're away, and the hotel and plans while you're away stay with you; flights are shared.
+  - Everyone in the family: everything you add is shared, except work meetings.
+  - Only me: nothing is shared until you share it.
 
 Reminders
 - Tap Reminders at the bottom. The page shows events, reminders and things to do. Anyone in the family can tick them off. Its tabs are Reminders and Done.

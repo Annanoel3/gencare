@@ -27,7 +27,7 @@ const say = (name, detail) => { try { window.dispatchEvent(new CustomEvent(name,
 
 function stepsFor(canRecord) {
   return [
-    { scene: HomeScene, title: 'Welcome to GenCare', body: <>Here's a quick look around. It takes about a minute.<br /><br />Tap <b>Home</b> at the bottom to see today: what's going on across the family, the to-do list and the next appointment.</> },
+    { scene: HomeScene, title: 'Welcome to GenCare', body: <>Here's a quick look around. It takes about a minute.<br /><br />Tap <b>Home</b> at the bottom to see today: what's going on across the family and what needs doing, in the day's order, and the next appointment.</> },
     { scene: CalendarScene, title: 'The family calendar', body: <>Tap <b>Calendar</b> at the bottom. Tap a day to see everything on it. Tap someone's name to see only their events.</> },
     { scene: ReminderScene, title: 'Reminders', body: <>Reminders are to-do items like "Call the pharmacy." Tap <b>Reminders</b> at the bottom, type it in the box and tap <b>+</b>. Under <b>For</b>, tap who it's for.</> },
     { add: true, title: 'Adding something' },

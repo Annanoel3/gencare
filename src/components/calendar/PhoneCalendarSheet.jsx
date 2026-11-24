@@ -141,7 +141,7 @@ export default function PhoneCalendarSheet({ open, onClose }) {
         const r = await runImport(next.device_calendar_ids, { force: true });
         if (r?.ok) {
           const n = typeof r.total === 'number' ? r.total : r.created;
-          const who = { auto: 'GenCare is sorting who in the family sees each one; work stays with you.', family: 'Your family sees them, except work meetings.', private: 'Only you see them until you share one.' }[mode] || '';
+          const who = { auto: 'Your family sees the ones that take up your time. GenCare keeps the rest, like bill due dates, with you.', family: 'Your family sees them, except work meetings.', private: 'Only you see them until you share one.' }[mode] || '';
           toast({ title: 'Calendar brought in', description: n ? `${n} upcoming event${n === 1 ? '' : 's'} from your phone. ${who}`.trim() : 'No upcoming events in that calendar.' });
         }
         await refreshStatus();

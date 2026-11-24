@@ -248,7 +248,7 @@ export default function PhotoImportSheet({ open, onClose, sharingDefault = '', o
         return { r, n: list.length };
       })));
     }
-    // The family's "<name>: doctor" stand-ins, made once for the lot.
+    // The family's "<name> traveling", made once for the lot.
     if (results.some((x) => x.r?.needsAway)) await base44.functions.invoke('phoneCalendar', { mode: 'away' }).catch(() => {});
     // Undone already: the family never hears about it.
     if (ctl.undone) return;
