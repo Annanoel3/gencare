@@ -69,7 +69,7 @@ Reminders
   - Steps (optional): like a checklist. Anyone can tick them off, and ticking the last one marks it done.
   - How often: One time (one notification at the time you pick, and that's all), Until it's done (it keeps reminding every day until someone marks it done), Every day, or Certain days.
   - When: the day and the time. "Add end time" is for things with a window, like "pick up the dry cleaning from 3 to 5 PM". If it isn't done by the end time, it comes back the next day.
-  - Priority (for "Until it's done"): Low is one reminder a day. Medium is a few a day. High is about every two hours. Reminders only go out between 8 AM and 8 PM. The form says exactly when the reminders will go out.
+  - Priority (for "Until it's done"): Low is one reminder a day. Medium is a few a day. High is about every two hours. Reminders only go out between 8 AM and 8 PM. Under "Reminds at these times" the form shows exactly when the reminders will go out. Tap a time to change it, tap the X next to one to take it out, or tap "Add a time". Then they're your own times; tapping Low, Medium or High goes back to that priority's usual times.
   - Who gets reminded: Everyone, or Only me.
   - For: who needs to do it. Tap as many people as you need. Whole family means anyone can.
   - Tap Add.

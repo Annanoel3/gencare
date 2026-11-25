@@ -265,17 +265,21 @@ export function cleanMed(form, members, me) {
   // "Until it's done": its pushes come from when it starts and its priority.
   if (once) {
     data.priority = ['low', 'medium', 'high'].includes(form.priority) ? form.priority : 'medium';
+    // Times they set themselves on the form (Anna, Nov 25 2026), as they are.
+    const own = [...new Set((Array.isArray(form.nag_times) ? form.nag_times : []).filter((t) => /^\d{2}:\d{2}$/.test(t)))].sort();
+    data.custom_times = !!form.custom_times && own.length > 0;
     if (form.picked_time && /^\d{2}:\d{2}$/.test(form.anchor_time || '')) {
       // The day and time they picked on the form, as they are.
       data.anchor_time = form.anchor_time;
-      data.times = untilTimes(form.anchor_time, data.priority, data.end_time || '');
+      data.times = data.custom_times ? own : untilTimes(form.anchor_time, data.priority, data.end_time || '');
     } else {
       const start = nagStart(/^\d{2}:\d{2}$/.test(form.anchor_time || '') ? form.anchor_time : (times[0] || defaultTimes('Once')[0]), data.once_date);
       data.anchor_time = start.anchor;
       data.once_date = start.day;
-      data.times = untilTimes(start.anchor, data.priority, data.end_time || '');
+      data.times = data.custom_times ? own : untilTimes(start.anchor, data.priority, data.end_time || '');
     }
   }
+  if (!once) data.custom_times = false;
   if (form.refill_date && !once && !oneTime) data.refill_date = form.refill_date; else data.refill_date = null;
   // A repeating one's last day (empty = "Until I stop it").
   data.end_date = !once && !oneTime && /^\d{4}-\d{2}-\d{2}$/.test(form.end_date || '') ? form.end_date : null;

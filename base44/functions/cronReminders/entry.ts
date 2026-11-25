@@ -446,6 +446,9 @@ const MISSED_AFTER_MS = 90 * 60_000;
           const quietToday = until && logsToday.some((l: any) => l.medication_id === m.id && (l.status === 'taken' || l.status === 'skipped'));
           if (m.remind !== false && onToday && !quietToday) {
             for (const t of (oneTime ? times.slice(0, 1) : times)) {
+              // Its first day starts when it was set to start, not earlier that
+              // morning (the same as the app's list, lib/reminders slotsForDay).
+              if (until && m.once_date === today && m.anchor_time && times.some((x: string) => x >= m.anchor_time) && t < m.anchor_time) continue;
               // Not done after its first push: later ones say so.
               const stillWaiting = until && !!m.once_date && (m.once_date < today || (!!m.anchor_time && t > m.anchor_time));
               const slotMs = localToMs(today, t, tz);

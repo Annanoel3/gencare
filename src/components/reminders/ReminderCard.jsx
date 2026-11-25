@@ -14,7 +14,7 @@ function howText(item) {
   if (item.frequency === ONE_TIME && item.once_date) return `One time · ${dayText(item.once_date)}${item.times?.[0] ? (end ? `, ${fmtRange(item.times[0], end)}` : ` at ${fmtClock(item.times[0])}`) : ''}`;
   if (item.frequency === 'Once' && item.once_date) {
     const p = prio(item.priority);
-    return ["Until it's done", end ? fmtRange(item.anchor_time, end) : '', p ? `${p[1]} priority` : '', `due ${dayText(item.once_date)}`].filter(Boolean).join(' · ');
+    return ["Until it's done", end ? fmtRange(item.anchor_time, end) : '', item.custom_times && Array.isArray(item.times) && item.times.length ? `at ${item.times.map(fmtClock).join(', ')}` : p ? `${p[1]} priority` : '', `due ${dayText(item.once_date)}`].filter(Boolean).join(' · ');
   }
   const f = frequencyLabel(item.frequency);
   if (item.end_date) return `${f} · ${item.end_date < todayStr() ? 'ended' : 'through'} ${format(parseISO(item.end_date), 'EEE, MMM d')}`;
