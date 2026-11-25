@@ -33,6 +33,10 @@
       },
       "type": "array"
     },
+    "custom_times": {
+      "description": "For an \"until it's done\" reminder: true when the person set its push times themselves on the form (Anna, Nov 25 2026), so times holds exactly those and isn't worked out from priority. False or missing = times come from priority, anchor_time and end_time",
+      "type": "boolean"
+    },
     "days_of_week": {
       "description": "Weekdays it happens on, 0 = Sunday; empty = every day",
       "items": {
